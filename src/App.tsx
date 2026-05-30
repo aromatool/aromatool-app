@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import AuthPage from "./pages/auth/AuthPage";
 import AppLayout from "./components/AppLayout";
 import CalculatorPage from "./pages/CalculatorPage";
+import SettingsPage from "./pages/SettingsPage";
+import OffersPage from "./pages/OffersPage";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
@@ -101,7 +103,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout>
-              <PlaceholderPage title="Oferte" icon="📋" />
+              <OffersPage />
             </AppLayout>
           </ProtectedRoute>
         }
@@ -131,7 +133,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout>
-              <PlaceholderPage title="Setări" icon="⚙️" />
+              <SettingsPage />
             </AppLayout>
           </ProtectedRoute>
         }

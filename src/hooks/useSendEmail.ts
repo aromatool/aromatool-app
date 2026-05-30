@@ -6,13 +6,28 @@ import type { CartItem } from './useCartStore'
 interface SendOfferParams {
   clientName: string
   clientEmail: string
+  clientPhone?: string
   notes: string
   items: CartItem[]
-  transport: number
-  totalRon: number
-  totalEur: number
-  exchangeRate: number
+  transport: number       // in EUR
+  totalRon: number        // total in display currency
+  totalEur: number        // total in EUR
+  exchangeRate: number    // EUR → display currency rate
+  currency: string        // display currency code
   includeGuide?: boolean
+  enrollLink?: string
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RON: 'RON', EUR: '€', USD: '$', GBP: '£',
+  CHF: 'CHF', HUF: 'Ft', PLN: 'zł', CZK: 'Kč',
+}
+
+function fmtCurrency(amount: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOLS[currency] || currency
+  const formatted = amount.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  if (['USD', 'GBP'].includes(currency)) return `${symbol}${formatted}`
+  return `${formatted} ${symbol}`
 }
 
 function fmt(n: number) {
@@ -20,19 +35,26 @@ function fmt(n: number) {
 }
 
 function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string): string {
-  const { clientName, items, transport, totalRon, totalEur, exchangeRate, notes } = params
+  const { clientName, items, transport, totalRon, totalEur, exchangeRate, currency, notes, enrollLink } = params
+  const displayCurrency = currency || 'RON'
+  const rate = exchangeRate || 5.2523
 
   const rows = items.map(item => {
-    const priceRon = item.isCustom ? (item.customPriceRon || 0) : item.price_eur * exchangeRate
-    const lineTotal = priceRon * item.qty * (1 - item.disc / 100)
+    const priceEur = item.price_eur
+    const lineTotalEur = priceEur * item.qty * (1 - item.disc / 100)
+    const lineTotalDisplay = lineTotalEur * rate
     const disc = item.disc > 0 ? `<span style="color:#C94F6A;font-size:11px"> −${item.disc}%</span>` : ''
+    const secondaryEur = displayCurrency !== 'EUR' ? `<div style="font-size:11px;color:#C4A8E8;margin-top:2px">€ ${lineTotalEur.toFixed(2)}</div>` : ''
     return `<tr>
       <td style="padding:12px 16px;border-bottom:1px solid #F0EEFF;font-size:14px;color:#2D1A4E">${item.name}${disc}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #F0EEFF;font-size:14px;color:#9B80C4;text-align:center">${item.qty}</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #F0EEFF;font-size:14px;color:#4A3270;text-align:right;font-weight:600">${fmt(lineTotal)} RON</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #F0EEFF;font-size:14px;color:#4A3270;text-align:right;font-weight:600">
+        ${fmtCurrency(lineTotalDisplay, displayCurrency)}${secondaryEur}
+      </td>
     </tr>`
   }).join('')
 
+  const transportDisplay = transport * rate
   const waLink = userPhone ? `https://wa.me/${userPhone.replace(/[^0-9]/g, '').replace(/^0/, '40')}` : ''
 
   return `<!DOCTYPE html>
@@ -73,14 +95,20 @@ function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: s
     <table style="width:100%;border-collapse:collapse;margin-top:8px;">
       <tr>
         <td style="padding:6px 16px;font-size:13px;color:#9B80C4">🚚 Transport</td>
-        <td style="padding:6px 16px;font-size:13px;color:#6B5B9E;text-align:right;font-weight:500">${fmt(transport)} RON</td>
+        <td style="padding:6px 16px;font-size:13px;color:#6B5B9E;text-align:right;font-weight:500">
+          ${fmtCurrency(transportDisplay, displayCurrency)}
+          ${displayCurrency !== 'EUR' ? `<span style="font-size:11px;color:#C4A8E8;margin-left:6px">€ ${transport.toFixed(2)}</span>` : ''}
+        </td>
       </tr>
     </table>` : ''}
 
     <table style="width:100%;border-collapse:collapse;background:#F5F0FF;border-radius:10px;margin-top:8px;overflow:hidden;">
       <tr>
         <td style="padding:16px 20px;font-family:Georgia,serif;font-size:15px;color:#4A3270">Total de plată</td>
-        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:26px;color:#4A3270;font-weight:600;text-align:right">${fmt(totalRon)} RON</td>
+        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:26px;color:#4A3270;font-weight:600;text-align:right">
+          ${fmtCurrency(totalRon, displayCurrency)}
+          ${displayCurrency !== 'EUR' ? `<div style="font-size:13px;color:#9B80C4;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:400">€ ${totalEur.toFixed(2)}</div>` : ''}
+        </td>
       </tr>
     </table>
 
@@ -88,6 +116,24 @@ function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: s
     <div style="margin-top:14px;padding:14px 16px;background:#FDFAFF;border-radius:10px;border:1px solid #E8E0F8;">
       <div style="font-size:10px;color:#9B80C4;text-transform:uppercase;letter-spacing:.08em;font-weight:500;margin-bottom:8px">Notițe personalizate</div>
       <div style="font-size:13px;color:#4A3270;line-height:1.7;white-space:pre-wrap">${notes}</div>
+    </div>` : ''}
+
+    ${enrollLink ? `
+    <div style="margin-top:16px;padding:24px;background:linear-gradient(135deg,#F5F0FF,#EDE5FF);border-radius:12px;border:1px solid #D4C0F0;text-align:center;">
+      <div style="font-size:22px;margin-bottom:8px">🌸</div>
+      <div style="font-family:Georgia,serif;font-size:18px;color:#4A3270;font-weight:600;margin-bottom:8px">
+        Începe călătoria ta alături de noi!
+      </div>
+      <div style="font-size:13px;color:#9B80C4;margin-bottom:18px;line-height:1.7;max-width:340px;margin-left:auto;margin-right:auto">
+        Fii parte dintr-o echipă care te susține, te inspiră și crește împreună cu tine. Un singur pas te separă de această comunitate minunată.
+      </div>
+      <a href="${enrollLink}"
+        style="display:inline-block;background:linear-gradient(135deg,#7B5EA7,#4A3270);border-radius:10px;padding:13px 36px;color:white;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:0.03em;box-shadow:0 4px 15px rgba(123,94,167,0.3)">
+        Înscrie-te în echipă →
+      </a>
+      <div style="font-size:11px;color:#C4A8E8;margin-top:12px">
+        🌿 Young Living · Înregistrare oficială
+      </div>
     </div>` : ''}
   </div>
 
@@ -139,16 +185,67 @@ export function useSendEmail() {
 
       const html = buildEmailHtml(params, userName, userPhone, userEmail)
 
+      // 1. Trimite emailul
       const { data, error: fnError } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: params.clientEmail,
-          subject,
-          html,
-        }
+        body: { to: params.clientEmail, subject, html }
       })
 
       if (fnError) throw fnError
       if (data?.error) throw new Error(data.error)
+
+      // 2. Salvează/actualizează contactul
+      const { data: existingContact } = await supabase
+        .from('contacts')
+        .select('id, purchase_count, first_offer_at')
+        .eq('user_id', user!.id)
+        .eq('email', params.clientEmail)
+        .single()
+
+      let contactId: string | null = null
+
+      if (existingContact) {
+        contactId = existingContact.id
+        await supabase
+          .from('contacts')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', contactId)
+      } else {
+        const { data: newContact } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: user!.id,
+            email: params.clientEmail,
+            name: params.clientName || null,
+            phone: params.clientPhone || null,
+            status: 'prospect',
+            first_offer_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single()
+        contactId = newContact?.id || null
+      }
+
+      // 3. Salvează oferta
+      await supabase
+        .from('offers')
+        .insert({
+          user_id: user!.id,
+          contact_id: contactId,
+          products_json: params.items.map(i => ({
+            name: i.name,
+            sku: i.sku,
+            qty: i.qty,
+            disc: i.disc,
+            price_eur: i.price_eur,
+          })),
+          transport: params.transport,
+          notes: params.notes || null,
+          total_ron: params.totalRon,
+          total_eur: params.totalEur,
+          exchange_rate: params.exchangeRate,
+          currency: params.currency || 'RON',
+          sent_via: 'email',
+        })
 
       setSuccess(true)
       return true

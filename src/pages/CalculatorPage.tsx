@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useProducts, useExchangeRate } from "../hooks/useProducts";
 import { useCartStore } from "../hooks/useCartStore";
 import { useSendEmail } from "../hooks/useSendEmail";
+import EnrollLink from "../components/EnrollLink";
+import CurrencyPanel from "../components/CurrencyPanel";
+import { useExchangeRates } from "../hooks/useExchangeRates";
 import type { Product } from "../hooks/useProducts";
 
 // ── COLORS ────────────────────────────────────────────────
@@ -33,10 +36,11 @@ function SearchSection() {
   const [query, setQuery] = useState("");
   const { data: products, isLoading, error } = useProducts();
   const { data: rateData } = useExchangeRate();
-  const rate = rateData?.rate || 5.2444;
-  const { addItem, items, setExchangeRate } = useCartStore();
+  const { addItem, items, setExchangeRate, currency } = useCartStore();
+  const { convertFromEur, formatAmount } = useExchangeRates();
+  const activeCurrency = currency || "RON";
 
-  // Sync exchange rate only when it changes
+  // Sync EUR/RON rate from Supabase to store
   useEffect(() => {
     if (rateData?.rate) setExchangeRate(rateData.rate);
   }, [rateData?.rate]);
@@ -199,7 +203,7 @@ function SearchSection() {
           </div>
         ) : (
           results.map((p: Product) => {
-            const ron = p.price_eur * rate;
+            const priceDisplay = convertFromEur(p.price_eur, activeCurrency);
             const added = inCart(p.id);
             return (
               <div
@@ -249,7 +253,18 @@ function SearchSection() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {fmt(ron)} RON
+                  {formatAmount(priceDisplay, activeCurrency)}
+                  {activeCurrency !== "EUR" && (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: C.muted,
+                        fontWeight: 400,
+                      }}
+                    >
+                      € {p.price_eur.toFixed(2)}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => addItem(p)}
@@ -282,8 +297,6 @@ function SearchSection() {
 
 // ── CART SECTION ──────────────────────────────────────────
 function CartSection() {
-  const { data: rateData } = useExchangeRate();
-  const rate = rateData?.rate || 5.2444;
   const {
     items,
     transport,
@@ -291,6 +304,7 @@ function CartSection() {
     clientEmail,
     clientPhone,
     notes,
+    currency,
     removeItem,
     updateQty,
     updateDisc,
@@ -301,16 +315,17 @@ function CartSection() {
     setClientPhone,
     setNotes,
     clearCart,
-    getSubtotal,
-    getDiscount,
-    getTotal,
+    getSubtotalEur,
+    getDiscountEur,
     getTotalEur,
     getTotalPoints,
     getCount,
   } = useCartStore();
+  const { convertFromEur, formatAmount, getRate } = useExchangeRates();
 
   const [showCustom, setShowCustom] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [enrollLink, setEnrollLink] = useState("");
   const { addCustomItem } = useCartStore();
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
@@ -325,49 +340,69 @@ function CartSection() {
     setSuccess: setSendSuccess,
   } = useSendEmail();
 
-  const subtotal = getSubtotal();
-  const discount = getDiscount();
-  const total = getTotal();
+  const activeCurrency = currency || "RON";
+
+  // All EUR values
+  const subtotalEur = getSubtotalEur();
+  const discountEur = getDiscountEur();
   const totalEur = getTotalEur();
   const totalPoints = getTotalPoints();
   const count = getCount();
 
+  // Converted to display currency
+  const subtotal = convertFromEur(subtotalEur, activeCurrency);
+  const discount = convertFromEur(discountEur, activeCurrency);
+  const total = convertFromEur(totalEur, activeCurrency);
+
   if (items.length === 0)
     return (
-      <div
-        style={{
-          textAlign: "center",
-          padding: "40px 20px",
-          border: `1.5px dashed ${C.border2}`,
-          borderRadius: "12px",
-          background: C.card,
-        }}
-      >
-        <div style={{ fontSize: "36px", marginBottom: "8px" }}>🛒</div>
+      <>
+        <CurrencyPanel />
         <div
           style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "16px",
-            color: C.dark,
-            marginBottom: "4px",
+            textAlign: "center",
+            padding: "40px 20px",
+            border: `1.5px dashed ${C.border2}`,
+            borderRadius: "12px",
+            background: C.card,
           }}
         >
-          Coșul e gol
+          <div style={{ fontSize: "36px", marginBottom: "8px" }}>🛒</div>
+          <div
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: "16px",
+              color: C.dark,
+              marginBottom: "4px",
+            }}
+          >
+            Coșul e gol
+          </div>
+          <div style={{ fontSize: "13px", color: C.muted }}>
+            Caută produse și adaugă-le
+          </div>
         </div>
-        <div style={{ fontSize: "13px", color: C.muted }}>
-          Caută produse și adaugă-le
-        </div>
-      </div>
+      </>
     );
 
   return (
     <div>
+      {/* Currency panel */}
+      <CurrencyPanel />
+
       {/* Cart items */}
       {items.map((item) => {
-        const priceRon = item.isCustom
-          ? item.customPriceRon || 0
-          : item.price_eur * rate;
-        const lineTotal = priceRon * item.qty * (1 - item.disc / 100);
+        // price_eur is always the source of truth
+        const priceEur = item.price_eur;
+        const lineTotalEur = priceEur * item.qty * (1 - item.disc / 100);
+
+        // Convert to display currency
+        const priceInCurrency = convertFromEur(priceEur, activeCurrency);
+        const lineTotalInCurrency = convertFromEur(
+          lineTotalEur,
+          activeCurrency,
+        );
+        const showEurSecondary = activeCurrency !== "EUR";
         return (
           <div
             key={item.id}
@@ -497,24 +532,39 @@ function CartSection() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
+                alignItems: "flex-end",
                 marginTop: "8px",
                 paddingTop: "8px",
                 borderTop: `1px solid ${C.border}`,
               }}
             >
-              <span style={{ fontSize: "11px", color: C.muted }}>
-                {fmt(priceRon)} RON/buc
-                {item.disc > 0 ? ` · −${item.disc}%` : ""}
-              </span>
-              <span
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: item.disc > 0 ? C.primary : C.dark,
-                }}
-              >
-                {fmt(lineTotal)} RON
-              </span>
+              <div>
+                <span style={{ fontSize: "11px", color: C.muted }}>
+                  {formatAmount(priceInCurrency, activeCurrency)}/buc
+                  {item.disc > 0 ? ` · −${item.disc}%` : ""}
+                </span>
+                {showEurSecondary && (
+                  <div style={{ fontSize: "10px", color: C.muted }}>
+                    € {priceEur.toFixed(2)}/buc
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: item.disc > 0 ? C.primary : C.dark,
+                  }}
+                >
+                  {formatAmount(lineTotalInCurrency, activeCurrency)}
+                </div>
+                {showEurSecondary && (
+                  <div style={{ fontSize: "10px", color: C.muted }}>
+                    € {lineTotalEur.toFixed(2)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -539,10 +589,22 @@ function CartSection() {
         <input
           type="number"
           min={0}
-          step={0.5}
-          value={transport || ""}
+          step={0.01}
+          value={
+            transport > 0
+              ? parseFloat(convertFromEur(transport, activeCurrency).toFixed(2))
+              : ""
+          }
           placeholder="0"
-          onChange={(e) => setTransport(parseFloat(e.target.value) || 0)}
+          onChange={(e) => {
+            const valueInCurrency = parseFloat(e.target.value) || 0;
+            // Convert from display currency to EUR for storage
+            const valueInEur =
+              activeCurrency === "EUR"
+                ? valueInCurrency
+                : valueInCurrency / (getRate(activeCurrency) || 1);
+            setTransport(valueInEur);
+          }}
           style={{
             width: "80px",
             background: C.bg2,
@@ -556,7 +618,14 @@ function CartSection() {
             outline: "none",
           }}
         />
-        <span style={{ fontSize: "12px", color: C.muted }}>RON</span>
+        <span style={{ fontSize: "12px", color: C.muted }}>
+          {activeCurrency}
+        </span>
+        {activeCurrency !== "EUR" && transport > 0 && (
+          <span style={{ fontSize: "11px", color: C.muted }}>
+            € {transport.toFixed(2)}
+          </span>
+        )}
       </div>
 
       {/* Custom product */}
@@ -589,6 +658,12 @@ function CartSection() {
             marginBottom: "8px",
           }}
         >
+          <div
+            style={{ fontSize: "11px", color: C.muted, marginBottom: "8px" }}
+          >
+            Prețul se introduce în <strong>{activeCurrency}</strong> și se
+            convertește automat în EUR
+          </div>
           <input
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
@@ -612,7 +687,7 @@ function CartSection() {
               type="number"
               value={customPrice}
               onChange={(e) => setCustomPrice(e.target.value)}
-              placeholder="Preț RON"
+              placeholder={`Preț ${activeCurrency}`}
               style={{
                 flex: 1,
                 padding: "8px 10px",
@@ -664,9 +739,15 @@ function CartSection() {
           <button
             onClick={() => {
               if (!customName || !customPrice) return;
+              const priceInCurrency = parseFloat(customPrice);
+              // Convert from selected currency to EUR for storage
+              const priceEur =
+                activeCurrency === "EUR"
+                  ? priceInCurrency
+                  : priceInCurrency / (getRate(activeCurrency) || 1);
               addCustomItem(
                 customName,
-                parseFloat(customPrice),
+                priceEur,
                 parseInt(customQty) || 1,
                 parseFloat(customDisc) || 0,
               );
@@ -807,15 +888,31 @@ function CartSection() {
         }}
       >
         {[
-          { label: "Subtotal", value: `${fmt(subtotal)} RON` },
-          ...(discount > 0
-            ? [{ label: "Reduceri", value: `−${fmt(discount)} RON`, red: true }]
+          { label: "Subtotal", value: formatAmount(subtotal, activeCurrency) },
+          ...(discountEur > 0
+            ? [
+                {
+                  label: "Reduceri",
+                  value: `−${formatAmount(discount, activeCurrency)}`,
+                  red: true,
+                },
+              ]
             : []),
-          { label: "Total Euro", value: `${totalEur.toFixed(2)} €` },
+          ...(activeCurrency !== "EUR"
+            ? [{ label: "Total Euro", value: `€ ${totalEur.toFixed(2)}` }]
+            : []),
           { label: "Puncte ER", value: `${Math.round(totalPoints)} pct` },
           { label: "Produse", value: `${count}` },
           ...(transport > 0
-            ? [{ label: "🚚 Transport", value: `${fmt(transport)} RON` }]
+            ? [
+                {
+                  label: "🚚 Transport",
+                  value:
+                    activeCurrency !== "EUR"
+                      ? `${formatAmount(convertFromEur(transport, activeCurrency), activeCurrency)} · € ${transport.toFixed(2)}`
+                      : formatAmount(transport, "EUR"),
+                },
+              ]
             : []),
         ].map(({ label, value, red }: any) => (
           <div
@@ -838,6 +935,7 @@ function CartSection() {
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "flex-end",
             paddingTop: "12px",
             marginTop: "4px",
             borderTop: `1.5px solid ${C.border2}`,
@@ -852,19 +950,25 @@ function CartSection() {
           >
             Total de plată
           </span>
-          <span
-            style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "24px",
-              color: C.dark,
-              fontWeight: 600,
-            }}
-          >
-            {fmt(total)} RON
-          </span>
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: "24px",
+                color: C.dark,
+                fontWeight: 600,
+              }}
+            >
+              {formatAmount(total, activeCurrency)}
+            </div>
+            {activeCurrency !== "EUR" && (
+              <div style={{ fontSize: "11px", color: C.muted }}>
+                € {totalEur.toFixed(2)}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
       {/* Send section */}
       <div
         style={{
@@ -962,23 +1066,19 @@ function CartSection() {
           <button
             disabled={sending}
             onClick={async () => {
-              const ok = await sendOffer({
+              await sendOffer({
                 clientName,
                 clientEmail,
+                clientPhone,
                 notes,
                 items,
                 transport,
                 totalRon: total,
                 totalEur,
-                exchangeRate: rate,
+                exchangeRate: getRate(activeCurrency),
+                currency: activeCurrency,
+                enrollLink: enrollLink || undefined,
               });
-              if (ok) {
-                setClientEmail("");
-                setClientName("");
-                setClientPhone("");
-                setNotes("");
-                clearCart();
-              }
             }}
             style={{
               background: sending ? C.muted : C.primary,
@@ -1001,11 +1101,11 @@ function CartSection() {
           <div
             style={{
               marginTop: "8px",
-              padding: "8px 12px",
+              padding: "10px 14px",
               background: C.redbg,
               border: `1px solid rgba(201,79,106,0.2)`,
               borderRadius: "8px",
-              fontSize: "12px",
+              fontSize: "13px",
               color: C.red,
             }}
           >
@@ -1017,15 +1117,71 @@ function CartSection() {
           <div
             style={{
               marginTop: "8px",
-              padding: "8px 12px",
+              padding: "12px 14px",
               background: C.greenbg,
               border: `1px solid rgba(46,138,88,0.2)`,
-              borderRadius: "8px",
-              fontSize: "12px",
-              color: C.green,
+              borderRadius: "10px",
             }}
           >
-            ✅ Email trimis cu succes!
+            <div
+              style={{
+                fontSize: "13px",
+                color: C.green,
+                fontWeight: 500,
+                marginBottom: "8px",
+              }}
+            >
+              ✅ Email trimis cu succes către {clientEmail}!
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => {
+                  setClientEmail("");
+                  setClientName("");
+                  setClientPhone("");
+                  setNotes("");
+                  clearCart();
+                  setSendSuccess(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "7px",
+                  background: C.green,
+                  border: "none",
+                  borderRadius: "7px",
+                  color: "white",
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                🗑️ Golește coșul
+              </button>
+              <button
+                onClick={() => {
+                  setClientEmail("");
+                  setClientName("");
+                  setClientPhone("");
+                  setNotes("");
+                  setSendSuccess(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "7px",
+                  background: "white",
+                  border: `1px solid rgba(46,138,88,0.3)`,
+                  borderRadius: "7px",
+                  color: C.green,
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                ✉️ Trimite alt email
+              </button>
+            </div>
           </div>
         )}
 
@@ -1038,20 +1194,21 @@ function CartSection() {
                 .replace(/^0/, "40");
               const produse = items
                 .map((i) => {
-                  const priceRon = i.isCustom
-                    ? i.customPriceRon || 0
-                    : i.price_eur * rate;
-                  const lineTotal = priceRon * i.qty * (1 - i.disc / 100);
+                  const lineTotalEur = i.price_eur * i.qty * (1 - i.disc / 100);
+                  const lineTotalDisplay = convertFromEur(
+                    lineTotalEur,
+                    activeCurrency,
+                  );
                   const disc = i.disc > 0 ? ` (-${i.disc}%)` : "";
                   const qty = i.qty > 1 ? ` x${i.qty}` : "";
-                  return `• ${i.name}${qty}${disc} — *${fmt(lineTotal)} RON*`;
+                  return `• ${i.name}${qty}${disc} — *${formatAmount(lineTotalDisplay, activeCurrency)}*`;
                 })
                 .join("\n");
               const salut = clientName ? `Bună ${clientName}! 🌿` : "Bună! 🌿";
               let msg = `${salut}\n\nOferta ta personalizată:\n\n${produse}`;
               if (transport > 0)
-                msg += `\n\n🚚 Transport: *${fmt(transport)} RON*`;
-              msg += `\n${"─".repeat(25)}\n💜 *Total: ${fmt(total)} RON*`;
+                msg += `\n\n🚚 Transport: *${formatAmount(convertFromEur(transport, activeCurrency), activeCurrency)}*`;
+              msg += `\n${"─".repeat(25)}\n💜 *Total: ${formatAmount(total, activeCurrency)}*`;
               if (notes) msg += `\n\n📝 ${notes}`;
               window.open(
                 `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`,
@@ -1080,6 +1237,14 @@ function CartSection() {
           </button>
         )}
       </div>
+
+      {/* Enroll Link */}
+      <EnrollLink
+        clientName={clientName}
+        clientPhone={clientPhone}
+        compact={true}
+        onLinkGenerated={setEnrollLink}
+      />
 
       {/* Reset */}
       <button

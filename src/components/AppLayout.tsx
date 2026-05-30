@@ -1,4 +1,5 @@
-import { type ReactNode, useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
@@ -25,6 +26,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    if (showUserMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showUserMenu]);
 
   const displayName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
@@ -149,7 +163,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </nav>
 
         {/* User menu */}
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative" }} ref={menuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             style={{
@@ -200,7 +214,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 boxShadow: "0 8px 32px rgba(123,94,167,0.15)",
                 padding: "8px",
                 minWidth: "180px",
-                zIndex: 200,
+                zIndex: 300,
               }}
             >
               <div
@@ -230,7 +244,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 </div>
               </div>
               <button
-                onClick={() => navigate("/app/settings")}
+                onClick={() => {
+                  navigate("/app/settings");
+                  setShowUserMenu(false);
+                }}
                 style={menuItemStyle}
               >
                 ⚙️ Setări cont
@@ -310,14 +327,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
           );
         })}
       </nav>
-
-      {/* Click outside to close user menu */}
-      {showUserMenu && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 150 }}
-          onClick={() => setShowUserMenu(false)}
-        />
-      )}
 
       <style>{`
         @media (max-width: 768px) {
