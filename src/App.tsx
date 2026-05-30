@@ -1,59 +1,42 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/auth";
 import AuthPage from "./pages/auth/AuthPage";
+import AppLayout from "./components/AppLayout";
+import CalculatorPage from "./pages/CalculatorPage";
+import type { ReactNode } from "react";
 
-// Placeholder for main app — va fi înlocuit
-function AppPage() {
-  const { user, signOut } = useAuth();
+const queryClient = new QueryClient();
+
+function PlaceholderPage({ title, icon }: { title: string; icon: string }) {
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#FDFAFF",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "'DM Sans', sans-serif",
-        gap: "16px",
+        minHeight: "400px",
+        color: "#9B80C4",
+        gap: "12px",
       }}
     >
+      <div style={{ fontSize: "48px" }}>{icon}</div>
       <div
         style={{
           fontFamily: "'Playfair Display', serif",
-          fontSize: "28px",
-          color: "#2D1A4E",
+          fontSize: "22px",
+          color: "#4A3270",
         }}
       >
-        AromaTool
+        {title}
       </div>
-      <div style={{ fontSize: "14px", color: "#9B80C4" }}>
-        Bun venit, {user?.user_metadata?.full_name || user?.email}! 🌿
-      </div>
-      <div style={{ fontSize: "13px", color: "#C4A8E8" }}>
-        Aplicația se construiește...
-      </div>
-      <button
-        onClick={signOut}
-        style={{
-          padding: "8px 20px",
-          background: "none",
-          border: "1px solid rgba(196,168,232,0.5)",
-          borderRadius: "999px",
-          fontSize: "13px",
-          color: "#9B80C4",
-          cursor: "pointer",
-          marginTop: "8px",
-        }}
-      >
-        Ieși din cont
-      </button>
+      <div style={{ fontSize: "13px" }}>Se construiește... 🌿</div>
     </div>
   );
 }
 
-// Protected route
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading)
     return (
@@ -63,6 +46,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          background: "#FDFAFF",
         }}
       >
         <div
@@ -75,6 +59,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
             animation: "spin 0.8s linear infinite",
           }}
         />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   return user ? <>{children}</> : <Navigate to="/auth" replace />;
@@ -87,30 +72,92 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/auth"
-        element={user ? <Navigate to="/app" replace /> : <AuthPage />}
+        element={
+          user ? <Navigate to="/app/calculator" replace /> : <AuthPage />
+        }
       />
       <Route
-        path="/app"
+        path="/app/calculator"
         element={
           <ProtectedRoute>
-            <AppPage />
+            <AppLayout>
+              <CalculatorPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/contacts"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PlaceholderPage title="Clienți" icon="👥" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/offers"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PlaceholderPage title="Oferte" icon="📋" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/protocols"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PlaceholderPage title="Protocoale" icon="📖" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/dashboard"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PlaceholderPage title="Dashboard" icon="📊" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/settings"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PlaceholderPage title="Setări" icon="⚙️" />
+            </AppLayout>
           </ProtectedRoute>
         }
       />
       <Route
         path="*"
-        element={<Navigate to={user ? "/app" : "/auth"} replace />}
+        element={<Navigate to={user ? "/app/calculator" : "/auth"} replace />}
       />
     </Routes>
   );
 }
 
+function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  );
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppWithAuth />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
