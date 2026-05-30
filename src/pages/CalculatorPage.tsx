@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useProducts, useExchangeRate } from "../hooks/useProducts";
 import { useCartStore } from "../hooks/useCartStore";
+import { useSendEmail } from "../hooks/useSendEmail";
 import type { Product } from "../hooks/useProducts";
 
 // ── COLORS ────────────────────────────────────────────────
@@ -315,6 +316,14 @@ function CartSection() {
   const [customPrice, setCustomPrice] = useState("");
   const [customQty, setCustomQty] = useState("1");
   const [customDisc, setCustomDisc] = useState("");
+  const {
+    sendOffer,
+    loading: sending,
+    error: sendError,
+    success: sendSuccess,
+    setError: setSendError,
+    setSuccess: setSendSuccess,
+  } = useSendEmail();
 
   const subtotal = getSubtotal();
   const discount = getDiscount();
@@ -951,8 +960,28 @@ function CartSection() {
             }}
           />
           <button
+            disabled={sending}
+            onClick={async () => {
+              const ok = await sendOffer({
+                clientName,
+                clientEmail,
+                notes,
+                items,
+                transport,
+                totalRon: total,
+                totalEur,
+                exchangeRate: rate,
+              });
+              if (ok) {
+                setClientEmail("");
+                setClientName("");
+                setClientPhone("");
+                setNotes("");
+                clearCart();
+              }
+            }}
             style={{
-              background: C.primary,
+              background: sending ? C.muted : C.primary,
               border: "none",
               borderRadius: "8px",
               padding: "10px 16px",
@@ -960,13 +989,45 @@ function CartSection() {
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "13px",
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: sending ? "not-allowed" : "pointer",
               whiteSpace: "nowrap",
             }}
           >
-            Trimite
+            {sending ? "..." : "Trimite"}
           </button>
         </div>
+
+        {sendError && (
+          <div
+            style={{
+              marginTop: "8px",
+              padding: "8px 12px",
+              background: C.redbg,
+              border: `1px solid rgba(201,79,106,0.2)`,
+              borderRadius: "8px",
+              fontSize: "12px",
+              color: C.red,
+            }}
+          >
+            ⚠️ {sendError}
+          </div>
+        )}
+
+        {sendSuccess && (
+          <div
+            style={{
+              marginTop: "8px",
+              padding: "8px 12px",
+              background: C.greenbg,
+              border: `1px solid rgba(46,138,88,0.2)`,
+              borderRadius: "8px",
+              fontSize: "12px",
+              color: C.green,
+            }}
+          >
+            ✅ Email trimis cu succes!
+          </div>
+        )}
 
         {/* WhatsApp button */}
         {clientPhone && (
