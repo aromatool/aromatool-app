@@ -42,7 +42,7 @@ function fmtCurrency(amount: number, currency: string) {
 interface Offer {
   id: string;
   sent_at: string;
-  total_ron: number;
+  total_display: number;
   total_eur: number;
   exchange_rate: number;
   currency: string;
@@ -100,7 +100,7 @@ export default function OffersPage() {
       .from("offers")
       .select(
         `
-        id, sent_at, total_ron, total_eur, exchange_rate, currency,
+        id, sent_at, total_display, total_eur, exchange_rate, currency,
         notes, transport, products_json,
         contacts ( id, email, name, status )
       `,
@@ -382,7 +382,7 @@ export default function OffersPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {fmtCurrency(offer.total_ron, currency)}
+                      {fmtCurrency(offer.total_display, currency)}
                     </div>
                     {currency !== "EUR" && (
                       <div style={{ fontSize: "11px", color: C.muted }}>
@@ -562,7 +562,7 @@ export default function OffersPage() {
                               `• ${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}${p.disc > 0 ? ` (−${p.disc}%)` : ""} — ${fmtCurrency(p.price_eur * p.qty * (1 - p.disc / 100) * (offer.exchange_rate || 1), currency)}`,
                           )
                           .join("\n");
-                        const text = `Ofertă ${offer.contacts?.name || offer.contacts?.email}:\n\n${products}\n\n💜 Total: ${fmtCurrency(offer.total_ron, currency)}`;
+                        const text = `Ofertă ${offer.contacts?.name || offer.contacts?.email}:\n\n${products}\n\n💜 Total: ${fmtCurrency(offer.total_display, currency)}`;
                         navigator.clipboard.writeText(text);
                         setCopiedId(offer.id);
                         setTimeout(() => setCopiedId(null), 2000);

@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { path: "/app/contacts", icon: "👥", label: "Clienți" },
   { path: "/app/offers", icon: "📋", label: "Oferte" },
   { path: "/app/protocols", icon: "📖", label: "Protocoale" },
+  { path: "/app/templates", icon: "📝", label: "Template-uri" },
   { path: "/app/dashboard", icon: "📊", label: "Dashboard" },
 ];
 

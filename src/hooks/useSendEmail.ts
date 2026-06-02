@@ -10,7 +10,7 @@ interface SendOfferParams {
   notes: string
   items: CartItem[]
   transport: number       // in EUR
-  totalRon: number        // total in display currency
+  totalDisplay: number        // total in display currency
   totalEur: number        // total in EUR
   exchangeRate: number    // EUR → display currency rate
   currency: string        // display currency code
@@ -35,7 +35,7 @@ function fmt(n: number) {
 }
 
 function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string): string {
-  const { clientName, items, transport, totalRon, totalEur, exchangeRate, currency, notes, enrollLink } = params
+  const { clientName, items, transport, totalDisplay, totalEur, exchangeRate, currency, notes, enrollLink } = params
   const displayCurrency = currency || 'RON'
   const rate = exchangeRate || 5.2523
 
@@ -106,7 +106,7 @@ function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: s
       <tr>
         <td style="padding:16px 20px;font-family:Georgia,serif;font-size:15px;color:#4A3270">Total de plată</td>
         <td style="padding:16px 20px;font-family:Georgia,serif;font-size:26px;color:#4A3270;font-weight:600;text-align:right">
-          ${fmtCurrency(totalRon, displayCurrency)}
+          ${fmtCurrency(totalDisplay, displayCurrency)}
           ${displayCurrency !== 'EUR' ? `<div style="font-size:13px;color:#9B80C4;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:400">€ ${totalEur.toFixed(2)}</div>` : ''}
         </td>
       </tr>
@@ -240,7 +240,7 @@ export function useSendEmail() {
           })),
           transport: params.transport,
           notes: params.notes || null,
-          total_ron: params.totalRon,
+          total_display: params.totalDisplay,
           total_eur: params.totalEur,
           exchange_rate: params.exchangeRate,
           currency: params.currency || 'RON',

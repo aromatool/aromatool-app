@@ -6,6 +6,8 @@ import AppLayout from "./components/AppLayout";
 import CalculatorPage from "./pages/CalculatorPage";
 import SettingsPage from "./pages/SettingsPage";
 import OffersPage from "./pages/OffersPage";
+import ContactsPage from "./pages/ContactsPage";
+import TemplatesPage from "./pages/TemplatesPage";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
@@ -93,7 +95,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout>
-              <PlaceholderPage title="Clienți" icon="👥" />
+              <ContactsPage />
             </AppLayout>
           </ProtectedRoute>
         }
@@ -114,6 +116,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <AppLayout>
               <PlaceholderPage title="Protocoale" icon="📖" />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/templates"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <TemplatesPage />
             </AppLayout>
           </ProtectedRoute>
         }

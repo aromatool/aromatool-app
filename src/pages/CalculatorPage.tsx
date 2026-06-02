@@ -1073,7 +1073,7 @@ function CartSection() {
                 notes,
                 items,
                 transport,
-                totalRon: total,
+                totalDisplay: total,
                 totalEur,
                 exchangeRate: getRate(activeCurrency),
                 currency: activeCurrency,

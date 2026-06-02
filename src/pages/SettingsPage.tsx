@@ -23,6 +23,8 @@ interface Profile {
   contact_email: string;
   country_code: string;
   language_code: string;
+  follow_up_days: number;
+  followup_enabled: boolean;
 }
 
 export default function SettingsPage() {
@@ -33,6 +35,8 @@ export default function SettingsPage() {
     contact_email: "",
     country_code: "RO",
     language_code: "ro",
+    follow_up_days: 5,
+    followup_enabled: true,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,6 +63,8 @@ export default function SettingsPage() {
         contact_email: data.contact_email || user?.email || "",
         country_code: data.country_code || "RO",
         language_code: data.language_code || "ro",
+        follow_up_days: data.follow_up_days || 5,
+        followup_enabled: data.followup_enabled !== false,
       });
     }
     setLoading(false);
@@ -77,6 +83,8 @@ export default function SettingsPage() {
         contact_email: profile.contact_email,
         country_code: profile.country_code,
         language_code: profile.language_code,
+        follow_up_days: profile.follow_up_days,
+        followup_enabled: profile.followup_enabled,
         updated_at: new Date().toISOString(),
       })
       .eq("id", user!.id);
@@ -249,6 +257,91 @@ export default function SettingsPage() {
                 <option value="fr">Français</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Zile până la reminder follow-up</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={profile.follow_up_days}
+                onChange={(e) =>
+                  setProfile((p) => ({
+                    ...p,
+                    follow_up_days: parseInt(e.target.value) || 5,
+                  }))
+                }
+                style={{ ...inputStyle, width: "80px" }}
+              />
+              <span
+                style={{ fontSize: "12px", color: C.muted, lineHeight: 1.4 }}
+              >
+                zile — dacă un prospect nu a primit o ofertă în acest interval,
+                apare badge-ul ⏰ în pagina Clienți
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 16px",
+              background: profile.followup_enabled ? C.greenbg : C.redbg,
+              borderRadius: "10px",
+              border: `1px solid ${profile.followup_enabled ? "rgba(46,138,88,0.2)" : "rgba(201,79,106,0.2)"}`,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 500, color: C.dark }}>
+                {profile.followup_enabled
+                  ? "✅ Follow-up automat activ"
+                  : "⏸️ Follow-up automat oprit"}
+              </div>
+              <div
+                style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}
+              >
+                {profile.followup_enabled
+                  ? "Clienții eligibili primesc mesaje automat conform template-urilor"
+                  : "Niciun mesaj automat nu va fi trimis"}
+              </div>
+            </div>
+            <button
+              onClick={() =>
+                setProfile((p) => ({
+                  ...p,
+                  followup_enabled: !p.followup_enabled,
+                }))
+              }
+              style={{
+                width: "48px",
+                height: "26px",
+                borderRadius: "999px",
+                border: "none",
+                background: profile.followup_enabled ? C.green : "#CCC",
+                cursor: "pointer",
+                position: "relative",
+                transition: "background 0.2s",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: "3px",
+                  left: profile.followup_enabled ? "25px" : "3px",
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: "white",
+                  transition: "left 0.2s",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                }}
+              />
+            </button>
           </div>
         </div>
 
