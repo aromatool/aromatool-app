@@ -8,6 +8,7 @@ import SettingsPage from "./pages/SettingsPage";
 import OffersPage from "./pages/OffersPage";
 import ContactsPage from "./pages/ContactsPage";
 import TemplatesPage from "./pages/TemplatesPage";
+import DashboardPage from "./pages/DashboardPage";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
@@ -76,9 +77,7 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/auth"
-        element={
-          user ? <Navigate to="/app/calculator" replace /> : <AuthPage />
-        }
+        element={user ? <Navigate to="/app/dashboard" replace /> : <AuthPage />}
       />
       <Route
         path="/app/calculator"
@@ -135,7 +134,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout>
-              <PlaceholderPage title="Dashboard" icon="📊" />
+              <DashboardPage />
             </AppLayout>
           </ProtectedRoute>
         }
@@ -152,7 +151,7 @@ function AppRoutes() {
       />
       <Route
         path="*"
-        element={<Navigate to={user ? "/app/calculator" : "/auth"} replace />}
+        element={<Navigate to={user ? "/app/dashboard" : "/auth"} replace />}
       />
     </Routes>
   );

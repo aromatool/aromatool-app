@@ -77,6 +77,15 @@ export default function ContactsPage() {
   const [editData, setEditData] = useState<Partial<Contact>>({});
   const [saving, setSaving] = useState(false);
   const [followupContact, setFollowupContact] = useState<Contact | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addData, setAddData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    source: "WhatsApp",
+    reason: "",
+  });
+  const [addSaving, setAddSaving] = useState(false);
   const [followUpDays, setFollowUpDays] = useState(5);
   const [followupEnabled, setFollowupEnabled] = useState(true);
 
@@ -96,6 +105,38 @@ export default function ContactsPage() {
     if (data?.follow_up_days) setFollowUpDays(data.follow_up_days);
     if (data?.followup_enabled !== undefined)
       setFollowupEnabled(data.followup_enabled !== false);
+  }
+
+  async function addContact() {
+    if (!addData.email && !addData.name) return;
+    setAddSaving(true);
+    const { data } = await supabase
+      .from("contacts")
+      .insert({
+        user_id: user!.id,
+        name: addData.name || null,
+        email: addData.email || `${Date.now()}@noemail.local`,
+        phone: addData.phone || null,
+        status: "prospect",
+        notes:
+          [
+            addData.source ? `Sursa: ${addData.source}` : "",
+            addData.reason ? `Motiv: ${addData.reason}` : "",
+          ]
+            .filter(Boolean)
+            .join(" | ") || null,
+      })
+      .select("*")
+      .single();
+    if (data) {
+      setContacts((prev) => [
+        { ...data, offer_count: 0, total_eur: 0, last_offer_at: null },
+        ...prev,
+      ]);
+    }
+    setAddData({ name: "", email: "", phone: "", source: "WhatsApp" });
+    setShowAddForm(false);
+    setAddSaving(false);
   }
 
   async function loadContacts() {
@@ -242,14 +283,35 @@ export default function ContactsPage() {
           gap: "12px",
         }}
       >
-        <div
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "22px",
-            color: C.dark,
-          }}
-        >
-          Clienți
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div
+            style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: "22px",
+              color: C.dark,
+            }}
+          >
+            Contacte
+          </div>
+          <button
+            onClick={() => setShowAddForm(true)}
+            style={{
+              padding: "8px 16px",
+              background: `linear-gradient(135deg, ${C.primary}, #4A3270)`,
+              border: "none",
+              borderRadius: "10px",
+              color: "white",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            + Contact nou
+          </button>
         </div>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           {[
@@ -885,6 +947,189 @@ export default function ContactsPage() {
           );
         })
       )}
+      {/* Add Contact Modal */}
+      {showAddForm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(45,26,78,0.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={() => setShowAddForm(false)}
+        >
+          <div
+            style={{
+              background: C.card,
+              borderRadius: "20px",
+              padding: "28px",
+              maxWidth: "440px",
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(45,26,78,0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "20px",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: "20px",
+                  color: C.dark,
+                }}
+              >
+                Contact nou
+              </div>
+              <button
+                onClick={() => setShowAddForm(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: C.muted,
+                  fontSize: "20px",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+            >
+              <div>
+                <label style={labelStyle}>Nume</label>
+                <input
+                  value={addData.name}
+                  onChange={(e) =>
+                    setAddData((p) => ({ ...p, name: e.target.value }))
+                  }
+                  placeholder="Nume Prenume"
+                  style={inputStyle}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Telefon (WhatsApp)</label>
+                <input
+                  value={addData.phone}
+                  onChange={(e) =>
+                    setAddData((p) => ({ ...p, phone: e.target.value }))
+                  }
+                  placeholder="+40712345678"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Email (opțional)</label>
+                <input
+                  type="email"
+                  value={addData.email}
+                  onChange={(e) =>
+                    setAddData((p) => ({ ...p, email: e.target.value }))
+                  }
+                  placeholder="email@client.com"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>De unde vine?</label>
+                <select
+                  value={addData.source}
+                  onChange={(e) =>
+                    setAddData((p) => ({ ...p, source: e.target.value }))
+                  }
+                  style={{
+                    ...inputStyle,
+                    appearance: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="WhatsApp">💬 WhatsApp</option>
+                  <option value="Facebook">👤 Facebook</option>
+                  <option value="Instagram">📸 Instagram</option>
+                  <option value="Recomandare">🤝 Recomandare</option>
+                  <option value="Altul">✨ Altul</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>
+                  Motivul contactului / afecțiune
+                </label>
+                <textarea
+                  value={addData.reason}
+                  rows={3}
+                  onChange={(e) =>
+                    setAddData((p) => ({ ...p, reason: e.target.value }))
+                  }
+                  placeholder="ex: Vrea ulei de lavandă pentru somn, are probleme cu stresul, a văzut postarea de pe Instagram..."
+                  style={{ ...inputStyle, resize: "vertical" }}
+                />
+                <div
+                  style={{ fontSize: "11px", color: C.muted, marginTop: "4px" }}
+                >
+                  Aceste informații te ajută să personalizezi oferta și
+                  follow-up-ul
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", marginTop: "20px" }}>
+              <button
+                onClick={() => setShowAddForm(false)}
+                style={{
+                  flex: 1,
+                  padding: "11px",
+                  background: C.bg2,
+                  border: `1px solid ${C.border2}`,
+                  borderRadius: "10px",
+                  color: C.dark,
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                Anul
+              </button>
+              <button
+                onClick={addContact}
+                disabled={
+                  addSaving ||
+                  (!addData.name && !addData.email && !addData.phone)
+                }
+                style={{
+                  flex: 2,
+                  padding: "11px",
+                  background: addSaving
+                    ? C.muted
+                    : `linear-gradient(135deg, ${C.primary}, #4A3270)`,
+                  border: "none",
+                  borderRadius: "10px",
+                  color: "white",
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: addSaving ? "not-allowed" : "pointer",
+                }}
+              >
+                {addSaving ? "Se salvează..." : "+ Adaugă contact"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {followupContact && (
         <FollowupModal
           contact={followupContact}
