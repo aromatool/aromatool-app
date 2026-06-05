@@ -1,82 +1,170 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
-import EnrollLink from "../components/EnrollLink";
 import FollowupModal from "../components/FollowupModal";
+import ContactModal from "../components/ContactModal";
+import {
+  getRecommendedAction,
+  displayStatus,
+  shortReason,
+  crmCategory,
+} from "../lib/recommendedAction";
+import type { CrmCategory } from "../lib/recommendedAction";
+import type { Contact } from "./DashboardPage";
+import type { ContactStatus } from "../lib/relationshipScore";
 
-const C = {
-  bg: "#FDFAFF",
-  card: "#FFFFFF",
-  border: "rgba(196,168,232,0.3)",
-  border2: "rgba(196,168,232,0.5)",
-  primary: "#7B5EA7",
-  dark: "#2D1A4E",
-  muted: "#9B80C4",
-  text2: "#6B5B9E",
-  bg2: "#F5F0FF",
+const T = {
+  sage: "#5C7A5C",
+  sageDark: "#4A6A4A",
+  sageLight: "#E8F0E8",
+  sageMid: "#C8D8C8",
+  cream: "#FAFAF7",
+  linen: "#F5EEE8",
+  espresso: "#3D3530",
+  warm: "#6A5A50",
+  muted: "#A89888",
+  border: "#EDE8E0",
+  white: "#FFFFFF",
+  amber: "#C4906A",
+  amberLight: "#FDF5EE",
+  lavender: "#9888B8",
+  lavenderLight: "#F0EEF8",
   green: "#2E8A58",
-  greenbg: "#E8F8F0",
+  greenLight: "#E8F8F0",
   red: "#C94F6A",
-  redbg: "#FFF0F4",
+  redLight: "#FFF0F4",
+  rose: "#D4A5A0",
+  roseLight: "#FDF0EE",
 };
 
-const STATUSES = [
-  { value: "prospect", label: "🟡 Prospect", bg: "#FFF8E7", color: "#B8860B" },
+// Status afișat → stil pin (cele 4 categorii curate)
+function statusPill(status: string): {
+  label: string;
+  bg: string;
+  color: string;
+} {
+  const shown = displayStatus(status as ContactStatus);
+  switch (shown) {
+    case "Prospect":
+      return { label: "Prospect", bg: T.amberLight, color: T.amber };
+    case "Client":
+      return { label: "Client", bg: T.greenLight, color: T.green };
+    case "Membru echipă":
+      return { label: "Membru echipă", bg: T.lavenderLight, color: T.lavender };
+    case "Inactiv":
+      return { label: "Inactiv", bg: T.linen, color: T.muted };
+    default:
+      return { label: shown, bg: T.linen, color: T.muted };
+  }
+}
+
+function daysSince(d?: string | null): number | null {
+  if (!d) return null;
+  return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+}
+
+function relativeDays(d?: string | null): string {
+  const n = daysSince(d);
+  if (n === null) return "—";
+  if (n === 0) return "Azi";
+  if (n === 1) return "Acum 1 zi";
+  return `Acum ${n} zile`;
+}
+
+// Eticheta scurtă a ultimei activități (ce s-a întâmplat ultima dată)
+function lastActivityLabel(c: Contact): string {
+  const t = getRecommendedAction(c).type;
+  // aproximare simplă bazată pe stare; panoul are istoricul complet
+  if ((c.followup_count ?? 0) > 0 && t !== "needs_offer")
+    return "Follow-up trimis";
+  if ((c.offers_count ?? 0) > 0) return "Ofertă trimisă";
+  return "Contact adăugat";
+}
+
+function initials(name?: string | null, email?: string): string {
+  return (name || email || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+// Iconiță + culoare per acțiune recomandată (consistent cu Dashboard)
+function actionVisual(c: Contact): { icon: string; color: string; bg: string } {
+  const t = getRecommendedAction(c).type;
+  switch (t) {
+    case "needs_offer":
+      return { icon: "ti-send", color: T.amber, bg: T.amberLight };
+    case "needs_followup":
+      return { icon: "ti-mail", color: T.amber, bg: T.amberLight };
+    case "reactivate":
+      return { icon: "ti-refresh", color: T.red, bg: T.redLight };
+    case "discuss_business":
+      return { icon: "ti-users-group", color: T.green, bg: T.greenLight };
+    case "awaiting_reply":
+      return { icon: "ti-clock", color: T.lavender, bg: T.lavenderLight };
+    default:
+      return { icon: "ti-circle-check", color: T.green, bg: T.greenLight };
+  }
+}
+
+const BUSINESS_FILTERS: {
+  key: string;
+  label: string;
+  match: (c: Contact) => boolean;
+}[] = [
+  { key: "all", label: "Toate", match: () => true },
   {
-    value: "client_nou",
-    label: "🟢 Client nou",
-    bg: C.greenbg,
-    color: C.green,
+    key: "prospect",
+    label: "Prospecți",
+    match: (c) => displayStatus(c.status) === "Prospect",
   },
   {
-    value: "client_fidel",
-    label: "⭐ Client fidel",
-    bg: C.bg2,
-    color: C.primary,
+    key: "client",
+    label: "Clienți",
+    match: (c) => displayStatus(c.status) === "Client",
+  },
+  {
+    key: "team",
+    label: "Membri echipă",
+    match: (c) => displayStatus(c.status) === "Membru echipă",
+  },
+  {
+    key: "inactive",
+    label: "Inactivi",
+    match: (c) => displayStatus(c.status) === "Inactiv",
   },
 ];
 
-interface Contact {
-  id: string;
-  email: string;
-  name: string | null;
-  phone: string | null;
-  status: string;
-  notes: string | null;
-  first_offer_at: string | null;
-  updated_at: string;
-  offer_count?: number;
-  total_eur?: number;
-  last_offer_at?: string | null;
-  followup_opted_out?: boolean;
-}
-
-function formatDate(d: string | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("ro-RO", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function daysSince(d: string | null) {
-  if (!d) return null;
-  const diff = Date.now() - new Date(d).getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
+const ACTION_OPTIONS: { key: "all" | CrmCategory; label: string }[] = [
+  { key: "all", label: "Toate" },
+  { key: "offer", label: "Necesită ofertă" },
+  { key: "followup", label: "Necesită follow-up" },
+  { key: "reactivate", label: "Necesită reactivare" },
+  { key: "none", label: "Fără acțiuni" },
+];
 
 export default function ContactsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<Contact>>({});
-  const [saving, setSaving] = useState(false);
+  const [businessFilter, setBusinessFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState<"all" | CrmCategory>("all");
+  const [sortBy, setSortBy] = useState<"activity" | "name" | "value">(
+    "activity",
+  );
+  const [prioritizeAttention, setPrioritizeAttention] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+
   const [followupContact, setFollowupContact] = useState<Contact | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addData, setAddData] = useState({
     name: "",
@@ -86,29 +174,102 @@ export default function ContactsPage() {
     reason: "",
   });
   const [addSaving, setAddSaving] = useState(false);
-  const [followUpDays, setFollowUpDays] = useState(5);
-  const [followupEnabled, setFollowupEnabled] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      loadContacts();
-      loadProfile();
-    }
+    if (user) loadContacts();
   }, [user]);
 
-  async function loadProfile() {
-    const { data } = await supabase
-      .from("profiles")
-      .select("follow_up_days, followup_enabled")
-      .eq("id", user!.id)
-      .single();
-    if (data?.follow_up_days) setFollowUpDays(data.follow_up_days);
-    if (data?.followup_enabled !== undefined)
-      setFollowupEnabled(data.followup_enabled !== false);
+  // Citește ?filter= și ?new= din URL (vine din Dashboard)
+  useEffect(() => {
+    const f = searchParams.get("filter");
+    if (f) {
+      if (f === "needs_attention") {
+        setActionFilter("all");
+        setPrioritizeAttention(true);
+      } else if (["offer", "followup", "reactivate", "none"].includes(f)) {
+        setActionFilter(f as CrmCategory);
+      } else if (f === "needs_offer") {
+        setActionFilter("offer");
+      } else if (f === "needs_followup") {
+        setActionFilter("followup");
+      }
+      searchParams.delete("filter");
+      setSearchParams(searchParams, { replace: true });
+    }
+    if (searchParams.get("new") === "1") {
+      setShowAddForm(true);
+      searchParams.delete("new");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  async function loadContacts() {
+    setLoading(true);
+    const [{ data: ctcts }, { data: offersData }, { data: fuLog }] =
+      await Promise.all([
+        supabase
+          .from("contacts")
+          .select("*")
+          .eq("user_id", user!.id)
+          .order("updated_at", { ascending: false }),
+        supabase
+          .from("offers")
+          .select("id,contact_id,total_eur,sent_at,products_json")
+          .eq("user_id", user!.id)
+          .order("sent_at", { ascending: false }),
+        supabase
+          .from("followup_log")
+          .select("id,contact_id,sent_at,status")
+          .eq("user_id", user!.id)
+          .order("sent_at", { ascending: false }),
+      ]);
+    if (!ctcts) {
+      setLoading(false);
+      return;
+    }
+
+    const offers = offersData ?? [];
+    const fu = fuLog ?? [];
+
+    const enriched: Contact[] = ctcts.map((c: any) => {
+      const cOffers = offers.filter((o) => o.contact_id === c.id);
+      const cFu = fu.filter((f) => f.contact_id === c.id);
+      const lastFollowupAt = cFu.length ? cFu[0].sent_at : null;
+      const activityDates = [
+        ...cOffers.map((o) => o.sent_at),
+        ...cFu.map((f) => f.sent_at),
+        c.updated_at,
+      ].filter(Boolean) as string[];
+      const lastActivityAt = activityDates.length
+        ? activityDates.reduce((a, b) => (new Date(b) > new Date(a) ? b : a))
+        : null;
+      const firstOfferAt = cOffers.length
+        ? cOffers.reduce(
+            (a, o) => (new Date(o.sent_at) < new Date(a) ? o.sent_at : a),
+            cOffers[0].sent_at,
+          )
+        : (c.first_offer_at ?? null);
+      // produse din oferte (pentru search)
+      const offerProducts = cOffers.flatMap((o: any) =>
+        (o.products_json ?? []).map((p: any) => p.name),
+      );
+
+      return {
+        ...c,
+        offers_count: cOffers.length,
+        total_eur: cOffers.reduce((s, o) => s + (o.total_eur ?? 0), 0),
+        last_activity_at: lastActivityAt,
+        last_followup_at: lastFollowupAt,
+        first_offer_at: firstOfferAt,
+        offer_products: offerProducts,
+      } as Contact;
+    });
+    setContacts(enriched);
+    setLoading(false);
   }
 
   async function addContact() {
-    if (!addData.email && !addData.name) return;
+    if (!addData.name && !addData.email && !addData.phone) return;
     setAddSaving(true);
     const { data } = await supabase
       .from("contacts")
@@ -118,148 +279,162 @@ export default function ContactsPage() {
         email: addData.email || `${Date.now()}@noemail.local`,
         phone: addData.phone || null,
         status: "prospect",
-        notes:
-          [
-            addData.source ? `Sursa: ${addData.source}` : "",
-            addData.reason ? `Motiv: ${addData.reason}` : "",
-          ]
-            .filter(Boolean)
-            .join(" | ") || null,
+        source: addData.source || null,
+        notes: addData.reason || null,
       })
       .select("*")
       .single();
     if (data) {
       setContacts((prev) => [
-        { ...data, offer_count: 0, total_eur: 0, last_offer_at: null },
+        {
+          ...(data as Contact),
+          offers_count: 0,
+          total_eur: 0,
+          last_activity_at: null,
+        },
         ...prev,
       ]);
     }
-    setAddData({ name: "", email: "", phone: "", source: "WhatsApp" });
+    setAddData({
+      name: "",
+      email: "",
+      phone: "",
+      source: "WhatsApp",
+      reason: "",
+    });
     setShowAddForm(false);
     setAddSaving(false);
   }
 
-  async function loadContacts() {
-    setLoading(true);
-
-    const { data: contactsData, error } = await supabase
-      .from("contacts")
-      .select("*")
-      .eq("user_id", user!.id)
-      .order("updated_at", { ascending: false });
-
-    if (error || !contactsData) {
-      setLoading(false);
-      return;
-    }
-
-    // Get offer stats per contact
-    const { data: offersData } = await supabase
-      .from("offers")
-      .select("contact_id, total_eur, sent_at")
-      .eq("user_id", user!.id);
-
-    const statsMap: Record<
-      string,
-      { count: number; total: number; last: string }
-    > = {};
-    offersData?.forEach((o) => {
-      if (!o.contact_id) return;
-      if (!statsMap[o.contact_id])
-        statsMap[o.contact_id] = { count: 0, total: 0, last: "" };
-      statsMap[o.contact_id].count++;
-      statsMap[o.contact_id].total += o.total_eur || 0;
-      if (
-        !statsMap[o.contact_id].last ||
-        o.sent_at > statsMap[o.contact_id].last
-      ) {
-        statsMap[o.contact_id].last = o.sent_at;
-      }
-    });
-
-    const enriched = contactsData.map((c) => ({
-      ...c,
-      offer_count: statsMap[c.id]?.count || 0,
-      total_eur: statsMap[c.id]?.total || 0,
-      last_offer_at: statsMap[c.id]?.last || null,
-    }));
-
-    setContacts(enriched);
-    setLoading(false);
-  }
-
-  async function updateStatus(contactId: string, status: string) {
-    await supabase.from("contacts").update({ status }).eq("id", contactId);
-    setContacts((prev) =>
-      prev.map((c) => (c.id === contactId ? { ...c, status } : c)),
-    );
-  }
-
-  async function toggleFollowupOptOut(
+  // Handlere slide panel (refolosesc logica din Dashboard)
+  const handleStatusChange = async (
     contactId: string,
-    currentValue: boolean,
-  ) {
-    const newValue = !currentValue;
+    newStatus: ContactStatus,
+  ) => {
     await supabase
       .from("contacts")
-      .update({ followup_opted_out: newValue })
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq("id", contactId);
     setContacts((prev) =>
-      prev.map((c) =>
-        c.id === contactId ? { ...c, followup_opted_out: newValue } : c,
-      ),
+      prev.map((c) => (c.id === contactId ? { ...c, status: newStatus } : c)),
     );
-  }
-
-  async function saveEdit() {
-    if (!editingId) return;
-    setSaving(true);
-    await supabase
-      .from("contacts")
-      .update({
-        name: editData.name,
-        phone: editData.phone,
-        notes: editData.notes,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", editingId);
+    setSelectedContact((prev) =>
+      prev && prev.id === contactId ? { ...prev, status: newStatus } : prev,
+    );
+  };
+  const handleNotesChange = async (contactId: string, notes: string) => {
+    await supabase.from("contacts").update({ notes }).eq("id", contactId);
     setContacts((prev) =>
-      prev.map((c) => (c.id === editingId ? { ...c, ...editData } : c)),
+      prev.map((c) => (c.id === contactId ? { ...c, notes } : c)),
     );
-    setEditingId(null);
-    setSaving(false);
-  }
-
-  const filtered = contacts.filter((c) => {
-    const matchSearch =
-      !search.trim() ||
-      c.email.toLowerCase().includes(search.toLowerCase()) ||
-      c.name?.toLowerCase().includes(search.toLowerCase()) ||
-      false;
-    const matchStatus = filterStatus === "all" || c.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
-
-  // Stats
-  const stats = {
-    total: contacts.length,
-    prospect: contacts.filter((c) => c.status === "prospect").length,
-    client_nou: contacts.filter((c) => c.status === "client_nou").length,
-    client_fidel: contacts.filter((c) => c.status === "client_fidel").length,
-    totalEur: contacts.reduce((s, c) => s + (c.total_eur || 0), 0),
+    setSelectedContact((prev) =>
+      prev && prev.id === contactId ? { ...prev, notes } : prev,
+    );
   };
 
-  if (loading)
+  // Filtrare + search + sortare
+  const visible = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    let list = contacts.filter((c) => {
+      const bf = BUSINESS_FILTERS.find((f) => f.key === businessFilter);
+      if (bf && !bf.match(c)) return false;
+      if (actionFilter !== "all" && crmCategory(c) !== actionFilter)
+        return false;
+      if (q) {
+        const hay = [
+          c.name,
+          c.email,
+          c.phone,
+          c.notes,
+          c.source,
+          ...(c.offer_products ?? []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    const attentionRank = (c: Contact): number => {
+      const cat = crmCategory(c);
+      if (cat === "reactivate") return 0;
+      if (cat === "offer") return 1;
+      if (cat === "followup") return 2;
+      return 3;
+    };
+
+    list = [...list].sort((a, b) => {
+      if (prioritizeAttention) {
+        const ra = attentionRank(a);
+        const rb = attentionRank(b);
+        if (ra !== rb) return ra - rb;
+      }
+      if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
+      if (sortBy === "value") return (b.total_eur ?? 0) - (a.total_eur ?? 0);
+      const da = a.last_activity_at
+        ? new Date(a.last_activity_at).getTime()
+        : 0;
+      const db = b.last_activity_at
+        ? new Date(b.last_activity_at).getTime()
+        : 0;
+      return db - da;
+    });
+    return list;
+  }, [
+    contacts,
+    search,
+    businessFilter,
+    actionFilter,
+    sortBy,
+    prioritizeAttention,
+  ]);
+
+  const businessCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    BUSINESS_FILTERS.forEach((f) => {
+      m[f.key] = contacts.filter(f.match).length;
+    });
+    return m;
+  }, [contacts]);
+
+  const actionCounts = useMemo(() => {
+    const m: Record<string, number> = {
+      all: contacts.length,
+      offer: 0,
+      followup: 0,
+      reactivate: 0,
+      none: 0,
+    };
+    contacts.forEach((c) => {
+      m[crmCategory(c)]++;
+    });
+    return m;
+  }, [contacts]);
+
+  const activeActionLabel =
+    ACTION_OPTIONS.find((o) => o.key === actionFilter)?.label ?? "Toate";
+  const sortLabel =
+    sortBy === "activity"
+      ? "Ultima activitate"
+      : sortBy === "name"
+        ? "Nume"
+        : "Valoare";
+
+  const openContact = (c: Contact) => setSelectedContact(c);
+
+  if (loading) {
     return (
       <div
         style={{ display: "flex", justifyContent: "center", padding: "60px" }}
       >
         <div
           style={{
-            width: "28px",
-            height: "28px",
-            border: "3px solid #E8E0F8",
-            borderTopColor: C.primary,
+            width: 28,
+            height: 28,
+            border: `3px solid ${T.border}`,
+            borderTopColor: T.sage,
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }}
@@ -267,686 +442,518 @@ export default function ContactsPage() {
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
+  }
+
+  const GRID = "2.4fr 2.2fr 1fr 1.4fr 0.7fr 0.9fr";
 
   return (
-    <div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
+    <div
+      style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+      onClick={() => {
+        setActionMenuOpen(false);
+        setSortMenuOpen(false);
+      }}
+    >
       {/* Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "20px",
+          marginBottom: 20,
           flexWrap: "wrap",
-          gap: "12px",
+          gap: 12,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <div
-            style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "22px",
-              color: C.dark,
-            }}
-          >
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 500, color: T.espresso }}>
             Contacte
           </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            style={{
-              padding: "8px 16px",
-              background: `linear-gradient(135deg, ${C.primary}, #4A3270)`,
-              border: "none",
-              borderRadius: "10px",
-              color: "white",
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            + Contact nou
-          </button>
+          <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>
+            {contacts.length} contacte în total
+          </div>
         </div>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {[
-            { label: "Total", value: stats.total, color: C.dark },
-            { label: "🟡 Prospecți", value: stats.prospect, color: "#B8860B" },
-            { label: "🟢 Noi", value: stats.client_nou, color: C.green },
-            { label: "⭐ Fideli", value: stats.client_fidel, color: C.primary },
-            {
-              label: "Valoare totală",
-              value: `€ ${stats.totalEur.toFixed(0)}`,
-              color: C.green,
-            },
-          ].map((s) => (
-            <div
-              key={s.label}
-              style={{
-                background: C.card,
-                border: `1px solid ${C.border2}`,
-                borderRadius: "10px",
-                padding: "8px 14px",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "10px",
-                  color: C.muted,
-                  marginBottom: "1px",
-                }}
-              >
-                {s.label}
-              </div>
-              <div
-                style={{ fontSize: "16px", fontWeight: 700, color: s.color }}
-              >
-                {s.value}
-              </div>
-            </div>
-          ))}
-        </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "9px 18px",
+            background: T.sage,
+            border: "none",
+            borderRadius: 10,
+            color: "white",
+            fontFamily: "inherit",
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
+        >
+          <i className="ti ti-plus" style={{ fontSize: 15 }} />
+          Contact nou
+        </button>
       </div>
 
-      {/* Filters */}
+      {/* Search */}
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <i
+          className="ti ti-search"
+          style={{
+            position: "absolute",
+            left: 14,
+            top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: 16,
+            color: T.muted,
+          }}
+        />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Caută după nume, telefon, email, notițe, produse, interese..."
+          style={{
+            width: "100%",
+            padding: "11px 14px 11px 40px",
+            background: T.white,
+            border: `0.5px solid ${T.border}`,
+            borderRadius: 12,
+            fontSize: 14,
+            color: T.espresso,
+            fontFamily: "inherit",
+            outline: "none",
+            boxSizing: "border-box",
+          }}
+        />
+      </div>
+
+      {/* Un singur rând: filtre business (stânga) + dropdowns Acțiuni/Sortare (dreapta) */}
       <div
         style={{
           display: "flex",
-          gap: "8px",
-          marginBottom: "12px",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 16,
           flexWrap: "wrap",
         }}
       >
-        <div style={{ position: "relative", flex: 1, minWidth: "200px" }}>
-          <span
-            style={{
-              position: "absolute",
-              left: "12px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: C.muted,
-            }}
+        {BUSINESS_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setBusinessFilter(f.key)}
+            style={chipStyle(businessFilter === f.key, T.sage)}
           >
-            🔍
-          </span>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Caută după email sau nume..."
-            style={{
-              width: "100%",
-              padding: "9px 12px 9px 34px",
-              background: C.card,
-              border: `1.5px solid ${C.border2}`,
-              borderRadius: "10px",
-              fontSize: "13px",
-              color: C.dark,
-              fontFamily: "'DM Sans', sans-serif",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
+            {f.label}{" "}
+            <span style={chipCount(businessFilter === f.key)}>
+              {businessCounts[f.key] ?? 0}
+            </span>
+          </button>
+        ))}
+
         <div
           style={{
+            marginLeft: "auto",
             display: "flex",
-            background: C.bg2,
-            borderRadius: "10px",
-            padding: "3px",
-            gap: "2px",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          {[
-            { value: "all", label: "Toți" },
-            ...STATUSES.map((s) => ({ value: s.value, label: s.label })),
-          ].map((f) => (
+          {/* Dropdown Acțiuni */}
+          <div
+            style={{ position: "relative" }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              key={f.value}
-              onClick={() => setFilterStatus(f.value)}
-              style={{
-                padding: "6px 12px",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: "12px",
-                fontWeight: filterStatus === f.value ? 600 : 400,
-                background: filterStatus === f.value ? "white" : "transparent",
-                color: filterStatus === f.value ? C.dark : C.muted,
-                boxShadow:
-                  filterStatus === f.value
-                    ? "0 1px 4px rgba(123,94,167,0.1)"
-                    : "none",
+              onClick={() => {
+                setActionMenuOpen((v) => !v);
+                setSortMenuOpen(false);
               }}
+              style={dropdownBtn(actionFilter !== "all")}
             >
-              {f.label}
+              <i className="ti ti-filter" style={{ fontSize: 14 }} />
+              Acțiuni: {activeActionLabel}
+              <i
+                className={`ti ti-chevron-${actionMenuOpen ? "up" : "down"}`}
+                style={{ fontSize: 14 }}
+              />
             </button>
-          ))}
+            {actionMenuOpen && (
+              <div style={dropdownMenu}>
+                {ACTION_OPTIONS.map((o) => (
+                  <button
+                    key={o.key}
+                    onClick={() => {
+                      setActionFilter(o.key);
+                      setPrioritizeAttention(false);
+                      setActionMenuOpen(false);
+                    }}
+                    style={dropdownItem(actionFilter === o.key)}
+                  >
+                    <span>{o.label}</span>
+                    <span style={{ fontSize: 11, color: T.muted }}>
+                      {actionCounts[o.key] ?? 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Dropdown Sortare */}
+          <div
+            style={{ position: "relative" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                setSortMenuOpen((v) => !v);
+                setActionMenuOpen(false);
+              }}
+              style={dropdownBtn(false)}
+            >
+              <i className="ti ti-arrows-sort" style={{ fontSize: 14 }} />
+              Sortare: {sortLabel}
+              <i
+                className={`ti ti-chevron-${sortMenuOpen ? "up" : "down"}`}
+                style={{ fontSize: 14 }}
+              />
+            </button>
+            {sortMenuOpen && (
+              <div style={dropdownMenu}>
+                {(
+                  [
+                    ["activity", "Ultima activitate"],
+                    ["name", "Nume"],
+                    ["value", "Valoare"],
+                  ] as const
+                ).map(([k, l]) => (
+                  <button
+                    key={k}
+                    onClick={() => {
+                      setSortBy(k);
+                      setPrioritizeAttention(false);
+                      setSortMenuOpen(false);
+                    }}
+                    style={dropdownItem(sortBy === k)}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Contacts list */}
-      {filtered.length === 0 ? (
+      {/* Listă */}
+      {visible.length === 0 ? (
         <div
           style={{
             textAlign: "center",
             padding: "48px 20px",
-            border: `1.5px dashed ${C.border2}`,
-            borderRadius: "16px",
-            background: C.card,
+            border: `1.5px dashed ${T.border}`,
+            borderRadius: 16,
+            background: T.white,
           }}
         >
-          <div style={{ fontSize: "40px", marginBottom: "12px" }}>👥</div>
+          <i
+            className="ti ti-users"
+            style={{
+              fontSize: 40,
+              color: T.sageMid,
+              display: "block",
+              marginBottom: 12,
+            }}
+          />
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "18px",
-              color: C.dark,
-              marginBottom: "6px",
+              fontSize: 16,
+              fontWeight: 500,
+              color: T.espresso,
+              marginBottom: 6,
             }}
           >
-            {search ? "Niciun rezultat" : "Nu ai clienți încă"}
+            {search || businessFilter !== "all" || actionFilter !== "all"
+              ? "Niciun rezultat"
+              : "Nu ai contacte încă"}
           </div>
-          <div style={{ fontSize: "13px", color: C.muted }}>
-            Clienții apar automat când trimiți prima ofertă
+          <div style={{ fontSize: 13, color: T.muted }}>
+            Încearcă alt filtru sau adaugă un contact nou.
           </div>
         </div>
       ) : (
-        filtered.map((contact) => {
-          const isExpanded = expandedId === contact.id;
-          const isEditing = editingId === contact.id;
-          const statusInfo =
-            STATUSES.find((s) => s.value === contact.status) || STATUSES[0];
-          const days = daysSince(contact.last_offer_at);
-          const needsFollowUp =
-            followupEnabled &&
-            !contact.followup_opted_out &&
-            contact.status === "prospect" &&
-            days !== null &&
-            days >= followUpDays;
-
-          return (
-            <div
-              key={contact.id}
-              style={{
-                background: C.card,
-                border: `1px solid ${needsFollowUp ? "rgba(184,134,11,0.4)" : C.border2}`,
-                borderRadius: "14px",
-                padding: "16px",
-                marginBottom: "10px",
-                borderLeft: needsFollowUp
-                  ? "4px solid #B8860B"
-                  : `1px solid ${C.border2}`,
-              }}
-            >
-              {/* Main row */}
+        <div
+          style={{
+            background: T.white,
+            border: `0.5px solid ${T.border}`,
+            borderRadius: 14,
+            overflow: "hidden",
+          }}
+        >
+          {/* Header tabel — ordine: Contact, Acțiune, Status, Ultima activitate, Oferte, Valoare */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: GRID,
+              gap: 8,
+              padding: "10px 16px 10px 16px",
+              borderBottom: `0.5px solid ${T.border}`,
+              background: T.cream,
+            }}
+          >
+            {[
+              "Contact",
+              "Acțiune recomandată",
+              "Status",
+              "Ultima activitate",
+              "Oferte",
+              "Valoare totală",
+            ].map((h) => (
               <div
+                key={h}
                 style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "12px",
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: T.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: ".05em",
                 }}
               >
-                {/* Avatar */}
+                {h}
+              </div>
+            ))}
+          </div>
+
+          {/* Rânduri */}
+          {visible.map((c, i) => {
+            const action = getRecommendedAction(c);
+            const reason = shortReason(c);
+            const av = actionVisual(c);
+            const pill = statusPill(c.status);
+            return (
+              <div
+                key={c.id}
+                onClick={() => openContact(c)}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: GRID,
+                  gap: 8,
+                  padding: "12px 16px",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  borderBottom:
+                    i < visible.length - 1 ? `0.5px solid ${T.border}` : "none",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = T.cream)
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+              >
+                {/* Contact */}
                 <div
                   style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    background: `linear-gradient(135deg, ${C.primary}, #4A3270)`,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: 600,
+                    gap: 10,
+                    minWidth: 0,
                   }}
                 >
-                  {(contact.name || contact.email)[0].toUpperCase()}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      background: T.sageLight,
+                      color: T.sage,
                       display: "flex",
                       alignItems: "center",
-                      gap: "8px",
-                      flexWrap: "wrap",
-                      marginBottom: "3px",
+                      justifyContent: "center",
+                      fontSize: 13,
+                      fontWeight: 500,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        color: C.dark,
-                      }}
-                    >
-                      {contact.name || contact.email}
-                    </span>
-                    {contact.name && (
-                      <span style={{ fontSize: "12px", color: C.muted }}>
-                        {contact.email}
-                      </span>
-                    )}
-                    {needsFollowUp && (
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          background: "#FFF8E7",
-                          color: "#B8860B",
-                          padding: "2px 8px",
-                          borderRadius: "999px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        ⏰ Urmărire ({days}z)
-                      </span>
-                    )}
-                    {contact.followup_opted_out && (
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          background: C.redbg,
-                          color: C.red,
-                          padding: "2px 8px",
-                          borderRadius: "999px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        ⏸️ Follow-up oprit
-                      </span>
-                    )}
+                    {initials(c.name, c.email)}
                   </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "8px",
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                    }}
-                  >
-                    {/* Status selector */}
-                    <select
-                      value={contact.status}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        updateStatus(contact.id, e.target.value);
-                      }}
+                  <div style={{ minWidth: 0 }}>
+                    <div
                       style={{
-                        padding: "2px 8px",
-                        borderRadius: "999px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        border: `1px solid ${statusInfo.color}33`,
-                        background: statusInfo.bg,
-                        color: statusInfo.color,
-                        fontFamily: "'DM Sans', sans-serif",
-                        cursor: "pointer",
-                        outline: "none",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: T.espresso,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
                     >
-                      {STATUSES.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    {contact.offer_count! > 0 && (
-                      <span style={{ fontSize: "11px", color: C.muted }}>
-                        📋 {contact.offer_count}{" "}
-                        {contact.offer_count === 1 ? "ofertă" : "oferte"}
-                      </span>
-                    )}
-                    {contact.total_eur! > 0 && (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          color: C.green,
-                          fontWeight: 500,
-                        }}
-                      >
-                        € {contact.total_eur!.toFixed(2)}
-                      </span>
-                    )}
-                    {contact.last_offer_at && (
-                      <span style={{ fontSize: "11px", color: C.muted }}>
-                        🕐 {formatDate(contact.last_offer_at)}
-                      </span>
-                    )}
+                      {c.name || c.email}
+                    </div>
+                    <div style={{ fontSize: 12, color: T.muted }}>
+                      {c.phone || c.email}
+                    </div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                  {contact.phone && (
-                    <button
-                      onClick={() =>
-                        window.open(
-                          `https://wa.me/${contact.phone!.replace(/[^0-9]/g, "").replace(/^0/, "40")}`,
-                          "_blank",
-                        )
-                      }
-                      style={{
-                        padding: "6px 10px",
-                        background: "#25D366",
-                        border: "none",
-                        borderRadius: "8px",
-                        color: "white",
-                        fontSize: "12px",
-                        cursor: "pointer",
-                        fontFamily: "'DM Sans', sans-serif",
-                      }}
-                      title="WhatsApp"
-                    >
-                      💬
-                    </button>
-                  )}
-                  {!contact.followup_opted_out &&
-                    contact.status !== "inactiv" && (
-                      <button
-                        onClick={() => setFollowupContact(contact)}
-                        style={{
-                          padding: "6px 10px",
-                          background: needsFollowUp ? C.primary : C.bg2,
-                          border: `1px solid ${needsFollowUp ? C.primary : C.border2}`,
-                          borderRadius: "8px",
-                          color: needsFollowUp ? "white" : C.dark,
-                          fontSize: "12px",
-                          cursor: "pointer",
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontWeight: needsFollowUp ? 600 : 400,
-                        }}
-                        title="Trimite follow-up"
-                      >
-                        📧
-                      </button>
-                    )}
-                  <button
-                    onClick={() =>
-                      window.open(`mailto:${contact.email}`, "_blank")
-                    }
-                    style={{
-                      padding: "6px 10px",
-                      background: C.bg2,
-                      border: `1px solid ${C.border2}`,
-                      borderRadius: "8px",
-                      color: C.dark,
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                    title="Email"
-                  >
-                    📧
-                  </button>
-                  <button
-                    onClick={() =>
-                      setExpandedId(isExpanded ? null : contact.id)
-                    }
-                    style={{
-                      padding: "6px 10px",
-                      background: C.bg2,
-                      border: `1px solid ${C.border2}`,
-                      borderRadius: "8px",
-                      color: C.dark,
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      fontFamily: "'DM Sans', sans-serif",
-                    }}
-                  >
-                    {isExpanded ? "▲" : "▼"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Expanded */}
-              {isExpanded && (
+                {/* Acțiune recomandată — imediat după nume */}
                 <div
                   style={{
-                    marginTop: "14px",
-                    paddingTop: "14px",
-                    borderTop: `1px solid ${C.border}`,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    minWidth: 0,
                   }}
                 >
-                  {isEditing ? (
-                    <div style={{ display: "grid", gap: "10px" }}>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: "10px",
-                        }}
-                      >
-                        <div>
-                          <label style={labelStyle}>Nume</label>
-                          <input
-                            value={editData.name || ""}
-                            onChange={(e) =>
-                              setEditData((p) => ({
-                                ...p,
-                                name: e.target.value,
-                              }))
-                            }
-                            placeholder="Nume Prenume"
-                            style={inputStyle}
-                          />
-                        </div>
-                        <div>
-                          <label style={labelStyle}>Telefon (WhatsApp)</label>
-                          <input
-                            value={editData.phone || ""}
-                            onChange={(e) =>
-                              setEditData((p) => ({
-                                ...p,
-                                phone: e.target.value,
-                              }))
-                            }
-                            placeholder="+40712345678"
-                            style={inputStyle}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Notițe</label>
-                        <textarea
-                          value={editData.notes || ""}
-                          onChange={(e) =>
-                            setEditData((p) => ({
-                              ...p,
-                              notes: e.target.value,
-                            }))
-                          }
-                          placeholder="Preferințe, informații utile..."
-                          rows={3}
-                          style={{ ...inputStyle, resize: "vertical" }}
-                        />
-                      </div>
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          onClick={saveEdit}
-                          disabled={saving}
-                          style={{
-                            flex: 1,
-                            padding: "9px",
-                            background: C.primary,
-                            border: "none",
-                            borderRadius: "9px",
-                            color: "white",
-                            fontFamily: "'DM Sans', sans-serif",
-                            fontSize: "13px",
-                            fontWeight: 500,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {saving ? "Se salvează..." : "✓ Salvează"}
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          style={{
-                            padding: "9px 16px",
-                            background: C.bg2,
-                            border: `1px solid ${C.border2}`,
-                            borderRadius: "9px",
-                            color: C.dark,
-                            fontFamily: "'DM Sans', sans-serif",
-                            fontSize: "13px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Anulează
-                        </button>
-                      </div>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 9,
+                      flexShrink: 0,
+                      background: av.bg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <i
+                      className={`ti ${av.icon}`}
+                      style={{ fontSize: 17, color: av.color }}
+                    />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: av.color,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {action.title}
                     </div>
-                  ) : (
-                    <div>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr",
-                          gap: "8px",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        {[
-                          { label: "Email", value: contact.email },
-                          { label: "Telefon", value: contact.phone || "—" },
-                          {
-                            label: "Primul contact",
-                            value: formatDate(contact.first_offer_at),
-                          },
-                          {
-                            label: "Ultima ofertă",
-                            value: formatDate(contact.last_offer_at || null),
-                          },
-                        ].map((item) => (
-                          <div
-                            key={item.label}
-                            style={{
-                              background: C.bg2,
-                              borderRadius: "8px",
-                              padding: "8px 12px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: "10px",
-                                color: C.muted,
-                                marginBottom: "2px",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.06em",
-                              }}
-                            >
-                              {item.label}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: "13px",
-                                color: C.dark,
-                                fontWeight: 500,
-                              }}
-                            >
-                              {item.value}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {contact.notes && (
-                        <div
-                          style={{
-                            background: C.bg2,
-                            borderRadius: "8px",
-                            padding: "10px 12px",
-                            fontSize: "12px",
-                            color: C.text2,
-                            marginBottom: "12px",
-                          }}
-                        >
-                          📝 {contact.notes}
-                        </div>
-                      )}
-
-                      {/* Enroll Link */}
-                      <EnrollLink
-                        clientName={contact.name || undefined}
-                        clientPhone={contact.phone || undefined}
-                        compact={false}
-                      />
-
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          marginTop: "12px",
-                        }}
-                      >
-                        <button
-                          onClick={() => {
-                            setEditingId(contact.id);
-                            setEditData({
-                              name: contact.name,
-                              phone: contact.phone,
-                              notes: contact.notes,
-                            });
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: "9px",
-                            background: C.bg2,
-                            border: `1px solid ${C.border2}`,
-                            borderRadius: "9px",
-                            color: C.dark,
-                            fontFamily: "'DM Sans', sans-serif",
-                            fontSize: "13px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          ✏️ Editează
-                        </button>
-                        <button
-                          onClick={() =>
-                            toggleFollowupOptOut(
-                              contact.id,
-                              contact.followup_opted_out || false,
-                            )
-                          }
-                          style={{
-                            flex: 1,
-                            padding: "9px",
-                            background: contact.followup_opted_out
-                              ? C.redbg
-                              : C.greenbg,
-                            border: `1px solid ${contact.followup_opted_out ? "rgba(201,79,106,0.2)" : "rgba(46,138,88,0.2)"}`,
-                            borderRadius: "9px",
-                            color: contact.followup_opted_out ? C.red : C.green,
-                            fontFamily: "'DM Sans', sans-serif",
-                            fontSize: "13px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {contact.followup_opted_out
-                            ? "⏸️ Follow-up oprit"
-                            : "✅ Follow-up activ"}
-                        </button>
-                      </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: T.muted,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {reason}
                     </div>
-                  )}
+                  </div>
                 </div>
-              )}
-            </div>
-          );
-        })
+
+                {/* Status */}
+                <div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      background: pill.bg,
+                      color: pill.color,
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {pill.label}
+                  </span>
+                </div>
+
+                {/* Ultima activitate */}
+                <div>
+                  <div style={{ fontSize: 13, color: T.espresso }}>
+                    {relativeDays(c.last_activity_at)}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.muted }}>
+                    {lastActivityLabel(c)}
+                  </div>
+                </div>
+
+                {/* Oferte */}
+                <div style={{ fontSize: 13, color: T.espresso }}>
+                  {c.offers_count ?? 0}
+                </div>
+
+                {/* Valoare */}
+                <div style={{ fontSize: 13, fontWeight: 500, color: T.sage }}>
+                  €{(c.total_eur ?? 0).toFixed(0)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
+
+      <div style={{ fontSize: 12, color: T.muted, marginTop: 12 }}>
+        {visible.length}{" "}
+        {visible.length === 1 ? "contact afișat" : "contacte afișate"}
+        {(search || businessFilter !== "all" || actionFilter !== "all") &&
+          ` din ${contacts.length} total`}
+      </div>
+
+      {/* Modal profil contact */}
+      <ContactModal
+        contact={selectedContact}
+        onClose={() => setSelectedContact(null)}
+        onWhatsApp={(c) => {
+          window.open(
+            `https://wa.me/${(c.phone || "").replace(/[^0-9]/g, "").replace(/^0/, "40")}`,
+            "_blank",
+          );
+        }}
+        onEmail={(c) => {
+          setSelectedContact(null);
+          setFollowupContact(c);
+        }}
+        onOffer={(c) => {
+          sessionStorage.setItem(
+            "prefill_contact",
+            JSON.stringify({
+              id: c.id,
+              name: c.name,
+              email: c.email,
+              phone: c.phone,
+            }),
+          );
+          navigate("/app/calculator");
+        }}
+        onStatusChange={handleStatusChange}
+        onNotesChange={handleNotesChange}
+        onOpenOffer={(offerId: string) =>
+          navigate(`/app/offers?offer=${offerId}`)
+        }
+      />
+
+      {/* Follow-up modal */}
+      {followupContact && (
+        <FollowupModal
+          contact={followupContact}
+          onClose={() => setFollowupContact(null)}
+          onSent={(contactId: string) => {
+            setContacts((prev) =>
+              prev.map((c) =>
+                c.id === contactId
+                  ? {
+                      ...c,
+                      followup_count: (c.followup_count || 0) + 1,
+                      status:
+                        c.status === "prospect" ? "in_followup" : c.status,
+                    }
+                  : c,
+              ),
+            );
+            setFollowupContact(null);
+          }}
+        />
+      )}
+
       {/* Add Contact Modal */}
       {showAddForm && (
         <div
@@ -954,23 +961,23 @@ export default function ContactsPage() {
             position: "fixed",
             inset: 0,
             zIndex: 1000,
-            background: "rgba(45,26,78,0.5)",
+            background: "rgba(61,53,48,0.45)",
             backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "20px",
+            padding: 20,
           }}
           onClick={() => setShowAddForm(false)}
         >
           <div
             style={{
-              background: C.card,
-              borderRadius: "20px",
-              padding: "28px",
-              maxWidth: "440px",
+              background: T.white,
+              borderRadius: 20,
+              padding: 28,
+              maxWidth: 440,
               width: "100%",
-              boxShadow: "0 20px 60px rgba(45,26,78,0.3)",
+              boxShadow: "0 20px 60px rgba(60,53,48,0.2)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -979,16 +986,10 @@ export default function ContactsPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                marginBottom: "20px",
+                marginBottom: 20,
               }}
             >
-              <div
-                style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: "20px",
-                  color: C.dark,
-                }}
-              >
+              <div style={{ fontSize: 20, fontWeight: 500, color: T.espresso }}>
                 Contact nou
               </div>
               <button
@@ -997,19 +998,16 @@ export default function ContactsPage() {
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  color: C.muted,
-                  fontSize: "20px",
+                  color: T.muted,
+                  fontSize: 20,
                 }}
               >
-                ✕
+                <i className="ti ti-x" />
               </button>
             </div>
-
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
-            >
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
-                <label style={labelStyle}>Nume</label>
+                <label style={labelStyle}>Nume *</label>
                 <input
                   value={addData.name}
                   onChange={(e) =>
@@ -1034,12 +1032,11 @@ export default function ContactsPage() {
               <div>
                 <label style={labelStyle}>Email (opțional)</label>
                 <input
-                  type="email"
                   value={addData.email}
                   onChange={(e) =>
                     setAddData((p) => ({ ...p, email: e.target.value }))
                   }
-                  placeholder="email@client.com"
+                  placeholder="email@exemplu.com"
                   style={inputStyle}
                 />
               </div>
@@ -1050,128 +1047,168 @@ export default function ContactsPage() {
                   onChange={(e) =>
                     setAddData((p) => ({ ...p, source: e.target.value }))
                   }
-                  style={{
-                    ...inputStyle,
-                    appearance: "none",
-                    cursor: "pointer",
-                  }}
+                  style={{ ...inputStyle, cursor: "pointer" }}
                 >
-                  <option value="WhatsApp">💬 WhatsApp</option>
-                  <option value="Facebook">👤 Facebook</option>
-                  <option value="Instagram">📸 Instagram</option>
-                  <option value="Recomandare">🤝 Recomandare</option>
-                  <option value="Altul">✨ Altul</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Facebook">Facebook</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Recomandare">Recomandare</option>
+                  <option value="Altul">Altul</option>
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>
-                  Motivul contactului / afecțiune
-                </label>
+                <label style={labelStyle}>Ce vrea? / De ce a venit?</label>
                 <textarea
                   value={addData.reason}
                   rows={3}
                   onChange={(e) =>
                     setAddData((p) => ({ ...p, reason: e.target.value }))
                   }
-                  placeholder="ex: Vrea ulei de lavandă pentru somn, are probleme cu stresul, a văzut postarea de pe Instagram..."
+                  placeholder="ex: Vrea ulei de lavandă pentru somn..."
                   style={{ ...inputStyle, resize: "vertical" }}
                 />
-                <div
-                  style={{ fontSize: "11px", color: C.muted, marginTop: "4px" }}
-                >
-                  Aceste informații te ajută să personalizezi oferta și
-                  follow-up-ul
-                </div>
               </div>
             </div>
-
-            <div style={{ display: "flex", gap: "8px", marginTop: "20px" }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
               <button
                 onClick={() => setShowAddForm(false)}
                 style={{
                   flex: 1,
-                  padding: "11px",
-                  background: C.bg2,
-                  border: `1px solid ${C.border2}`,
-                  borderRadius: "10px",
-                  color: C.dark,
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "13px",
+                  padding: 11,
+                  background: T.linen,
+                  border: `0.5px solid ${T.border}`,
+                  borderRadius: 10,
+                  color: T.espresso,
+                  fontFamily: "inherit",
+                  fontSize: 13,
                   cursor: "pointer",
                 }}
               >
-                Anul
+                Anulează
               </button>
               <button
                 onClick={addContact}
                 disabled={
                   addSaving ||
-                  (!addData.name && !addData.email && !addData.phone)
+                  (!addData.name && !addData.phone && !addData.email)
                 }
                 style={{
                   flex: 2,
-                  padding: "11px",
-                  background: addSaving
-                    ? C.muted
-                    : `linear-gradient(135deg, ${C.primary}, #4A3270)`,
+                  padding: 11,
+                  background: addSaving ? T.muted : T.sage,
                   border: "none",
-                  borderRadius: "10px",
+                  borderRadius: 10,
                   color: "white",
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "13px",
+                  fontFamily: "inherit",
+                  fontSize: 13,
                   fontWeight: 500,
-                  cursor: addSaving ? "not-allowed" : "pointer",
+                  cursor: "pointer",
                 }}
               >
-                {addSaving ? "Se salvează..." : "+ Adaugă contact"}
+                {addSaving ? "Se salvează..." : "Adaugă contact"}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {followupContact && (
-        <FollowupModal
-          contact={followupContact}
-          onClose={() => setFollowupContact(null)}
-          onSent={(contactId) => {
-            setContacts((prev) =>
-              prev.map((c) =>
-                c.id === contactId
-                  ? {
-                      ...c,
-                      followup_count: (c.followup_count || 0) + 1,
-                      status: "in_followup",
-                    }
-                  : c,
-              ),
-            );
-            setFollowupContact(null);
-          }}
-        />
-      )}
     </div>
   );
 }
 
+function chipStyle(active: boolean, color: string): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 12px",
+    background: active ? color : T.white,
+    border: `0.5px solid ${active ? color : T.border}`,
+    borderRadius: 999,
+    fontSize: 13,
+    fontWeight: 500,
+    color: active ? "white" : T.warm,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  };
+}
+function chipCount(active: boolean): React.CSSProperties {
+  return {
+    fontSize: 11,
+    fontWeight: 500,
+    background: active ? "rgba(255,255,255,0.25)" : T.linen,
+    color: active ? "white" : T.muted,
+    padding: "1px 7px",
+    borderRadius: 999,
+  };
+}
+function dropdownBtn(active: boolean): React.CSSProperties {
+  return {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "8px 14px",
+    background: active ? T.sageLight : T.white,
+    border: `0.5px solid ${active ? T.sageMid : T.border}`,
+    borderRadius: 10,
+    fontSize: 13,
+    fontWeight: 500,
+    color: active ? T.sage : T.warm,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    whiteSpace: "nowrap",
+  };
+}
+const dropdownMenu: React.CSSProperties = {
+  position: "absolute",
+  top: "100%",
+  right: 0,
+  marginTop: 4,
+  minWidth: 200,
+  background: T.white,
+  border: `0.5px solid ${T.border}`,
+  borderRadius: 10,
+  boxShadow: "0 8px 24px rgba(61,53,48,0.12)",
+  zIndex: 50,
+  overflow: "hidden",
+};
+function dropdownItem(active: boolean): React.CSSProperties {
+  return {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "9px 14px",
+    background: active ? T.cream : T.white,
+    border: "none",
+    borderBottom: `0.5px solid ${T.linen}`,
+    fontSize: 13,
+    fontWeight: active ? 500 : 400,
+    color: active ? T.sage : T.espresso,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    textAlign: "left",
+  };
+}
+
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: "11px",
+  fontSize: 11,
   fontWeight: 500,
-  color: "#6B5B9E",
-  marginBottom: "5px",
+  color: "#6A5A50",
+  marginBottom: 5,
+  textTransform: "uppercase",
   letterSpacing: "0.04em",
 };
-
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "9px 12px",
-  background: "#F9F7FF",
-  border: "1.5px solid rgba(196,168,232,0.4)",
-  borderRadius: "9px",
-  fontSize: "13px",
-  color: "#2D1A4E",
-  fontFamily: "'DM Sans', sans-serif",
+  background: "#FAFAF7",
+  border: "0.5px solid #EDE8E0",
+  borderRadius: 9,
+  fontSize: 13,
+  color: "#3D3530",
+  fontFamily: "inherit",
   outline: "none",
   boxSizing: "border-box",
 };

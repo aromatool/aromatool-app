@@ -2,21 +2,62 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 
-const C = {
-  bg: "#FDFAFF",
-  card: "#FFFFFF",
-  border: "rgba(196,168,232,0.3)",
-  border2: "rgba(196,168,232,0.5)",
-  primary: "#7B5EA7",
-  dark: "#2D1A4E",
-  muted: "#9B80C4",
-  text2: "#6B5B9E",
-  bg2: "#F5F0FF",
+const T = {
+  sage: "#5C7A5C",
+  sageDark: "#4A6A4A",
+  sageLight: "#E8F0E8",
+  sageMid: "#C8D8C8",
+  cream: "#FAFAF7",
+  linen: "#F5EEE8",
+  espresso: "#3D3530",
+  warm: "#6A5A50",
+  muted: "#A89888",
+  rose: "#D4A5A0",
+  roseLight: "#FDF0EE",
+  lavender: "#9888B8",
+  lavenderLight: "#F0EEF8",
+  amber: "#C4906A",
+  amberLight: "#FDF5EE",
+  border: "#EDE8E0",
+  white: "#FFFFFF",
   green: "#2E8A58",
-  greenbg: "#E8F8F0",
+  greenLight: "#E8F8F0",
   red: "#C94F6A",
-  redbg: "#FFF0F4",
+  redLight: "#FFF0F4",
 };
+
+interface Offer {
+  id: string;
+  sent_at: string;
+  total_display: number;
+  total_eur: number;
+  currency: string;
+  exchange_rate: number;
+  notes: string | null;
+  transport: number;
+  products_json: Array<{
+    name: string;
+    sku: string;
+    qty: number;
+    disc: number;
+    price_eur: number;
+  }>;
+  contacts: {
+    id: string;
+    email: string;
+    name: string | null;
+    status: string;
+  } | null;
+}
+
+interface ClientGroup {
+  clientKey: string;
+  clientName: string;
+  clientEmail: string;
+  clientStatus: string;
+  offers: Offer[];
+  totalEur: number;
+}
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   RON: "RON",
@@ -39,55 +80,43 @@ function fmtCurrency(amount: number, currency: string) {
   return `${formatted} ${symbol}`;
 }
 
-interface Offer {
-  id: string;
-  sent_at: string;
-  total_display: number;
-  total_eur: number;
-  exchange_rate: number;
-  currency: string;
-  notes: string | null;
-  transport: number;
-  products_json: Array<{
-    name: string;
-    sku: string;
-    qty: number;
-    disc: number;
-    price_eur: number;
-  }>;
-  contacts: {
-    id: string;
-    email: string;
-    name: string | null;
-    status: string;
-  } | null;
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("ro-RO", {
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString("ro-RO", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+  });
+}
+
+function formatDateTime(d: string) {
+  return new Date(d).toLocaleDateString("ro-RO", {
+    day: "2-digit",
+    month: "short",
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-const STATUS_COLORS: Record<
+const STATUS_STYLE: Record<
   string,
   { bg: string; color: string; label: string }
 > = {
-  prospect: { bg: "#FFF8E7", color: "#B8860B", label: "🟡 Prospect" },
-  client_nou: { bg: C.greenbg, color: C.green, label: "🟢 Client nou" },
-  client_fidel: { bg: C.bg2, color: C.primary, label: "⭐ Fidel" },
+  prospect: { bg: T.amberLight, color: T.amber, label: "Prospect" },
+  client_nou: { bg: T.greenLight, color: T.green, label: "Client nou" },
+  client_fidel: { bg: T.sageLight, color: T.sage, label: "Client fidel" },
+  in_followup: { bg: T.lavenderLight, color: T.lavender, label: "Follow-up" },
+  inactiv: { bg: T.border, color: T.muted, label: "Inactiv" },
 };
 
 export default function OffersPage() {
   const { user } = useAuth();
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedOffers, setExpandedOffers] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -99,33 +128,73 @@ export default function OffersPage() {
     const { data, error } = await supabase
       .from("offers")
       .select(
-        `
-        id, sent_at, total_display, total_eur, exchange_rate, currency,
-        notes, transport, products_json,
-        contacts ( id, email, name, status )
-      `,
+        `id, sent_at, total_display, total_eur, exchange_rate, currency, notes, transport, products_json, contacts(id, email, name, status)`,
       )
       .eq("user_id", user!.id)
       .order("sent_at", { ascending: false });
-
     if (!error && data) setOffers(data as Offer[]);
     setLoading(false);
   }
 
-  const filtered = offers.filter((o) => {
+  // Group by client
+  const grouped: ClientGroup[] = [];
+  const seen = new Map<string, ClientGroup>();
+
+  offers.forEach((offer) => {
+    const key = offer.contacts?.id || offer.contacts?.email || "unknown";
+    const name = offer.contacts?.name || offer.contacts?.email || "—";
+    const email = offer.contacts?.email || "";
+    const status = offer.contacts?.status || "prospect";
+
+    if (!seen.has(key)) {
+      const group: ClientGroup = {
+        clientKey: key,
+        clientName: name,
+        clientEmail: email,
+        clientStatus: status,
+        offers: [],
+        totalEur: 0,
+      };
+      seen.set(key, group);
+      grouped.push(group);
+    }
+    const g = seen.get(key)!;
+    g.offers.push(offer);
+    g.totalEur += offer.total_eur || 0;
+  });
+
+  // Filter
+  const filtered = grouped.filter((g) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
-      o.contacts?.email?.toLowerCase().includes(q) ||
-      o.contacts?.name?.toLowerCase().includes(q) ||
-      o.products_json?.some((p) => p.name.toLowerCase().includes(q))
+      g.clientName.toLowerCase().includes(q) ||
+      g.clientEmail.toLowerCase().includes(q) ||
+      g.offers.some((o) =>
+        o.products_json?.some((p) => p.name.toLowerCase().includes(q)),
+      )
     );
   });
 
-  const totalEur = offers.reduce((s, o) => s + (o.total_eur || 0), 0);
-  const uniqueClients = new Set(
-    offers.map((o) => o.contacts?.email).filter(Boolean),
-  ).size;
+  const toggleClient = (key: string) => {
+    setExpandedClients((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleOffer = (id: string) => {
+    setExpandedOffers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const totalEurAll = offers.reduce((s, o) => s + (o.total_eur || 0), 0);
 
   if (loading)
     return (
@@ -136,8 +205,8 @@ export default function OffersPage() {
           style={{
             width: "28px",
             height: "28px",
-            border: "3px solid #E8E0F8",
-            borderTopColor: C.primary,
+            border: `3px solid ${T.border}`,
+            borderTopColor: T.sage,
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }}
@@ -161,13 +230,7 @@ export default function OffersPage() {
           gap: "12px",
         }}
       >
-        <div
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "22px",
-            color: C.dark,
-          }}
-        >
+        <div style={{ fontSize: "22px", fontWeight: 500, color: T.espresso }}>
           Oferte trimise
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
@@ -175,25 +238,25 @@ export default function OffersPage() {
             {
               label: "Total oferte",
               value: String(offers.length),
-              color: C.dark,
+              color: T.espresso,
             },
             {
               label: "Clienți unici",
-              value: String(uniqueClients),
-              color: C.primary,
+              value: String(grouped.length),
+              color: T.sage,
             },
             {
               label: "Valoare totală",
-              value: `€ ${totalEur.toFixed(2)}`,
-              color: C.green,
+              value: `€ ${totalEurAll.toFixed(0)}`,
+              color: T.green,
             },
-          ].map((stat) => (
+          ].map((s) => (
             <div
-              key={stat.label}
+              key={s.label}
               style={{
-                background: C.card,
-                border: `1px solid ${C.border2}`,
-                borderRadius: "10px",
+                background: T.white,
+                border: `0.5px solid ${T.border}`,
+                borderRadius: "12px",
                 padding: "10px 16px",
                 textAlign: "center",
               }}
@@ -201,16 +264,16 @@ export default function OffersPage() {
               <div
                 style={{
                   fontSize: "11px",
-                  color: C.muted,
+                  color: T.muted,
                   marginBottom: "2px",
                 }}
               >
-                {stat.label}
+                {s.label}
               </div>
               <div
-                style={{ fontSize: "18px", fontWeight: 700, color: stat.color }}
+                style={{ fontSize: "18px", fontWeight: 500, color: s.color }}
               >
-                {stat.value}
+                {s.value}
               </div>
             </div>
           ))}
@@ -219,402 +282,497 @@ export default function OffersPage() {
 
       {/* Search */}
       <div style={{ position: "relative", marginBottom: "16px" }}>
-        <span
+        <i
+          className="ti ti-search"
           style={{
             position: "absolute",
             left: "12px",
             top: "50%",
             transform: "translateY(-50%)",
-            color: C.muted,
+            fontSize: "16px",
+            color: T.muted,
           }}
-        >
-          🔍
-        </span>
+        />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Caută după email, nume sau produs..."
+          placeholder="Caută după client sau produs..."
           style={{
             width: "100%",
-            padding: "10px 12px 10px 36px",
-            background: C.card,
-            border: `1.5px solid ${C.border2}`,
+            padding: "10px 12px 10px 38px",
+            background: T.white,
+            border: `0.5px solid ${T.border}`,
             borderRadius: "10px",
             fontSize: "14px",
-            color: C.dark,
-            fontFamily: "'DM Sans', sans-serif",
+            color: T.espresso,
+            fontFamily: "inherit",
             outline: "none",
             boxSizing: "border-box",
           }}
         />
       </div>
 
-      {/* Offers list */}
+      {/* Grouped list */}
       {filtered.length === 0 ? (
         <div
           style={{
             textAlign: "center",
             padding: "48px 20px",
-            border: `1.5px dashed ${C.border2}`,
+            border: `1.5px dashed ${T.border}`,
             borderRadius: "16px",
-            background: C.card,
+            background: T.white,
           }}
         >
-          <div style={{ fontSize: "40px", marginBottom: "12px" }}>📋</div>
+          <i
+            className="ti ti-file-off"
+            style={{
+              fontSize: "40px",
+              color: T.muted,
+              display: "block",
+              marginBottom: "12px",
+            }}
+          />
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
               fontSize: "18px",
-              color: C.dark,
+              fontWeight: 500,
+              color: T.espresso,
               marginBottom: "6px",
             }}
           >
             {search ? "Niciun rezultat" : "Nu ai trimis oferte încă"}
           </div>
-          <div style={{ fontSize: "13px", color: C.muted }}>
+          <div style={{ fontSize: "13px", color: T.muted }}>
             {search
               ? "Încearcă alte cuvinte"
               : "Adaugă produse în coș și trimite prima ofertă"}
           </div>
         </div>
       ) : (
-        filtered.map((offer) => {
-          const isExpanded = expandedId === offer.id;
-          const currency = offer.currency || "RON";
-          const status = offer.contacts?.status || "prospect";
-          const statusInfo = STATUS_COLORS[status] || STATUS_COLORS.prospect;
-          const productsPreview = offer.products_json
-            ?.slice(0, 2)
-            .map((p) => `${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}`)
-            .join(", ");
-          const moreCount = (offer.products_json?.length || 0) - 2;
+        filtered.map((group) => {
+          const isExpanded = expandedClients.has(group.clientKey);
+          const latestOffer = group.offers[0];
+          const statusStyle =
+            STATUS_STYLE[group.clientStatus] || STATUS_STYLE.prospect;
+          const initials = group.clientName
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase();
 
           return (
             <div
-              key={offer.id}
+              key={group.clientKey}
               style={{
-                background: C.card,
-                border: `1px solid ${C.border2}`,
+                background: T.white,
+                border: `0.5px solid ${T.border}`,
                 borderRadius: "14px",
-                padding: "16px",
                 marginBottom: "10px",
+                overflow: "hidden",
               }}
             >
-              {/* Header row */}
+              {/* Client header — always visible */}
               <div
-                style={{ cursor: "pointer" }}
-                onClick={() => setExpandedId(isExpanded ? null : offer.id)}
+                style={{
+                  padding: "14px 16px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+                onClick={() => toggleClient(group.clientKey)}
               >
+                {/* Avatar */}
                 <div
                   style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    background: T.sageLight,
                     display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: "12px",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: T.sage,
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        marginBottom: "4px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          fontWeight: 600,
-                          color: C.dark,
-                        }}
-                      >
-                        {offer.contacts?.name || offer.contacts?.email || "—"}
-                      </span>
-                      {offer.contacts?.name && (
-                        <span style={{ fontSize: "12px", color: C.muted }}>
-                          {offer.contacts.email}
-                        </span>
-                      )}
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                          borderRadius: "999px",
-                          background: statusInfo.bg,
-                          color: statusInfo.color,
-                        }}
-                      >
-                        {statusInfo.label}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: C.muted,
-                        marginBottom: "4px",
-                      }}
-                    >
-                      📅 {formatDate(offer.sent_at)}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: C.text2,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      🌿 {productsPreview}
-                      {moreCount > 0 ? ` +${moreCount} produse` : ""}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div
-                      style={{
-                        fontFamily: "'Playfair Display', serif",
-                        fontSize: "18px",
-                        color: C.dark,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {fmtCurrency(offer.total_display, currency)}
-                    </div>
-                    {currency !== "EUR" && (
-                      <div style={{ fontSize: "11px", color: C.muted }}>
-                        € {(offer.total_eur || 0).toFixed(2)}
-                      </div>
-                    )}
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: C.muted,
-                        marginTop: "4px",
-                      }}
-                    >
-                      {isExpanded ? "▲" : "▼"}
-                    </div>
-                  </div>
+                  {initials}
                 </div>
-              </div>
 
-              {/* Expanded */}
-              {isExpanded && (
-                <div
-                  style={{
-                    marginTop: "14px",
-                    paddingTop: "14px",
-                    borderTop: `1px solid ${C.border}`,
-                  }}
-                >
-                  {/* Products */}
-                  <div style={{ marginBottom: "12px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: C.primary,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.07em",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Produse
-                    </div>
-                    {offer.products_json?.map((p, i) => {
-                      const lineTotalEur =
-                        p.price_eur * p.qty * (1 - p.disc / 100);
-                      const lineTotalDisplay =
-                        lineTotalEur * (offer.exchange_rate || 1);
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "6px 0",
-                            borderBottom: `1px solid ${C.border}`,
-                            fontSize: "13px",
-                          }}
-                        >
-                          <div style={{ flex: 1 }}>
-                            <span style={{ color: C.dark }}>{p.name}</span>
-                            {p.disc > 0 && (
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  color: C.red,
-                                  marginLeft: "6px",
-                                }}
-                              >
-                                −{p.disc}%
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "16px",
-                              flexShrink: 0,
-                              alignItems: "center",
-                            }}
-                          >
-                            <span style={{ color: C.muted, fontSize: "12px" }}>
-                              ×{p.qty}
-                            </span>
-                            <div style={{ textAlign: "right" }}>
-                              <div style={{ fontWeight: 500, color: C.dark }}>
-                                {fmtCurrency(lineTotalDisplay, currency)}
-                              </div>
-                              {currency !== "EUR" && (
-                                <div
-                                  style={{ fontSize: "10px", color: C.muted }}
-                                >
-                                  € {lineTotalEur.toFixed(2)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Meta info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       display: "flex",
-                      gap: "12px",
+                      alignItems: "center",
+                      gap: "8px",
                       flexWrap: "wrap",
-                      marginBottom: "12px",
                     }}
                   >
-                    {offer.transport > 0 && (
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          color: C.muted,
-                          background: C.bg2,
-                          padding: "3px 10px",
-                          borderRadius: "999px",
-                        }}
-                      >
-                        🚚 Transport:{" "}
-                        {fmtCurrency(
-                          offer.transport * (offer.exchange_rate || 1),
-                          currency,
-                        )}
-                      </span>
-                    )}
                     <span
                       style={{
-                        fontSize: "12px",
-                        color: C.muted,
-                        background: C.bg2,
-                        padding: "3px 10px",
-                        borderRadius: "999px",
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        color: T.espresso,
                       }}
                     >
-                      📈 1€ = {(offer.exchange_rate || 0).toFixed(4)} {currency}
+                      {group.clientName}
                     </span>
                     <span
                       style={{
-                        fontSize: "12px",
-                        color: C.muted,
-                        background: C.bg2,
-                        padding: "3px 10px",
+                        fontSize: "11px",
+                        background: statusStyle.bg,
+                        color: statusStyle.color,
+                        padding: "2px 8px",
                         borderRadius: "999px",
+                        fontWeight: 500,
                       }}
                     >
-                      💱 {currency}
+                      {statusStyle.label}
                     </span>
                   </div>
-
-                  {offer.notes && (
-                    <div
-                      style={{
-                        background: C.bg2,
-                        borderRadius: "8px",
-                        padding: "10px 12px",
-                        fontSize: "12px",
-                        color: C.text2,
-                        marginBottom: "12px",
-                      }}
-                    >
-                      📝 {offer.notes}
-                    </div>
-                  )}
-
-                  {/* Actions */}
                   <div
-                    style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}
+                    style={{
+                      fontSize: "12px",
+                      color: T.muted,
+                      marginTop: "2px",
+                    }}
                   >
-                    <button
-                      onClick={() => {
-                        const products = offer.products_json
-                          ?.map(
-                            (p) =>
-                              `• ${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}${p.disc > 0 ? ` (−${p.disc}%)` : ""} — ${fmtCurrency(p.price_eur * p.qty * (1 - p.disc / 100) * (offer.exchange_rate || 1), currency)}`,
-                          )
-                          .join("\n");
-                        const text = `Ofertă ${offer.contacts?.name || offer.contacts?.email}:\n\n${products}\n\n💜 Total: ${fmtCurrency(offer.total_display, currency)}`;
-                        navigator.clipboard.writeText(text);
-                        setCopiedId(offer.id);
-                        setTimeout(() => setCopiedId(null), 2000);
-                      }}
-                      style={{
-                        padding: "7px 14px",
-                        background: copiedId === offer.id ? C.greenbg : C.bg2,
-                        border: `1px solid ${copiedId === offer.id ? C.green : C.border2}`,
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        color: copiedId === offer.id ? C.green : C.dark,
-                        fontFamily: "'DM Sans', sans-serif",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {copiedId === offer.id
-                        ? "✅ Copiat!"
-                        : "📋 Copiază sumar"}
-                    </button>
-
-                    {offer.contacts?.email && (
-                      <button
-                        onClick={() => {
-                          const waNum = (offer.contacts?.email || "").replace(
-                            /[^0-9]/g,
-                            "",
-                          );
-                          window.open(
-                            `mailto:${offer.contacts?.email}?subject=Oferta ta Young Living`,
-                            "_blank",
-                          );
-                        }}
-                        style={{
-                          padding: "7px 14px",
-                          background: C.bg2,
-                          border: `1px solid ${C.border2}`,
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                          color: C.dark,
-                          fontFamily: "'DM Sans', sans-serif",
-                          cursor: "pointer",
-                        }}
-                      >
-                        📧 Trimite email
-                      </button>
-                    )}
+                    {group.offers.length}{" "}
+                    {group.offers.length === 1 ? "ofertă" : "oferte"} ·{" "}
+                    {formatDate(latestOffer.sent_at)}
                   </div>
+                </div>
+
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 500,
+                      color: T.espresso,
+                    }}
+                  >
+                    € {group.totalEur.toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: "11px", color: T.muted }}>total</div>
+                </div>
+
+                <i
+                  className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
+                  style={{ fontSize: "18px", color: T.muted, flexShrink: 0 }}
+                />
+              </div>
+
+              {/* Latest offer — always visible under client header */}
+              <OfferRow
+                offer={latestOffer}
+                isLatest={true}
+                isExpanded={expandedOffers.has(latestOffer.id)}
+                onToggle={() => toggleOffer(latestOffer.id)}
+                copiedId={copiedId}
+                setCopiedId={setCopiedId}
+              />
+
+              {/* Older offers — visible when client expanded */}
+              {isExpanded &&
+                group.offers
+                  .slice(1)
+                  .map((offer) => (
+                    <OfferRow
+                      key={offer.id}
+                      offer={offer}
+                      isLatest={false}
+                      isExpanded={expandedOffers.has(offer.id)}
+                      onToggle={() => toggleOffer(offer.id)}
+                      copiedId={copiedId}
+                      setCopiedId={setCopiedId}
+                    />
+                  ))}
+
+              {/* Show more button */}
+              {!isExpanded && group.offers.length > 1 && (
+                <div
+                  onClick={() => toggleClient(group.clientKey)}
+                  style={{
+                    padding: "10px 16px",
+                    borderTop: `0.5px solid ${T.border}`,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span style={{ fontSize: "12px", color: T.muted }}>
+                    + {group.offers.length - 1} oferte anterioare
+                  </span>
+                  <i
+                    className="ti ti-chevron-down"
+                    style={{ fontSize: "13px", color: T.muted }}
+                  />
                 </div>
               )}
             </div>
           );
         })
+      )}
+    </div>
+  );
+}
+
+function OfferRow({
+  offer,
+  isLatest,
+  isExpanded,
+  onToggle,
+  copiedId,
+  setCopiedId,
+}: {
+  offer: Offer;
+  isLatest: boolean;
+  isExpanded: boolean;
+  onToggle: () => void;
+  copiedId: string | null;
+  setCopiedId: (id: string | null) => void;
+}) {
+  const currency = offer.currency || "RON";
+  const productsPreview = offer.products_json
+    ?.slice(0, 2)
+    .map((p) => `${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}`)
+    .join(", ");
+  const moreCount = (offer.products_json?.length || 0) - 2;
+
+  function copyOffer() {
+    const products = offer.products_json
+      ?.map((p) => {
+        const total =
+          p.price_eur * p.qty * (1 - p.disc / 100) * (offer.exchange_rate || 1);
+        return `• ${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}${p.disc > 0 ? ` (−${p.disc}%)` : ""} — ${total.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} ${currency}`;
+      })
+      .join("\n");
+    const text = `${products}\n\nTotal: ${fmtCurrency(offer.total_display, currency)}`;
+    navigator.clipboard.writeText(text);
+    setCopiedId(offer.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  return (
+    <div
+      style={{
+        borderTop: `0.5px solid ${T.border}`,
+        background: isLatest ? T.white : T.cream,
+      }}
+    >
+      {/* Row header */}
+      <div
+        onClick={onToggle}
+        style={{
+          padding: "11px 16px 11px 68px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+        }}
+      >
+        {isLatest && (
+          <span
+            style={{
+              fontSize: "10px",
+              background: T.sageLight,
+              color: T.sage,
+              padding: "2px 7px",
+              borderRadius: "999px",
+              fontWeight: 500,
+              flexShrink: 0,
+            }}
+          >
+            Ultima
+          </span>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: "12px",
+              color: T.warm,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {productsPreview}
+            {moreCount > 0 ? ` +${moreCount}` : ""}
+          </div>
+          <div style={{ fontSize: "11px", color: T.muted, marginTop: "1px" }}>
+            {new Date(offer.sent_at).toLocaleDateString("ro-RO", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </div>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: "14px", fontWeight: 500, color: T.espresso }}>
+            {fmtCurrency(offer.total_display, currency)}
+          </div>
+          {currency !== "EUR" && (
+            <div style={{ fontSize: "10px", color: T.muted }}>
+              € {(offer.total_eur || 0).toFixed(2)}
+            </div>
+          )}
+        </div>
+        <i
+          className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
+          style={{ fontSize: "15px", color: T.muted, flexShrink: 0 }}
+        />
+      </div>
+
+      {/* Expanded offer details */}
+      {isExpanded && (
+        <div style={{ padding: "0 16px 14px 68px" }}>
+          {/* Products */}
+          <div
+            style={{
+              border: `0.5px solid ${T.border}`,
+              borderRadius: "10px",
+              overflow: "hidden",
+              marginBottom: "10px",
+            }}
+          >
+            {offer.products_json?.map((p, i) => {
+              const lineTotalEur = p.price_eur * p.qty * (1 - p.disc / 100);
+              const lineTotalDisplay =
+                lineTotalEur * (offer.exchange_rate || 1);
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "8px 12px",
+                    borderBottom:
+                      i < offer.products_json.length - 1
+                        ? `0.5px solid ${T.border}`
+                        : "none",
+                    background: T.white,
+                    fontSize: "13px",
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <span style={{ color: T.espresso }}>{p.name}</span>
+                    {p.qty > 1 && (
+                      <span style={{ color: T.muted, marginLeft: "6px" }}>
+                        ×{p.qty}
+                      </span>
+                    )}
+                    {p.disc > 0 && (
+                      <span
+                        style={{
+                          color: T.red,
+                          fontSize: "11px",
+                          marginLeft: "6px",
+                        }}
+                      >
+                        −{p.disc}%
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontWeight: 500, color: T.espresso }}>
+                      {fmtCurrency(lineTotalDisplay, currency)}
+                    </div>
+                    {currency !== "EUR" && (
+                      <div style={{ fontSize: "10px", color: T.muted }}>
+                        € {lineTotalEur.toFixed(2)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Meta */}
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+              marginBottom: "10px",
+            }}
+          >
+            {offer.transport > 0 && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: T.muted,
+                  background: T.border,
+                  padding: "3px 10px",
+                  borderRadius: "999px",
+                }}
+              >
+                Transport:{" "}
+                {fmtCurrency(
+                  offer.transport * (offer.exchange_rate || 1),
+                  currency,
+                )}
+              </span>
+            )}
+            <span
+              style={{
+                fontSize: "11px",
+                color: T.muted,
+                background: T.border,
+                padding: "3px 10px",
+                borderRadius: "999px",
+              }}
+            >
+              1€ = {(offer.exchange_rate || 0).toFixed(4)} {currency}
+            </span>
+          </div>
+
+          {offer.notes && (
+            <div
+              style={{
+                background: T.linen,
+                borderRadius: "8px",
+                padding: "8px 12px",
+                fontSize: "12px",
+                color: T.warm,
+                marginBottom: "10px",
+              }}
+            >
+              {offer.notes}
+            </div>
+          )}
+
+          {/* Actions */}
+          <button
+            onClick={copyOffer}
+            style={{
+              padding: "7px 14px",
+              fontSize: "12px",
+              fontFamily: "inherit",
+              background: copiedId === offer.id ? T.greenLight : T.white,
+              border: `0.5px solid ${copiedId === offer.id ? T.green : T.border}`,
+              borderRadius: "8px",
+              color: copiedId === offer.id ? T.green : T.warm,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <i
+              className={`ti ${copiedId === offer.id ? "ti-check" : "ti-copy"}`}
+              style={{ fontSize: "14px" }}
+            />
+            {copiedId === offer.id ? "Copiat!" : "Copiază sumar"}
+          </button>
+        </div>
       )}
     </div>
   );

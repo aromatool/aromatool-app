@@ -7,6 +7,7 @@ interface SendOfferParams {
   clientName: string
   clientEmail: string
   clientPhone?: string
+  contactId?: string
   notes: string
   items: CartItem[]
   transport: number       // in EUR
@@ -161,8 +162,8 @@ export function useSendEmail() {
   const { user } = useAuth()
 
   const sendOffer = async (params: SendOfferParams) => {
-    if (!params.clientEmail || !params.clientEmail.includes('@')) {
-      setError('Email invalid.')
+    if (!params.clientEmail || !params.clientEmail.includes('@') || params.clientEmail.includes('@noemail.local')) {
+      setError('Clientul nu are un email valid. Adaugă un email în fișa de contact înainte să trimiți oferta.')
       return false
     }
     if (params.items.length === 0) {
@@ -194,35 +195,44 @@ export function useSendEmail() {
       if (data?.error) throw new Error(data.error)
 
       // 2. Salvează/actualizează contactul
-      const { data: existingContact } = await supabase
-        .from('contacts')
-        .select('id, purchase_count, first_offer_at')
-        .eq('user_id', user!.id)
-        .eq('email', params.clientEmail)
-        .single()
+      let contactId: string | null = params.contactId || null
 
-      let contactId: string | null = null
-
-      if (existingContact) {
-        contactId = existingContact.id
+      if (contactId) {
+        // Vine din Contacts — actualizăm direct
         await supabase
           .from('contacts')
           .update({ updated_at: new Date().toISOString() })
           .eq('id', contactId)
       } else {
-        const { data: newContact } = await supabase
+        // Vine din Calculator direct — căutăm după email
+        const { data: existingContact } = await supabase
           .from('contacts')
-          .insert({
-            user_id: user!.id,
-            email: params.clientEmail,
-            name: params.clientName || null,
-            phone: params.clientPhone || null,
-            status: 'prospect',
-            first_offer_at: new Date().toISOString(),
-          })
           .select('id')
+          .eq('user_id', user!.id)
+          .eq('email', params.clientEmail)
           .single()
-        contactId = newContact?.id || null
+
+        if (existingContact) {
+          contactId = existingContact.id
+          await supabase
+            .from('contacts')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', contactId)
+        } else {
+          const { data: newContact } = await supabase
+            .from('contacts')
+            .insert({
+              user_id: user!.id,
+              email: params.clientEmail,
+              name: params.clientName || null,
+              phone: params.clientPhone || null,
+              status: 'prospect',
+              first_offer_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+          contactId = newContact?.id || null
+        }
       }
 
       // 3. Salvează oferta

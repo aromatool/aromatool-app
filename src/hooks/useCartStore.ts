@@ -35,6 +35,7 @@ interface CartStore {
   setExchangeRate: (rate: number) => void
   setCurrency: (currency: string) => void
   setCustomRate: (currency: string, rate: number) => void
+  setPrefillContactId: (id: string | null) => void
   clearCart: () => void
 
   // All computed values return EUR — convert to display currency in components
@@ -57,6 +58,7 @@ export const useCartStore = create<CartStore>()(
       exchangeRate: 5.2523,
       currency: 'RON',
       customRates: {},
+      prefillContactId: null,
 
       addItem: (product) => set(state => {
         const existing = state.items.find(i => i.id === product.id)
@@ -102,6 +104,7 @@ export const useCartStore = create<CartStore>()(
       setNotes: (notes) => set({ notes }),
       setExchangeRate: (exchangeRate) => set({ exchangeRate }),
       setCurrency: (currency) => set({ currency }),
+      setPrefillContactId: (prefillContactId) => set({ prefillContactId }),
       setCustomRate: (currency, rate) => set(state => ({
         customRates: { ...state.customRates, [currency]: rate }
       })),
@@ -151,6 +154,7 @@ export const useCartStore = create<CartStore>()(
         exchangeRate: state.exchangeRate,
         currency: state.currency,
         customRates: state.customRates,
+        prefillContactId: state.prefillContactId,
       }),
     }
   )

@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap");
+@import url("https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css");
 
 * {
   box-sizing: border-box;
@@ -8,8 +9,10 @@
 }
 
 body {
-  font-family: "DM Sans", sans-serif;
+  font-family: "DM Sans", Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  background: #fafaf7;
+  color: #3d3530;
 }
 
 @keyframes spin {

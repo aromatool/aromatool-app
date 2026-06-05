@@ -305,6 +305,7 @@ function CartSection() {
     clientPhone,
     notes,
     currency,
+    prefillContactId,
     removeItem,
     updateQty,
     updateDisc,
@@ -314,6 +315,7 @@ function CartSection() {
     setClientEmail,
     setClientPhone,
     setNotes,
+    setPrefillContactId,
     clearCart,
     getSubtotalEur,
     getDiscountEur,
@@ -341,6 +343,21 @@ function CartSection() {
   } = useSendEmail();
 
   const activeCurrency = currency || "RON";
+
+  // Pre-fill contact from Contacts page
+  useEffect(() => {
+    const prefill = sessionStorage.getItem("prefill_contact");
+    if (prefill) {
+      try {
+        const { id, name, email, phone } = JSON.parse(prefill);
+        if (name) setClientName(name);
+        if (email) setClientEmail(email);
+        if (phone) setClientPhone(phone);
+        if (id) setPrefillContactId(id);
+        sessionStorage.removeItem("prefill_contact");
+      } catch {}
+    }
+  }, []);
 
   // All EUR values
   const subtotalEur = getSubtotalEur();
@@ -1055,7 +1072,7 @@ function CartSection() {
               flex: 1,
               padding: "10px 12px",
               background: C.bg2,
-              border: `1.5px solid ${C.border2}`,
+              border: `1.5px solid ${clientEmail.includes("@noemail.local") ? C.red : C.border2}`,
               borderRadius: "8px",
               fontSize: "14px",
               color: C.dark,
@@ -1077,6 +1094,7 @@ function CartSection() {
                 totalEur,
                 exchangeRate: getRate(activeCurrency),
                 currency: activeCurrency,
+                contactId: prefillContactId || undefined,
                 enrollLink: enrollLink || undefined,
               });
             }}
@@ -1096,6 +1114,23 @@ function CartSection() {
             {sending ? "..." : "Trimite"}
           </button>
         </div>
+
+        {clientEmail.includes("@noemail.local") && (
+          <div
+            style={{
+              marginTop: "6px",
+              padding: "8px 12px",
+              background: "#FFF8E7",
+              border: "1px solid rgba(184,134,11,0.3)",
+              borderRadius: "8px",
+              fontSize: "12px",
+              color: "#B8860B",
+            }}
+          >
+            ⚠️ Acest contact nu are email. Adaugă un email valid ca să poți
+            trimite oferta.
+          </div>
+        )}
 
         {sendError && (
           <div
