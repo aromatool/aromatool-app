@@ -304,17 +304,31 @@ export default function FollowupModal({
       const { data, error: fnError } = await supabase.functions.invoke(
         "send-email",
         {
-          body: { to: contact.email, subject, html },
+          body: {
+            to: contact.email,
+            subject,
+            html,
+            contact_id: contact.id,
+          },
         },
       );
 
-      if (fnError || data?.error)
+      if (fnError || data?.error) {
+        // Loghează eroarea în followup_log
+        await supabase.from("followup_log").insert({
+          user_id: user!.id,
+          contact_id: contact.id,
+          template_id: templateId || null,
+          sent_at: new Date().toISOString(),
+          status: "failed",
+        });
         throw new Error(fnError?.message || data?.error);
+      }
 
       await supabase.from("followup_log").insert({
         user_id: user!.id,
         contact_id: contact.id,
-        template_id: templateId,
+        template_id: templateId || null,
         sent_at: new Date().toISOString(),
         status: "sent",
       });

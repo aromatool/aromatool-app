@@ -185,7 +185,12 @@ export function useSendEmail() {
 
       // 1. Trimite emailul
       const { data, error: fnError } = await supabase.functions.invoke('send-email', {
-        body: { to: params.clientEmail, subject, html }
+        body: {
+          to: params.clientEmail,
+          subject,
+          html,
+          contact_id: params.contactId || undefined,
+        }
       })
 
       if (fnError) throw fnError
