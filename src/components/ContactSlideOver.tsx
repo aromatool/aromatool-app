@@ -64,30 +64,34 @@ function PrimaryButton({
   icon,
   label,
   onClick,
+  disabled,
 }: {
   color: string;
   icon: string;
   label: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       style={{
-        background: color,
+        background: disabled ? T.muted : color,
         color: "#fff",
         border: "none",
         borderRadius: 9,
         padding: "11px 12px",
         fontSize: 13,
         fontWeight: 500,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         gap: 6,
         fontFamily: "inherit",
         width: "100%",
+        opacity: disabled ? 0.65 : 1,
       }}
     >
       <i className={`ti ${icon}`} style={{ fontSize: 16 }} aria-hidden="true" />
@@ -100,25 +104,29 @@ function SecondaryButton({
   icon,
   label,
   onClick,
+  disabled,
 }: {
   icon: string;
   label: string;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       style={{
         background: "transparent",
-        color: T.warm,
+        color: disabled ? T.muted : T.warm,
         border: `0.5px solid ${T.bd}`,
         borderRadius: 8,
         padding: "7px 12px",
         fontSize: 12,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         display: "flex",
         alignItems: "center",
         gap: 5,
+        opacity: disabled ? 0.5 : 1,
         fontFamily: "inherit",
         flex: 1,
         justifyContent: "center",
@@ -558,6 +566,30 @@ export default function ContactSlideOver({
               {ac.sub}
             </div>
 
+            {/* ── COMMUNICATION CONTROLS WARNINGS ── */}
+            {contact.communication_blocked && (
+              <div style={{
+                background: T.redLt, border: `1px solid ${T.redBd}`, borderRadius: 8,
+                padding: "8px 10px", marginTop: 10,
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 12, color: T.red,
+              }}>
+                <i className="ti ti-ban" style={{ fontSize: 14 }} />
+                <span><strong>Comunicare blocată.</strong> Niciun mesaj nu poate fi trimis.</span>
+              </div>
+            )}
+            {!contact.communication_blocked && contact.email_opt_out && (
+              <div style={{
+                background: T.ambLt, border: `1px solid ${T.ambBd}`, borderRadius: 8,
+                padding: "8px 10px", marginTop: 10,
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 12, color: T.amb,
+              }}>
+                <i className="ti ti-mail-off" style={{ fontSize: 14 }} />
+                <span><strong>Email dezactivat.</strong> Folosește WhatsApp pentru contact.</span>
+              </div>
+            )}
+
             <div style={{ marginTop: 10 }}>
               {action.type === "needs_offer" ? (
                 <PrimaryButton
@@ -565,6 +597,7 @@ export default function ContactSlideOver({
                   icon="ti-file-text"
                   label="Trimite ofertă"
                   onClick={() => onOffer?.(contact)}
+                  disabled={!!contact.communication_blocked}
                 />
               ) : action.type === "none" ? (
                 <PrimaryButton
@@ -572,13 +605,15 @@ export default function ContactSlideOver({
                   icon="ti-brand-whatsapp"
                   label="Scrie un mesaj"
                   onClick={() => onWhatsApp?.(contact)}
+                  disabled={!!contact.communication_blocked}
                 />
               ) : (
                 <PrimaryButton
                   color={action.accentColor}
                   icon="ti-mail"
-                  label="Trimite email"
+                  label={contact.email_opt_out ? "Email dezactivat" : "Trimite email"}
                   onClick={() => onEmail?.(contact)}
+                  disabled={!!contact.communication_blocked || !!contact.email_opt_out}
                 />
               )}
             </div>
@@ -588,6 +623,7 @@ export default function ContactSlideOver({
                   icon="ti-file-text"
                   label="Ofertă"
                   onClick={() => onOffer?.(contact)}
+                  disabled={!!contact.communication_blocked}
                 />
               )}
               {action.type === "needs_offer" && (
@@ -595,12 +631,14 @@ export default function ContactSlideOver({
                   icon="ti-mail"
                   label="Email"
                   onClick={() => onEmail?.(contact)}
+                  disabled={!!contact.communication_blocked || !!contact.email_opt_out}
                 />
               )}
               <SecondaryButton
                 icon="ti-brand-whatsapp"
                 label="WhatsApp"
                 onClick={() => onWhatsApp?.(contact)}
+                disabled={!!contact.communication_blocked}
               />
             </div>
           </div>

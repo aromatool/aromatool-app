@@ -3,12 +3,12 @@ import { useCartStore } from "../hooks/useCartStore";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 
 const C = {
-  primary: "#7B5EA7",
-  dark: "#2D1A4E",
-  muted: "#9B80C4",
-  border: "rgba(196,168,232,0.3)",
-  border2: "rgba(196,168,232,0.5)",
-  bg2: "#F5F0FF",
+  primary: "#5C7A5C",
+  dark: "#3D3530",
+  muted: "#A89888",
+  border: "rgba(92,122,92,0.15)",
+  border2: "rgba(92,122,92,0.25)",
+  bg2: "#EEF3EE",
   card: "#FFFFFF",
   green: "#2E8A58",
 };
@@ -98,7 +98,8 @@ export default function CurrencyPanel() {
             gap: "6px",
           }}
         >
-          ⚙️ Monedă & cursuri
+          <i className="ti ti-coins" style={{ fontSize: "15px", color: C.primary }} />
+          Monedă & cursuri
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "13px", fontWeight: 600, color: C.primary }}>
@@ -118,13 +119,16 @@ export default function CurrencyPanel() {
                 gap: "3px",
               }}
             >
-              {isCustomActive && <span title="Curs manual activ">✏️</span>}
+              {isCustomActive && (
+                <i className="ti ti-pencil" style={{ fontSize: "11px" }} title="Curs manual activ" />
+              )}
               1€ = {displayRate.toFixed(4)}
             </span>
           )}
-          <span style={{ fontSize: "10px", color: C.muted }}>
-            {isOpen ? "▲" : "▼"}
-          </span>
+          <i
+            className={isOpen ? "ti ti-chevron-up" : "ti ti-chevron-down"}
+            style={{ fontSize: "14px", color: C.muted }}
+          />
         </div>
       </button>
 
@@ -200,9 +204,9 @@ export default function CurrencyPanel() {
                 </span>
               ) : (
                 <span
-                  style={{ fontSize: "10px", color: C.green, fontWeight: 400 }}
+                  style={{ fontSize: "10px", color: C.green, fontWeight: 400, display: "flex", alignItems: "center", gap: "3px" }}
                 >
-                  ✓ Activ
+                  <i className="ti ti-circle-check-filled" style={{ fontSize: "12px" }} /> Activ
                 </span>
               )}
             </div>
@@ -273,32 +277,38 @@ export default function CurrencyPanel() {
                       <button
                         onClick={() => saveCustomRate(curr)}
                         style={{
-                          padding: "4px 8px",
+                          padding: "5px 8px",
                           background: C.primary,
                           border: "none",
                           borderRadius: "6px",
                           color: "white",
-                          fontSize: "11px",
+                          fontSize: "12px",
                           cursor: "pointer",
                           fontFamily: "'DM Sans', sans-serif",
+                          display: "flex",
+                          alignItems: "center",
                         }}
+                        title="Salvează"
                       >
-                        ✓
+                        <i className="ti ti-check" />
                       </button>
                       <button
                         onClick={() => setEditingRate(null)}
                         style={{
-                          padding: "4px 8px",
+                          padding: "5px 8px",
                           background: C.bg2,
                           border: `1px solid ${C.border2}`,
                           borderRadius: "6px",
                           color: C.muted,
-                          fontSize: "11px",
+                          fontSize: "12px",
                           cursor: "pointer",
                           fontFamily: "'DM Sans', sans-serif",
+                          display: "flex",
+                          alignItems: "center",
                         }}
+                        title="Anulează"
                       >
-                        ✕
+                        <i className="ti ti-x" />
                       </button>
                     </div>
                   ) : (
@@ -342,12 +352,14 @@ export default function CurrencyPanel() {
                           border: "none",
                           cursor: "pointer",
                           color: C.muted,
-                          fontSize: "12px",
+                          fontSize: "14px",
                           padding: "2px 4px",
+                          display: "flex",
+                          alignItems: "center",
                         }}
                         title="Editează cursul"
                       >
-                        ✏️
+                        <i className="ti ti-pencil" />
                       </button>
                       {hasCustom && (
                         <button
@@ -357,12 +369,14 @@ export default function CurrencyPanel() {
                             border: "none",
                             cursor: "pointer",
                             color: C.muted,
-                            fontSize: "11px",
+                            fontSize: "14px",
                             padding: "2px 4px",
+                            display: "flex",
+                            alignItems: "center",
                           }}
                           title="Resetează la cursul implicit"
                         >
-                          🔄
+                          <i className="ti ti-refresh" />
                         </button>
                       )}
                     </div>
@@ -373,9 +387,9 @@ export default function CurrencyPanel() {
 
             {saved && (
               <div
-                style={{ marginTop: "8px", fontSize: "11px", color: C.green }}
+                style={{ marginTop: "8px", fontSize: "11px", color: C.green, display: "flex", alignItems: "center", gap: "4px" }}
               >
-                ✅ Curs salvat!
+                <i className="ti ti-circle-check-filled" style={{ fontSize: "13px" }} /> Curs salvat!
               </div>
             )}
             <div
@@ -384,9 +398,14 @@ export default function CurrencyPanel() {
                 fontSize: "11px",
                 color: C.muted,
                 lineHeight: 1.5,
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
               }}
             >
-              Cursuri față de EUR. Apasă ✏️ pentru a seta un curs manual.
+              Cursuri față de EUR. Apasă
+              <i className="ti ti-pencil" style={{ fontSize: "12px" }} />
+              pentru a seta un curs manual.
             </div>
           </div>
         </div>

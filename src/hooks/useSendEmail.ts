@@ -32,7 +32,7 @@ function fmtCurrency(amount: number, currency: string): string {
 }
 
 
-function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string): string {
+export function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string): string {
   const { clientName, items, transport, totalDisplay, totalEur, exchangeRate, currency, notes, enrollLink } = params
   const displayCurrency = currency || 'RON'
   const rate = exchangeRate || 5.2523
@@ -173,6 +173,26 @@ export function useSendEmail() {
     setSuccess(false)
 
     try {
+      // ── Verificare communication controls dacă avem contact_id ──
+      if (params.contactId) {
+        const { data: contactCheck } = await supabase
+          .from('contacts')
+          .select('email_opt_out, communication_blocked')
+          .eq('id', params.contactId)
+          .single()
+
+        if (contactCheck?.communication_blocked) {
+          setError('Comunicarea este blocată pentru acest contact. Nu se poate trimite email.')
+          setLoading(false)
+          return false
+        }
+        if (contactCheck?.email_opt_out) {
+          setError('Emailul este dezactivat pentru acest contact. Activează-l din fișa de contact înainte de trimitere.')
+          setLoading(false)
+          return false
+        }
+      }
+
       const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'AromaTool'
       const userPhone = user?.user_metadata?.phone || ''
       const userEmail = user?.user_metadata?.contact_email || user?.email || ''

@@ -32,6 +32,7 @@ interface Props {
   onNotesChange?: (id: string, notes: string) => Promise<void> | void;
   onOpenOffer?: (offerId: string) => void;
   onContactUpdate?: (updated: Contact) => void;
+  onContactDelete?: (id: string) => void;
 }
 
 const T = {
@@ -132,6 +133,7 @@ export default function ContactModal({
   onNotesChange,
   onOpenOffer,
   onContactUpdate,
+  onContactDelete,
 }: Props) {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("offers");
@@ -147,6 +149,10 @@ export default function ContactModal({
   const [editMode, setEditMode] = useState(false);
   const [editDraft, setEditDraft] = useState({ name: "", phone: "", email: "", source: "" });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [savingComm, setSavingComm] = useState<"email_opt_out" | "communication_blocked" | null>(null);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -162,6 +168,8 @@ export default function ContactModal({
     setStatusMenuOpen(false);
     setShowAllTimeline(false);
     setEditMode(false);
+    setMoreMenuOpen(false);
+    setDeleteConfirm(false);
     setNotesDraft(contact?.notes ?? "");
     if (contact) loadData(contact);
   }, [contact?.id]);
@@ -289,6 +297,35 @@ export default function ContactModal({
     }
   };
 
+  const handleToggleEmailOptOut = async (newValue: boolean) => {
+    setSavingComm("email_opt_out");
+    const updates: Record<string, unknown> = {
+      email_opt_out: newValue,
+      email_opt_out_at: newValue ? new Date().toISOString() : null,
+    };
+    const { error } = await supabase.from("contacts").update(updates).eq("id", contact!.id);
+    if (!error) onContactUpdate?.({ ...contact!, ...updates });
+    setSavingComm(null);
+  };
+
+  const handleToggleCommunicationBlocked = async (newValue: boolean) => {
+    setSavingComm("communication_blocked");
+    const updates: Record<string, unknown> = {
+      communication_blocked: newValue,
+      communication_blocked_at: newValue ? new Date().toISOString() : null,
+    };
+    const { error } = await supabase.from("contacts").update(updates).eq("id", contact!.id);
+    if (!error) onContactUpdate?.({ ...contact!, ...updates });
+    setSavingComm(null);
+  };
+
+  const handleDeleteContact = async () => {
+    setDeleting(true);
+    await supabase.from("contacts").delete().eq("id", contact!.id);
+    onContactDelete?.(contact!.id);
+    onClose();
+  };
+
   const handleStartEdit = () => {
     const isPlaceholder = (contact.email ?? "").includes("@noemail.local");
     setEditDraft({
@@ -317,6 +354,9 @@ export default function ContactModal({
   };
 
   const visibleTimeline = showAllTimeline ? timeline : timeline.slice(0, 6);
+
+  const isBlocked = !!contact.communication_blocked;
+  const isEmailOptOut = !!contact.email_opt_out;
 
   // CTA principal după tipul acțiunii
   const primaryCTA =
@@ -567,6 +607,71 @@ export default function ContactModal({
               </div>
             )}
           </div>
+          {/* Mai multe (⋯) — conține Delete definitiv */}
+          <div
+            style={{ position: "relative" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setMoreMenuOpen((v) => !v)}
+              title="Mai multe"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 9,
+                background: T.white,
+                border: `0.5px solid ${T.border}`,
+                cursor: "pointer",
+                color: T.warm,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <i className="ti ti-dots" style={{ fontSize: 17 }} />
+            </button>
+            {moreMenuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  right: 0,
+                  minWidth: 180,
+                  background: T.white,
+                  border: `0.5px solid ${T.border}`,
+                  borderRadius: 10,
+                  boxShadow: "0 8px 24px rgba(61,53,48,.12)",
+                  zIndex: 30,
+                  overflow: "hidden",
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setMoreMenuOpen(false);
+                    setDeleteConfirm(true);
+                  }}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: T.white,
+                    border: "none",
+                    padding: "10px 14px",
+                    fontSize: 13,
+                    color: T.red,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                  }}
+                >
+                  <i className="ti ti-trash" style={{ fontSize: 15 }} />
+                  Șterge definitiv
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={onClose}
             aria-label="Închide"
@@ -587,6 +692,154 @@ export default function ContactModal({
             <i className="ti ti-x" style={{ fontSize: 18 }} />
           </button>
         </div>
+
+        {/* ALERTĂ BLOCAT — banner imediat sub header, înainte de scroll body */}
+        {isBlocked && (
+          <div
+            style={{
+              background: T.redLight,
+              borderBottom: `0.5px solid rgba(201,79,106,0.25)`,
+              padding: "10px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              color: T.red,
+              fontWeight: 500,
+              flexShrink: 0,
+            }}
+          >
+            <i className="ti ti-ban" style={{ fontSize: 16, flexShrink: 0 }} />
+            Acest contact nu dorește să mai fie contactat. Acțiunile de comunicare sunt dezactivate.
+          </div>
+        )}
+        {isEmailOptOut && !isBlocked && (
+          <div
+            style={{
+              background: "#FDF5EE",
+              borderBottom: `0.5px solid rgba(196,144,106,0.25)`,
+              padding: "8px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color: "#C4906A",
+              flexShrink: 0,
+            }}
+          >
+            <i className="ti ti-mail-off" style={{ fontSize: 14, flexShrink: 0 }} />
+            Email dezactivat — contactul nu mai primește emailuri.
+          </div>
+        )}
+
+        {/* DIALOG CONFIRMARE ȘTERGERE */}
+        {deleteConfirm && (
+          <div
+            onClick={() => setDeleteConfirm(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 99999,
+              background: "rgba(61,53,48,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 24,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: T.white,
+                borderRadius: 16,
+                padding: 28,
+                maxWidth: 400,
+                width: "100%",
+                boxShadow: "0 20px 60px rgba(61,53,48,.25)",
+              }}
+            >
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  background: T.redLight,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <i className="ti ti-trash" style={{ fontSize: 22, color: T.red }} />
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: T.espresso, marginBottom: 8 }}>
+                Șterge definitiv contactul?
+              </div>
+              <div style={{ fontSize: 13, color: T.warm, lineHeight: 1.6, marginBottom: 6 }}>
+                Vei șterge <strong>{contact.name || contact.email}</strong> împreună cu toate ofertele și istoricul asociat.
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: T.red,
+                  fontWeight: 500,
+                  background: T.redLight,
+                  border: `0.5px solid rgba(201,79,106,0.25)`,
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  marginBottom: 20,
+                }}
+              >
+                <i className="ti ti-alert-triangle" style={{ fontSize: 13, marginRight: 5 }} />
+                Această acțiune nu poate fi anulată.
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={handleDeleteContact}
+                  disabled={deleting}
+                  style={{
+                    flex: 1,
+                    padding: "11px",
+                    background: T.red,
+                    border: "none",
+                    borderRadius: 10,
+                    color: "#fff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: deleting ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}
+                >
+                  {deleting
+                    ? <><i className="ti ti-loader-2" style={{ fontSize: 14 }} /> Se șterge...</>
+                    : <><i className="ti ti-trash" style={{ fontSize: 14 }} /> Șterge definitiv</>
+                  }
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: "11px",
+                    background: T.linen,
+                    border: `0.5px solid ${T.border}`,
+                    borderRadius: 10,
+                    color: T.warm,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* SCROLL BODY */}
         <div
@@ -704,48 +957,62 @@ export default function ContactModal({
               >
                 {action.reason}
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={primaryCTA.onClick}
+              {isBlocked ? (
+                <div
                   style={{
-                    display: "inline-flex",
+                    display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    padding: "11px 18px",
-                    background: primaryCTA.color,
-                    border: "none",
+                    gap: 7,
+                    padding: "10px 14px",
+                    background: T.redLight,
+                    border: `0.5px solid rgba(201,79,106,0.25)`,
                     borderRadius: 10,
-                    fontSize: 13,
+                    fontSize: 12,
+                    color: T.red,
                     fontWeight: 500,
-                    color: "#fff",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
                   }}
                 >
-                  <i
-                    className={`ti ${primaryCTA.icon}`}
-                    style={{ fontSize: 16 }}
-                  />{" "}
-                  {primaryCTA.label}
-                </button>
-                {primaryCTA.icon !== "ti-brand-whatsapp" && (
+                  <i className="ti ti-ban" style={{ fontSize: 14 }} />
+                  Comunicare blocată — acțiunile sunt dezactivate
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
-                    onClick={() => onWhatsApp?.(contact)}
-                    style={ghostBtn()}
+                    onClick={primaryCTA.onClick}
+                    disabled={isEmailOptOut && primaryCTA.icon === "ti-mail"}
+                    title={isEmailOptOut && primaryCTA.icon === "ti-mail" ? "Email dezactivat pentru acest contact" : undefined}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      padding: "11px 18px",
+                      background: (isEmailOptOut && primaryCTA.icon === "ti-mail") ? "#ccc" : primaryCTA.color,
+                      border: "none",
+                      borderRadius: 10,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#fff",
+                      cursor: (isEmailOptOut && primaryCTA.icon === "ti-mail") ? "not-allowed" : "pointer",
+                      fontFamily: "inherit",
+                      opacity: (isEmailOptOut && primaryCTA.icon === "ti-mail") ? 0.6 : 1,
+                    }}
                   >
-                    <i
-                      className="ti ti-brand-whatsapp"
-                      style={{ fontSize: 15 }}
-                    />{" "}
-                    WhatsApp
+                    <i className={`ti ${primaryCTA.icon}`} style={{ fontSize: 16 }} />{" "}
+                    {primaryCTA.label}
                   </button>
-                )}
-                <button onClick={() => onOffer?.(contact)} style={ghostBtn()}>
-                  <i className="ti ti-file-text" style={{ fontSize: 15 }} />{" "}
-                  Ofertă nouă
-                </button>
-              </div>
+                  {primaryCTA.icon !== "ti-brand-whatsapp" && (
+                    <button onClick={() => onWhatsApp?.(contact)} style={ghostBtn()}>
+                      <i className="ti ti-brand-whatsapp" style={{ fontSize: 15 }} />{" "}
+                      WhatsApp
+                    </button>
+                  )}
+                  <button onClick={() => onOffer?.(contact)} style={ghostBtn()}>
+                    <i className="ti ti-file-text" style={{ fontSize: 15 }} />{" "}
+                    Ofertă nouă
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* KPI-uri */}
@@ -983,6 +1250,56 @@ export default function ContactModal({
                       "Nicio notiță încă. Adaugă context despre acest contact."}
                   </div>
                 )}
+              </div>
+
+              {/* Preferințe comunicare */}
+              <div
+                style={{
+                  background: T.white,
+                  border: `0.5px solid ${isBlocked ? "rgba(201,79,106,0.3)" : T.border}`,
+                  borderRadius: 14,
+                  padding: 16,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: T.espresso,
+                    marginBottom: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <i className="ti ti-settings" style={{ fontSize: 15, color: T.muted }} />
+                  Preferințe comunicare
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {/* Email opt-out toggle */}
+                  <CommToggle
+                    label="Emailuri"
+                    description={isEmailOptOut ? "Dezactivat" : "Activ"}
+                    checked={!isEmailOptOut}
+                    disabled={isBlocked || savingComm === "email_opt_out"}
+                    onChange={(val) => handleToggleEmailOptOut(!val)}
+                    dangerOff
+                  />
+                  {/* Communication blocked toggle */}
+                  <CommToggle
+                    label="Comunicare completă"
+                    description={isBlocked ? "Blocată" : "Permisă"}
+                    checked={!isBlocked}
+                    disabled={savingComm === "communication_blocked"}
+                    onChange={(val) => handleToggleCommunicationBlocked(!val)}
+                    dangerOff
+                  />
+                  {isBlocked && (
+                    <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.5 }}>
+                      Contactul nu va mai apărea în acțiunile de zi și agenda săptămânii.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1391,57 +1708,76 @@ export default function ContactModal({
                   fontSize: 13,
                   fontWeight: 600,
                   color: T.espresso,
-                  marginBottom: 12,
+                  marginBottom: 14,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
                 }}
               >
-                <i className="ti ti-mail" style={{ fontSize: 15 }} /> Email
-                Tracking
+                <i className="ti ti-mail" style={{ fontSize: 15 }} /> Email Tracking
               </div>
-              <div
-                style={{
-                  background: T.lavenderLight,
-                  border: `0.5px solid ${T.lavBorder}`,
-                  borderRadius: 12,
-                  padding: "24px 16px",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    background: T.white,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    margin: "0 auto 12px",
-                  }}
-                >
-                  <i
-                    className="ti ti-mail-lock"
-                    style={{ fontSize: 24, color: T.lavender }}
+
+              {/* Stat: Deschideri */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <TrackingStat
+                  icon="ti-eye"
+                  iconBg={T.lavenderLight}
+                  iconColor={T.lavender}
+                  label="Emailuri deschise"
+                  value={contact.email_opens ?? 0}
+                  suffix="ori"
+                  active={(contact.email_opens ?? 0) > 0}
+                />
+                <TrackingStat
+                  icon="ti-cursor-text"
+                  iconBg={T.sageLight}
+                  iconColor={T.sage}
+                  label="Link-uri apăsate"
+                  value={contact.email_clicks ?? 0}
+                  suffix="click-uri"
+                  active={(contact.email_clicks ?? 0) > 0}
+                />
+                <TrackingStat
+                  icon="ti-file-text"
+                  iconBg={T.amberLight}
+                  iconColor={T.amber}
+                  label="Oferte trimise"
+                  value={contact.offers_count ?? 0}
+                  suffix="oferte"
+                  active={(contact.offers_count ?? 0) > 0}
+                />
+              </div>
+
+              {/* Status email */}
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${T.border}` }}>
+                <div style={{ fontSize: 11, color: T.muted, marginBottom: 8, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                  Status email
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <StatusDot
+                    active={!isEmailOptOut}
+                    activeLabel="Emailuri active"
+                    inactiveLabel="Email dezactivat"
+                    activeColor={T.green}
+                    inactiveBg={T.redLight}
+                    inactiveColor={T.red}
+                  />
+                  <StatusDot
+                    active={!isBlocked}
+                    activeLabel="Comunicare permisă"
+                    inactiveLabel="Comunicare blocată"
+                    activeColor={T.green}
+                    inactiveBg={T.redLight}
+                    inactiveColor={T.red}
                   />
                 </div>
-                <div
-                  style={{ fontSize: 14, fontWeight: 600, color: T.lavender }}
-                >
-                  Email Tracking
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: T.warm,
-                    marginTop: 4,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Disponibil după activarea Resend Pro.
-                </div>
               </div>
+
+              {(contact.email_opens ?? 0) === 0 && (contact.email_clicks ?? 0) === 0 && (
+                <div style={{ marginTop: 14, fontSize: 11, color: T.muted, lineHeight: 1.6 }}>
+                  Datele de tracking apar automat după ce contactul deschide sau apasă un link în email.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1613,4 +1949,154 @@ function ghostBtn(): React.CSSProperties {
     cursor: "pointer",
     fontFamily: "inherit",
   };
+}
+function TrackingStat({
+  icon,
+  iconBg,
+  iconColor,
+  label,
+  value,
+  suffix,
+  active,
+}: {
+  icon: string;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  value: number;
+  suffix: string;
+  active: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 12px",
+        background: active ? iconBg : T.cream,
+        borderRadius: 10,
+        border: `0.5px solid ${active ? iconColor + "33" : T.border}`,
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: active ? iconBg : T.linen,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <i className={`ti ${icon}`} style={{ fontSize: 16, color: active ? iconColor : T.muted }} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 11, color: T.muted }}>{label}</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: active ? T.espresso : T.muted, lineHeight: 1.2 }}>
+          {value}
+          <span style={{ fontSize: 11, fontWeight: 400, color: T.muted, marginLeft: 4 }}>{suffix}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+function StatusDot({
+  active,
+  activeLabel,
+  inactiveLabel,
+  activeColor,
+  inactiveBg,
+  inactiveColor,
+}: {
+  active: boolean;
+  activeLabel: string;
+  inactiveLabel: string;
+  activeColor: string;
+  inactiveBg: string;
+  inactiveColor: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 7,
+        fontSize: 12,
+        color: active ? activeColor : inactiveColor,
+        background: active ? T.greenLight : inactiveBg,
+        borderRadius: 8,
+        padding: "5px 10px",
+        fontWeight: 500,
+      }}
+    >
+      <div
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          background: active ? activeColor : inactiveColor,
+          flexShrink: 0,
+        }}
+      />
+      {active ? activeLabel : inactiveLabel}
+    </div>
+  );
+}
+function CommToggle({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (val: boolean) => void;
+  dangerOff?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: disabled ? T.muted : T.espresso }}>{label}</div>
+        <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{description}</div>
+      </div>
+      <button
+        onClick={() => !disabled && onChange(!checked)}
+        disabled={disabled}
+        title={disabled ? undefined : checked ? "Dezactivează" : "Activează"}
+        style={{
+          width: 42,
+          height: 24,
+          borderRadius: 999,
+          border: "none",
+          background: disabled ? T.border : checked ? T.sage : "rgba(201,79,106,0.25)",
+          position: "relative",
+          cursor: disabled ? "not-allowed" : "pointer",
+          transition: "background 0.2s",
+          flexShrink: 0,
+          outline: "none",
+          padding: 0,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 4,
+            left: checked ? 22 : 4,
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            background: "white",
+            transition: "left 0.2s",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+          }}
+        />
+      </button>
+    </div>
+  );
 }

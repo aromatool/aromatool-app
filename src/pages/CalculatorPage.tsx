@@ -1,27 +1,30 @@
 import { useState, useMemo, useEffect } from "react";
 import { useProducts, useExchangeRate } from "../hooks/useProducts";
 import { useCartStore } from "../hooks/useCartStore";
-import { useSendEmail } from "../hooks/useSendEmail";
+import { useSendEmail, buildEmailHtml } from "../hooks/useSendEmail";
 import EnrollLink from "../components/EnrollLink";
 import CurrencyPanel from "../components/CurrencyPanel";
 import { useExchangeRates } from "../hooks/useExchangeRates";
+import { useAuth } from "../lib/auth";
 import type { Product } from "../hooks/useProducts";
 
-// ── COLORS ────────────────────────────────────────────────
+// ── BLOSSOM SAGE COLORS ───────────────────────────────────
 const C = {
-  bg: "#FDFAFF",
+  bg: "#FAFAF7",
   card: "#FFFFFF",
-  border: "rgba(196,168,232,0.3)",
-  border2: "rgba(196,168,232,0.5)",
-  primary: "#7B5EA7",
-  dark: "#2D1A4E",
-  muted: "#9B80C4",
-  text2: "#6B5B9E",
+  border: "rgba(92,122,92,0.15)",
+  border2: "rgba(92,122,92,0.25)",
+  primary: "#5C7A5C",
+  dark: "#3D3530",
+  muted: "#A89888",
+  text2: "#6A5A50",
   red: "#C94F6A",
   redbg: "#FFF0F4",
   green: "#2E8A58",
   greenbg: "#E8F8F0",
-  bg2: "#F5F0FF",
+  bg2: "#E8F0E8",
+  amber: "#C4906A",
+  amberbg: "#FDF5EE",
 };
 
 // ── SEARCH SECTION ────────────────────────────────────────
@@ -65,7 +68,7 @@ function SearchSection() {
           style={{
             width: "28px",
             height: "28px",
-            border: "3px solid #E8E0F8",
+            border: `3px solid ${C.bg2}`,
             borderTopColor: C.primary,
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
@@ -82,16 +85,18 @@ function SearchSection() {
       <div
         style={{
           padding: "20px",
-          background: "#FFF0F4",
+          background: C.redbg,
           border: "1px solid rgba(201,79,106,0.2)",
           borderRadius: "12px",
           textAlign: "center",
         }}
       >
-        <div
-          style={{ fontSize: "13px", color: "#C94F6A", marginBottom: "8px" }}
-        >
-          ⚠️ Eroare la încărcarea produselor
+        <i
+          className="ti ti-alert-triangle"
+          style={{ fontSize: "20px", color: C.red, display: "block", marginBottom: "6px" }}
+        />
+        <div style={{ fontSize: "13px", color: C.red, marginBottom: "8px" }}>
+          Eroare la încărcarea produselor
         </div>
         <div
           style={{
@@ -106,7 +111,7 @@ function SearchSection() {
         <button
           onClick={() => window.location.reload()}
           style={{
-            background: "#C94F6A",
+            background: C.red,
             border: "none",
             borderRadius: "8px",
             padding: "7px 16px",
@@ -116,7 +121,7 @@ function SearchSection() {
             fontFamily: "'DM Sans', sans-serif",
           }}
         >
-          🔄 Reîncearcă
+          Reîncearcă
         </button>
       </div>
     );
@@ -125,7 +130,8 @@ function SearchSection() {
     <div>
       {/* Search input */}
       <div style={{ position: "relative", marginBottom: "12px" }}>
-        <span
+        <i
+          className="ti ti-search"
           style={{
             position: "absolute",
             left: "12px",
@@ -134,9 +140,7 @@ function SearchSection() {
             fontSize: "16px",
             color: C.muted,
           }}
-        >
-          🔍
-        </span>
+        />
         <input
           type="text"
           value={query}
@@ -167,10 +171,12 @@ function SearchSection() {
               border: "none",
               cursor: "pointer",
               color: C.muted,
-              fontSize: "18px",
+              display: "flex",
+              alignItems: "center",
+              padding: "2px",
             }}
           >
-            ✕
+            <i className="ti ti-x" style={{ fontSize: "16px" }} />
           </button>
         )}
       </div>
@@ -225,13 +231,15 @@ function SearchSection() {
                     {p.name}
                   </div>
                   <div
-                    style={{ display: "flex", gap: "8px", marginTop: "2px" }}
+                    style={{ display: "flex", gap: "8px", marginTop: "3px", alignItems: "center" }}
                   >
-                    <span style={{ fontSize: "11px", color: C.muted }}>
-                      🏷 {p.sku}
+                    <span style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: C.muted }}>
+                      <i className="ti ti-tag" style={{ fontSize: "11px" }} />
+                      {p.sku}
                     </span>
-                    <span style={{ fontSize: "11px", color: C.muted }}>
-                      ⭐ {p.points} pct
+                    <span style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: C.muted }}>
+                      <i className="ti ti-star" style={{ fontSize: "11px" }} />
+                      {p.points} pct
                     </span>
                     <span style={{ fontSize: "11px", color: C.muted }}>
                       € {p.price_eur.toFixed(2)}
@@ -268,7 +276,6 @@ function SearchSection() {
                     background: added ? C.primary : C.bg2,
                     border: `1.5px solid ${added ? C.primary : C.border2}`,
                     color: added ? "white" : C.primary,
-                    fontSize: added ? "14px" : "18px",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
@@ -277,7 +284,10 @@ function SearchSection() {
                     transition: "all 0.15s",
                   }}
                 >
-                  {added ? "✓" : "+"}
+                  {added
+                    ? <i className="ti ti-check" style={{ fontSize: "14px" }} />
+                    : <i className="ti ti-plus" style={{ fontSize: "16px" }} />
+                  }
                 </button>
               </div>
             );
@@ -321,7 +331,13 @@ function CartSection() {
   const [showCustom, setShowCustom] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [enrollLink, setEnrollLink] = useState("");
+  const [successEmail, setSuccessEmail] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [showOfferText, setShowOfferText] = useState(false);
+  const [offerTextCopied, setOfferTextCopied] = useState(false);
+  const [offerText, setOfferText] = useState("");
   const { addCustomItem } = useCartStore();
+  const { user } = useAuth();
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
   const [customQty, setCustomQty] = useState("1");
@@ -336,20 +352,7 @@ function CartSection() {
 
   const activeCurrency = currency || "RON";
 
-  // Pre-fill contact from Contacts page
-  useEffect(() => {
-    const prefill = sessionStorage.getItem("prefill_contact");
-    if (prefill) {
-      try {
-        const { id, name, email, phone } = JSON.parse(prefill);
-        if (name) setClientName(name);
-        if (email) setClientEmail(email);
-        if (phone) setClientPhone(phone);
-        if (id) setPrefillContactId(id);
-        sessionStorage.removeItem("prefill_contact");
-      } catch {}
-    }
-  }, []);
+  // Prefill-ul e gestionat în CalculatorPage (mai sus) — nu mai e nevoie aici
 
   // All EUR values
   const subtotalEur = getSubtotalEur();
@@ -357,6 +360,44 @@ function CartSection() {
   const totalEur = getTotalEur();
   const totalPoints = getTotalPoints();
   const count = getCount();
+
+  // Text ofertă formatat — copiabil, de folosit pe orice canal (WhatsApp, SMS, Messenger etc.)
+  function buildOfferText(): string {
+    const produse = items
+      .map((i) => {
+        const lineTotalEur = i.price_eur * i.qty * (1 - i.disc / 100);
+        const lineTotalDisplay = convertFromEur(lineTotalEur, activeCurrency);
+        const disc = i.disc > 0 ? ` (-${i.disc}%)` : "";
+        const qty = i.qty > 1 ? ` x${i.qty}` : "";
+        return `• ${i.name}${qty}${disc} — ${formatAmount(lineTotalDisplay, activeCurrency)}`;
+      })
+      .join("\n");
+    const salut = clientName ? `Bună ${clientName}! 🌿` : "Bună! 🌿";
+    let msg = `${salut}\n\nOferta ta personalizată:\n\n${produse}`;
+    if (transport > 0)
+      msg += `\n\n🚚 Transport: ${formatAmount(convertFromEur(transport, activeCurrency), activeCurrency)}`;
+    msg += `\n${"─".repeat(25)}\n💚 Total: ${formatAmount(total, activeCurrency)}`;
+    if (notes) msg += `\n\n📝 ${notes}`;
+    if (enrollLink)
+      msg += `\n\n🔗 Link înscriere Young Living:\n${enrollLink}`;
+    return msg;
+  }
+
+  function copyOfferText() {
+    navigator.clipboard.writeText(offerText);
+    setOfferTextCopied(true);
+    setTimeout(() => setOfferTextCopied(false), 2000);
+  }
+
+  function toggleOfferText() {
+    if (!showOfferText) {
+      // La deschidere populăm textarea cu textul generat din coș
+      setOfferText(buildOfferText());
+      setShowOfferText(true);
+    } else {
+      setShowOfferText(false);
+    }
+  }
 
   // Converted to display currency
   const subtotal = convertFromEur(subtotalEur, activeCurrency);
@@ -376,10 +417,14 @@ function CartSection() {
             background: C.card,
           }}
         >
-          <div style={{ fontSize: "36px", marginBottom: "8px" }}>🛒</div>
+          <i
+            className="ti ti-shopping-cart"
+            style={{ fontSize: "32px", color: C.muted, display: "block", marginBottom: "10px" }}
+          />
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: "'DM Sans', sans-serif",
+              fontWeight: 600,
               fontSize: "16px",
               color: C.dark,
               marginBottom: "4px",
@@ -401,16 +446,10 @@ function CartSection() {
 
       {/* Cart items */}
       {items.map((item) => {
-        // price_eur is always the source of truth
         const priceEur = item.price_eur;
         const lineTotalEur = priceEur * item.qty * (1 - item.disc / 100);
-
-        // Convert to display currency
         const priceInCurrency = convertFromEur(priceEur, activeCurrency);
-        const lineTotalInCurrency = convertFromEur(
-          lineTotalEur,
-          activeCurrency,
-        );
+        const lineTotalInCurrency = convertFromEur(lineTotalEur, activeCurrency);
         const showEurSecondary = activeCurrency !== "EUR";
         return (
           <div
@@ -449,18 +488,16 @@ function CartSection() {
                   border: "none",
                   cursor: "pointer",
                   color: C.muted,
-                  fontSize: "16px",
-                  padding: 0,
-                  lineHeight: 1,
+                  padding: "2px",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
-                ✕
+                <i className="ti ti-x" style={{ fontSize: "16px" }} />
               </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "6px" }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <button
                   onClick={() => updateQty(item.id, item.qty - 1)}
                   style={{
@@ -592,8 +629,9 @@ function CartSection() {
           marginBottom: "8px",
         }}
       >
+        <i className="ti ti-truck" style={{ fontSize: "15px", color: C.muted }} />
         <span style={{ fontSize: "13px", color: C.muted, flex: 1 }}>
-          🚚 Cost transport
+          Cost transport
         </span>
         <input
           type="number"
@@ -607,7 +645,6 @@ function CartSection() {
           placeholder="0"
           onChange={(e) => {
             const valueInCurrency = parseFloat(e.target.value) || 0;
-            // Convert from display currency to EUR for storage
             const valueInEur =
               activeCurrency === "EUR"
                 ? valueInCurrency
@@ -652,9 +689,14 @@ function CartSection() {
           fontWeight: 500,
           cursor: "pointer",
           marginBottom: "8px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
         }}
       >
-        ✨ {showCustom ? "Ascunde" : "Adaugă produs special"}
+        <i className={`ti ti-${showCustom ? "chevron-up" : "plus"}`} style={{ fontSize: "14px" }} />
+        {showCustom ? "Ascunde" : "Adaugă produs special"}
       </button>
 
       {showCustom && (
@@ -749,7 +791,6 @@ function CartSection() {
             onClick={() => {
               if (!customName || !customPrice) return;
               const priceInCurrency = parseFloat(customPrice);
-              // Convert from selected currency to EUR for storage
               const priceEur =
                 activeCurrency === "EUR"
                   ? priceInCurrency
@@ -777,9 +818,14 @@ function CartSection() {
               fontSize: "13px",
               fontFamily: "'DM Sans', sans-serif",
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
             }}
           >
-            + Adaugă în coș
+            <i className="ti ti-plus" style={{ fontSize: "14px" }} />
+            Adaugă în coș
           </button>
         </div>
       )}
@@ -799,9 +845,14 @@ function CartSection() {
           fontWeight: 500,
           cursor: "pointer",
           marginBottom: "8px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
         }}
       >
-        📖 {showGuide ? "Ascunde ghid" : "Generează ghid produse"}
+        <i className="ti ti-book" style={{ fontSize: "14px" }} />
+        {showGuide ? "Ascunde ghid" : "Generează ghid produse"}
       </button>
 
       {showGuide && (
@@ -816,13 +867,17 @@ function CartSection() {
         >
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
               fontSize: "13px",
-              fontWeight: 500,
+              fontWeight: 600,
               color: C.dark,
               marginBottom: "10px",
             }}
           >
-            📖 Ghid produse din coș
+            <i className="ti ti-book" style={{ fontSize: "14px", color: C.primary }} />
+            Ghid produse din coș
           </div>
           {items.map((item) => (
             <div
@@ -854,7 +909,7 @@ function CartSection() {
                   opacity: item.guideSelected !== false ? 1 : 0.4,
                 }}
               >
-                🌿 {item.name}
+                {item.name}
               </span>
             </div>
           ))}
@@ -915,7 +970,7 @@ function CartSection() {
           ...(transport > 0
             ? [
                 {
-                  label: "🚚 Transport",
+                  label: "Transport",
                   value:
                     activeCurrency !== "EUR"
                       ? `${formatAmount(convertFromEur(transport, activeCurrency), activeCurrency)} · € ${transport.toFixed(2)}`
@@ -952,7 +1007,8 @@ function CartSection() {
         >
           <span
             style={{
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: "'DM Sans', sans-serif",
+              fontWeight: 600,
               fontSize: "15px",
               color: C.dark,
             }}
@@ -962,10 +1018,10 @@ function CartSection() {
           <div style={{ textAlign: "right" }}>
             <div
               style={{
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: "'DM Sans', sans-serif",
                 fontSize: "24px",
                 color: C.dark,
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
               {formatAmount(total, activeCurrency)}
@@ -978,6 +1034,7 @@ function CartSection() {
           </div>
         </div>
       </div>
+
       {/* Send section */}
       <div
         style={{
@@ -990,15 +1047,19 @@ function CartSection() {
       >
         <div
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
             fontSize: "10px",
-            fontWeight: 600,
+            fontWeight: 700,
             color: C.primary,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
             marginBottom: "10px",
           }}
         >
-          📧 Trimite oferta clientului
+          <i className="ti ti-mail" style={{ fontSize: "13px" }} />
+          Trimite oferta clientului
         </div>
         <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
           <input
@@ -1075,7 +1136,8 @@ function CartSection() {
           <button
             disabled={sending}
             onClick={async () => {
-              await sendOffer({
+              const emailSentTo = clientEmail;
+              const ok = await sendOffer({
                 clientName,
                 clientEmail,
                 clientPhone,
@@ -1089,6 +1151,16 @@ function CartSection() {
                 contactId: prefillContactId || undefined,
                 enrollLink: enrollLink || undefined,
               });
+              if (ok) {
+                // Golire automată după trimitere reușită
+                setSuccessEmail(emailSentTo);
+                clearCart();
+                setClientName("");
+                setClientEmail("");
+                setClientPhone("");
+                setNotes("");
+                setPrefillContactId(null);
+              }
             }}
             style={{
               background: sending ? C.muted : C.primary,
@@ -1098,29 +1170,64 @@ function CartSection() {
               color: "white",
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "13px",
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: sending ? "not-allowed" : "pointer",
               whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
             }}
           >
-            {sending ? "..." : "Trimite"}
+            {sending
+              ? <><i className="ti ti-loader-2" style={{ fontSize: "14px" }} /> Se trimite...</>
+              : <><i className="ti ti-send" style={{ fontSize: "14px" }} /> Trimite</>
+            }
           </button>
         </div>
+
+        {/* Preview email — sub câmpul de email */}
+        <button
+          onClick={() => setShowPreview(true)}
+          disabled={items.length === 0}
+          style={{
+            background: "none",
+            border: "none",
+            padding: "8px 4px 2px",
+            fontSize: "12px",
+            color: items.length === 0 ? C.muted : C.text2,
+            cursor: items.length === 0 ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            fontFamily: "'DM Sans', sans-serif",
+            marginTop: "2px",
+            width: "100%",
+            justifyContent: "center",
+            textDecoration: items.length === 0 ? "none" : "underline",
+            textUnderlineOffset: "3px",
+          }}
+        >
+          <i className="ti ti-eye" style={{ fontSize: "14px" }} />
+          Previzualizează emailul înainte de trimitere
+        </button>
 
         {clientEmail.includes("@noemail.local") && (
           <div
             style={{
               marginTop: "6px",
               padding: "8px 12px",
-              background: "#FFF8E7",
-              border: "1px solid rgba(184,134,11,0.3)",
+              background: C.amberbg,
+              border: `1px solid rgba(196,144,106,0.3)`,
               borderRadius: "8px",
               fontSize: "12px",
-              color: "#B8860B",
+              color: C.amber,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "6px",
             }}
           >
-            ⚠️ Acest contact nu are email. Adaugă un email valid ca să poți
-            trimite oferta.
+            <i className="ti ti-alert-triangle" style={{ fontSize: "14px", flexShrink: 0, marginTop: "1px" }} />
+            Acest contact nu are email. Adaugă un email valid ca să poți trimite oferta.
           </div>
         )}
 
@@ -1134,9 +1241,13 @@ function CartSection() {
               borderRadius: "8px",
               fontSize: "13px",
               color: C.red,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "6px",
             }}
           >
-            ⚠️ {sendError}
+            <i className="ti ti-alert-circle" style={{ fontSize: "15px", flexShrink: 0, marginTop: "1px" }} />
+            {sendError}
           </div>
         )}
 
@@ -1144,7 +1255,7 @@ function CartSection() {
           <div
             style={{
               marginTop: "8px",
-              padding: "12px 14px",
+              padding: "14px",
               background: C.greenbg,
               border: `1px solid rgba(46,138,88,0.2)`,
               borderRadius: "10px",
@@ -1152,158 +1263,421 @@ function CartSection() {
           >
             <div
               style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "7px",
                 fontSize: "13px",
                 color: C.green,
-                fontWeight: 500,
-                marginBottom: "8px",
+                fontWeight: 600,
+                marginBottom: "12px",
               }}
             >
-              ✅ Email trimis cu succes către {clientEmail}!
+              <i className="ti ti-circle-check" style={{ fontSize: "18px" }} />
+              Oferta a fost trimisă către {successEmail || clientEmail}!
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                onClick={() => {
-                  setClientEmail("");
-                  setClientName("");
-                  setClientPhone("");
-                  setNotes("");
-                  clearCart();
-                  setSendSuccess(false);
-                }}
-                style={{
-                  flex: 1,
-                  padding: "7px",
-                  background: C.green,
-                  border: "none",
-                  borderRadius: "7px",
-                  color: "white",
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                🗑️ Golește coșul
-              </button>
-              <button
-                onClick={() => {
-                  setClientEmail("");
-                  setClientName("");
-                  setClientPhone("");
-                  setNotes("");
-                  setSendSuccess(false);
-                }}
-                style={{
-                  flex: 1,
-                  padding: "7px",
-                  background: "white",
-                  border: `1px solid rgba(46,138,88,0.3)`,
-                  borderRadius: "7px",
-                  color: C.green,
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                ✉️ Trimite alt email
-              </button>
-            </div>
+            <button
+              onClick={() => setSendSuccess(false)}
+              style={{
+                width: "100%",
+                padding: "9px",
+                background: C.green,
+                border: "none",
+                borderRadius: "8px",
+                color: "white",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+              }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: "14px" }} />
+              Creează ofertă nouă
+            </button>
           </div>
         )}
 
-        {/* WhatsApp button */}
-        {clientPhone && (
-          <button
-            onClick={() => {
-              const waNum = clientPhone
-                .replace(/[^0-9]/g, "")
-                .replace(/^0/, "40");
-              const produse = items
-                .map((i) => {
-                  const lineTotalEur = i.price_eur * i.qty * (1 - i.disc / 100);
-                  const lineTotalDisplay = convertFromEur(
-                    lineTotalEur,
-                    activeCurrency,
-                  );
-                  const disc = i.disc > 0 ? ` (-${i.disc}%)` : "";
-                  const qty = i.qty > 1 ? ` x${i.qty}` : "";
-                  return `• ${i.name}${qty}${disc} — *${formatAmount(lineTotalDisplay, activeCurrency)}*`;
-                })
-                .join("\n");
-              const salut = clientName ? `Bună ${clientName}! 🌿` : "Bună! 🌿";
-              let msg = `${salut}\n\nOferta ta personalizată:\n\n${produse}`;
-              if (transport > 0)
-                msg += `\n\n🚚 Transport: *${formatAmount(convertFromEur(transport, activeCurrency), activeCurrency)}*`;
-              msg += `\n${"─".repeat(25)}\n💜 *Total: ${formatAmount(total, activeCurrency)}*`;
-              if (notes) msg += `\n\n📝 ${notes}`;
-              window.open(
-                `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`,
-                "_blank",
-              );
-            }}
-            style={{
-              width: "100%",
-              marginTop: "8px",
-              background: "#25D366",
-              border: "none",
-              borderRadius: "8px",
-              padding: "10px",
-              color: "white",
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: "13px",
-              fontWeight: 500,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-            }}
-          >
-            💬 Trimite pe WhatsApp
-          </button>
-        )}
+        {/* Link înscriere — se include în email */}
+        <div style={{ marginTop: "8px" }}>
+          <EnrollLink
+            clientName={clientName}
+            clientPhone={clientPhone}
+            compact={true}
+            onLinkGenerated={setEnrollLink}
+          />
+        </div>
       </div>
 
-      {/* Enroll Link */}
-      <EnrollLink
-        clientName={clientName}
-        clientPhone={clientPhone}
-        compact={true}
-        onLinkGenerated={setEnrollLink}
-      />
+      {/* Text ofertă copiabil — de folosit pe orice canal (în afara emailului) */}
+        <button
+          onClick={toggleOfferText}
+          disabled={items.length === 0}
+          style={{
+            width: "100%",
+            marginTop: "8px",
+            background: showOfferText ? C.bg2 : C.card,
+            border: `1px solid ${C.border2}`,
+            borderRadius: "10px",
+            padding: "11px",
+            color: items.length === 0 ? C.muted : C.primary,
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: items.length === 0 ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "7px",
+          }}
+        >
+          <i className="ti ti-message-2-share" style={{ fontSize: "15px" }} />
+          Oferta ca mesaj text
+          <i
+            className={showOfferText ? "ti ti-chevron-up" : "ti ti-chevron-down"}
+            style={{ fontSize: "14px", marginLeft: "auto", opacity: 0.6 }}
+          />
+        </button>
+
+        {showOfferText && items.length > 0 && (
+          <div
+            style={{
+              marginTop: "6px",
+              background: C.card,
+              border: `1.5px dashed ${C.border2}`,
+              borderRadius: "10px",
+              padding: "12px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "8px",
+                marginBottom: "6px",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: C.primary,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Editează, apoi copiază pe orice canal
+              </span>
+              <button
+                onClick={() => setOfferText(buildOfferText())}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  fontSize: "11px",
+                  color: C.text2,
+                  fontFamily: "'DM Sans', sans-serif",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <i className="ti ti-refresh" style={{ fontSize: "13px" }} />
+                Regenerează din coș
+              </button>
+            </div>
+            <textarea
+              value={offerText}
+              onChange={(e) => setOfferText(e.target.value)}
+              rows={10}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                margin: 0,
+                marginBottom: "10px",
+                padding: "10px 12px",
+                background: C.bg2,
+                border: `1px solid ${C.border2}`,
+                borderRadius: "8px",
+                fontSize: "12px",
+                lineHeight: 1.55,
+                color: C.dark,
+                fontFamily: "'DM Sans', sans-serif",
+                outline: "none",
+                resize: "vertical",
+                maxHeight: "320px",
+              }}
+            />
+            <button
+              onClick={copyOfferText}
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: offerTextCopied ? C.greenbg : C.primary,
+                border: offerTextCopied ? `1px solid ${C.green}` : "none",
+                borderRadius: "9px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: offerTextCopied ? C.green : "white",
+                fontFamily: "'DM Sans', sans-serif",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+              }}
+            >
+              <i
+                className={offerTextCopied ? "ti ti-check" : "ti ti-copy"}
+                style={{ fontSize: "15px" }}
+              />
+              {offerTextCopied ? "Text copiat!" : "Copiază textul ofertei"}
+            </button>
+          </div>
+        )}
 
       {/* Reset */}
-      <button
-        onClick={clearCart}
+      <div
         style={{
-          width: "100%",
-          background: C.redbg,
-          border: `1px solid rgba(201,79,106,0.2)`,
-          borderRadius: "10px",
-          padding: "11px",
-          color: C.red,
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: "13px",
-          fontWeight: 500,
-          cursor: "pointer",
+          marginTop: "20px",
+          paddingTop: "16px",
+          borderTop: `1px solid ${C.border2}`,
+          display: "flex",
+          justifyContent: "center",
         }}
       >
-        🗑️ Golește coșul
-      </button>
+        <button
+          onClick={clearCart}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "6px 10px",
+            color: C.muted,
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "12px",
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            transition: "color 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = C.red)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
+        >
+          <i className="ti ti-trash" style={{ fontSize: "14px" }} />
+          Golește coșul
+        </button>
+      </div>
+
+      {/* ── MODAL PREVIEW EMAIL ─────────────────────────── */}
+      {showPreview && (() => {
+        const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'AromaTool';
+        const userPhone = user?.user_metadata?.phone || '';
+        const userEmail = user?.user_metadata?.contact_email || user?.email || '';
+        const previewHtml = buildEmailHtml(
+          {
+            clientName,
+            clientEmail: clientEmail || 'preview@example.com',
+            clientPhone,
+            notes,
+            items,
+            transport,
+            totalDisplay: total,
+            totalEur,
+            exchangeRate: getRate(activeCurrency),
+            currency: activeCurrency,
+            enrollLink: enrollLink || undefined,
+          },
+          userName,
+          userPhone,
+          userEmail,
+        );
+        return (
+          <div
+            onClick={() => setShowPreview(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 99999,
+              background: 'rgba(61,53,48,0.55)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', padding: '20px',
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%', maxWidth: '580px',
+                display: 'flex', flexDirection: 'column',
+                height: '100%', maxHeight: 'calc(100vh - 40px)',
+              }}
+            >
+              {/* Header modal */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="ti ti-eye" style={{ fontSize: '18px', color: 'white' }} />
+                  <span style={{ color: 'white', fontFamily: "'DM Sans', sans-serif", fontSize: '15px', fontWeight: 600 }}>
+                    Preview email ofertă
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)', border: 'none',
+                    borderRadius: '8px', padding: '6px 12px',
+                    color: 'white', cursor: 'pointer',
+                    fontFamily: "'DM Sans', sans-serif", fontSize: '13px',
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                  }}
+                >
+                  <i className="ti ti-x" style={{ fontSize: '14px' }} />
+                  Închide
+                </button>
+              </div>
+              {/* Iframe email */}
+              <iframe
+                srcDoc={previewHtml}
+                title="Preview email"
+                style={{
+                  flex: 1, border: 'none',
+                  borderRadius: '16px',
+                  background: '#F5F0FF',
+                  width: '100%',
+                }}
+                sandbox="allow-same-origin"
+              />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
 // ── MAIN PAGE ─────────────────────────────────────────────
 export default function CalculatorPage() {
-  const { getCount } = useCartStore();
+  const {
+    getCount, items, clientName, clearCart,
+    setClientName, setClientEmail, setClientPhone, setPrefillContactId,
+  } = useCartStore();
   const count = getCount();
   const [activeTab, setActiveTab] = useState<"search" | "cart">("search");
+
+  // Banner "Ofertă în curs" — apare dacă coșul era plin și NU vine dintr-un contact
+  const [showDraftBanner, setShowDraftBanner] = useState<boolean>(() => {
+    if (items.length === 0) return false;
+    if (sessionStorage.getItem("prefill_contact")) return false;
+    return true;
+  });
+
+  // Prefill contact — GOLEŞTE coşul şi setează noul client
+  useEffect(() => {
+    const raw = sessionStorage.getItem("prefill_contact");
+    if (!raw) return;
+    try {
+      const { id, name, email, phone } = JSON.parse(raw);
+      clearCart();
+      if (name) setClientName(name);
+      if (email && !email.includes("@noemail.local")) setClientEmail(email);
+      if (phone) setClientPhone(phone);
+      if (id) setPrefillContactId(id);
+      sessionStorage.removeItem("prefill_contact");
+      setActiveTab("cart"); // pe mobil, deschide direct coșul
+      setShowDraftBanner(false);
+    } catch {
+      sessionStorage.removeItem("prefill_contact");
+    }
+  }, []);
+
+  const handleContinueDraft = () => setShowDraftBanner(false);
+
+  const handleNewOffer = () => {
+    clearCart();
+    setShowDraftBanner(false);
+  };
 
   return (
     <div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* BANNER OFERTĂ ÎN CURS */}
+      {showDraftBanner && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: C.amberbg,
+            border: `1px solid rgba(196,144,106,0.35)`,
+            borderRadius: 12,
+            padding: "12px 16px",
+            marginBottom: 20,
+            flexWrap: "wrap",
+          }}
+        >
+          <i className="ti ti-shopping-cart" style={{ fontSize: 18, color: C.amber, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+              Ai o ofertă în curs —{" "}
+              {count} {count === 1 ? "produs" : "produse"}
+              {clientName ? ` pentru ${clientName}` : ""}
+            </div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+              Continuă de unde ai rămas sau începe o ofertă nouă.
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={handleContinueDraft}
+              style={{
+                padding: "8px 16px",
+                background: C.amber,
+                border: "none",
+                borderRadius: 8,
+                color: "white",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'DM Sans', sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <i className="ti ti-arrow-right" style={{ fontSize: 14 }} />
+              Continuă oferta
+            </button>
+            <button
+              onClick={handleNewOffer}
+              style={{
+                padding: "8px 16px",
+                background: C.card,
+                border: `1px solid rgba(196,144,106,0.35)`,
+                borderRadius: 8,
+                color: C.muted,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "'DM Sans', sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: 14 }} />
+              Ofertă nouă
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Desktop: two columns */}
       <div
@@ -1314,12 +1688,17 @@ export default function CalculatorPage() {
         <div>
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "18px",
-              color: "#2D1A4E",
+              fontFamily: "'DM Sans', sans-serif",
+              fontWeight: 700,
+              fontSize: "17px",
+              color: C.dark,
               marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
             }}
           >
+            <i className="ti ti-search" style={{ fontSize: "17px", color: C.primary }} />
             Caută produse
           </div>
           <SearchSection />
@@ -1329,20 +1708,22 @@ export default function CalculatorPage() {
         <div>
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "18px",
-              color: "#2D1A4E",
+              fontFamily: "'DM Sans', sans-serif",
+              fontWeight: 700,
+              fontSize: "17px",
+              color: C.dark,
               marginBottom: "16px",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "7px",
             }}
           >
+            <i className="ti ti-shopping-cart" style={{ fontSize: "17px", color: C.primary }} />
             Coș
             {count > 0 && (
               <span
                 style={{
-                  background: "#7B5EA7",
+                  background: C.primary,
                   color: "white",
                   fontSize: "11px",
                   fontWeight: 700,
@@ -1365,36 +1746,49 @@ export default function CalculatorPage() {
         <div
           style={{
             display: "flex",
-            background: "#F5F0FF",
+            background: C.bg2,
             borderRadius: "12px",
             padding: "4px",
             marginBottom: "16px",
           }}
         >
           {[
-            { key: "search", label: "🔍 Caută" },
-            { key: "cart", label: `🛒 Coș${count > 0 ? ` (${count})` : ""}` },
+            {
+              key: "search",
+              icon: "ti-search",
+              label: "Caută",
+            },
+            {
+              key: "cart",
+              icon: "ti-shopping-cart",
+              label: `Coș${count > 0 ? ` (${count})` : ""}`,
+            },
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as "search" | "cart")}
               style={{
                 flex: 1,
                 padding: "9px",
                 border: "none",
                 borderRadius: "9px",
                 background: activeTab === tab.key ? "white" : "transparent",
-                color: activeTab === tab.key ? "#2D1A4E" : "#9B80C4",
+                color: activeTab === tab.key ? C.dark : C.muted,
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: "13px",
                 fontWeight: 500,
                 cursor: "pointer",
                 boxShadow:
                   activeTab === tab.key
-                    ? "0 1px 6px rgba(123,94,167,0.15)"
+                    ? "0 1px 6px rgba(92,122,92,0.15)"
                     : "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "5px",
               }}
             >
+              <i className={`ti ${tab.icon}`} style={{ fontSize: "14px" }} />
               {tab.label}
             </button>
           ))}

@@ -46,17 +46,18 @@ export function openWhatsApp(contact: Contact, senderName?: string): void {
 
 export function startOffer(
   contact: Contact,
-  setPrefillContactId: (id: string) => void,
+  _setPrefillContactId: (id: string) => void,
   navigate: (path: string) => void
 ): void {
-  setPrefillContactId(contact.id)
   try {
-    sessionStorage.setItem('prefillContactId', contact.id)
-    sessionStorage.setItem('prefillContactName', contact.name)
-    if (contact.phone) sessionStorage.setItem('prefillContactPhone', contact.phone)
-    if (contact.email) sessionStorage.setItem('prefillContactEmail', contact.email)
+    sessionStorage.setItem('prefill_contact', JSON.stringify({
+      id: contact.id,
+      name: contact.name,
+      email: contact.email ?? '',
+      phone: contact.phone ?? '',
+    }))
   } catch {
-    // sessionStorage indisponibil — Zustand store-ul e suficient
+    // sessionStorage indisponibil
   }
   navigate('/app/calculator')
 }

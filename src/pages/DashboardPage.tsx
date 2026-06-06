@@ -55,6 +55,12 @@ export interface Contact {
   email_opens?: number | null;
   email_clicks?: number | null;
   offer_products?: string[];
+  // Communication controls
+  email_opt_out?: boolean;
+  email_opt_out_at?: string | null;
+  communication_blocked?: boolean;
+  communication_blocked_at?: string | null;
+  communication_blocked_reason?: string | null;
   last_offer?: LastOfferInfo | null;
   timeline?: ContactTimeline[];
   // UI helpers
@@ -564,6 +570,7 @@ export default function DashboardPage() {
     "discuss_business",
   ];
   const focusToday = contacts
+    .filter((c) => !c.communication_blocked)
     .map((c) => ({ contact: c, action: getRecommendedAction(c) }))
     .filter((x) => ACTIONABLE_TYPES.includes(x.action.type))
     .sort(
@@ -626,6 +633,7 @@ export default function DashboardPage() {
   const followUpDays = profile?.follow_up_days ?? 5;
   const agendaActions = contacts
     .filter((c) => !focusIds.has(c.id))
+    .filter((c) => !c.communication_blocked)
     .map((c) => getNextAction(c, followUpDays))
     .filter((a): a is NonNullable<typeof a> => a !== null)
     .sort((a, b) => a.daysUntil - b.daysUntil)

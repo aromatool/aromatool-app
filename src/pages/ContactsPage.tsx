@@ -332,6 +332,11 @@ export default function ContactsPage() {
     );
   };
 
+  const handleContactDelete = (contactId: string) => {
+    setContacts((prev) => prev.filter((c) => c.id !== contactId));
+    setSelectedContact(null);
+  };
+
   // Filtrare + search + sortare
   const visible = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -937,6 +942,7 @@ export default function ContactsPage() {
             prev?.id === updated.id ? { ...prev, ...updated } : prev
           );
         }}
+        onContactDelete={handleContactDelete}
       />
 
       {/* Follow-up modal */}

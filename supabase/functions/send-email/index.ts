@@ -46,13 +46,21 @@ serve(async (req) => {
     if (contact_id) {
       const { data: contact } = await supabase
         .from('contacts')
-        .select('id')
+        .select('id, email_opt_out, communication_blocked')
         .eq('id', contact_id)
         .eq('user_id', user.id)
         .single()
 
       if (!contact) {
         return json({ error: 'Contact not found or access denied' }, 403)
+      }
+
+      // ── COMMUNICATION CONTROLS ───────────────────────────────
+      if (contact.communication_blocked) {
+        return json({ error: 'Comunicarea este blocată pentru acest contact.' }, 403)
+      }
+      if (contact.email_opt_out) {
+        return json({ error: 'Emailul este dezactivat pentru acest contact.' }, 403)
       }
     }
 

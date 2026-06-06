@@ -139,6 +139,15 @@ create table public.contacts (
   followup_opted_out      boolean     default false,
   manual_high_interest    boolean     default false,
   manual_business_interest boolean    default false,
+  -- Communication controls
+  email_opt_out            boolean     default false,
+  email_opt_out_at         timestamptz,
+  communication_blocked    boolean     default false,
+  communication_blocked_at timestamptz,
+  communication_blocked_reason text,
+  -- Email tracking (incrementat de webhook-ul Resend)
+  email_opens              integer     default 0,
+  email_clicks             integer     default 0,
   created_at              timestamptz default now(),
   updated_at              timestamptz default now(),
   unique(user_id, email)
@@ -219,6 +228,19 @@ create table public.product_import_jobs (
   error_log        jsonb,
   created_at       timestamptz default now(),
   completed_at     timestamptz
+);
+
+-- ── WEBHOOK LOG ───────────────────────────────────────────────
+-- Tracking pentru webhookuri Resend (unsubscribe, bounce, complained)
+-- Acces doar prin service_role — nicio politică RLS pentru useri normali
+create table public.webhook_log (
+  id           uuid        default uuid_generate_v4() primary key,
+  source       text        not null,
+  event_type   text        not null,
+  payload      jsonb,
+  processed_at timestamptz default now(),
+  contact_id   uuid        references public.contacts(id) on delete set null,
+  notes        text
 );
 
 -- ── ROW LEVEL SECURITY ────────────────────────────────────────

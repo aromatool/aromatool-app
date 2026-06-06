@@ -42,6 +42,8 @@ interface Contact {
   phone?: string | null;
   status?: string;
   followup_count?: number;
+  email_opt_out?: boolean;
+  communication_blocked?: boolean;
 }
 
 interface LastOffer {
@@ -441,6 +443,30 @@ export default function FollowupModal({
           </button>
         </div>
 
+        {/* ── COMMUNICATION CONTROLS WARNINGS ── */}
+        {contact.communication_blocked && (
+          <div style={{
+            background: "#FFF0F4", border: "1px solid #F4C0CC", borderRadius: "10px",
+            padding: "12px 14px", marginBottom: "16px",
+            display: "flex", alignItems: "center", gap: "8px",
+            fontSize: "13px", color: C.red,
+          }}>
+            <span style={{ fontSize: "16px" }}>🚫</span>
+            <span><strong>Comunicare blocată.</strong> Nu se poate trimite niciun mesaj acestui contact.</span>
+          </div>
+        )}
+        {!contact.communication_blocked && contact.email_opt_out && (
+          <div style={{
+            background: "#FFF8EC", border: "1px solid #F0D080", borderRadius: "10px",
+            padding: "12px 14px", marginBottom: "16px",
+            display: "flex", alignItems: "center", gap: "8px",
+            fontSize: "13px", color: "#7A5A00",
+          }}>
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span><strong>Email dezactivat.</strong> Contactul a optat să nu primească emailuri. Poți contacta pe WhatsApp.</span>
+          </div>
+        )}
+
         {loading ? (
           <div
             style={{
@@ -749,6 +775,8 @@ export default function FollowupModal({
                   onClick={send}
                   disabled={
                     sending ||
+                    !!contact.communication_blocked ||
+                    !!contact.email_opt_out ||
                     (tab === "template" && !selectedId) ||
                     (tab === "custom" && !customMessage.trim())
                   }
@@ -757,6 +785,8 @@ export default function FollowupModal({
                     padding: "11px",
                     background:
                       sending ||
+                      contact.communication_blocked ||
+                      contact.email_opt_out ||
                       (tab === "template" && !selectedId) ||
                       (tab === "custom" && !customMessage.trim())
                         ? C.muted
@@ -769,6 +799,8 @@ export default function FollowupModal({
                     fontWeight: 500,
                     cursor:
                       sending ||
+                      contact.communication_blocked ||
+                      contact.email_opt_out ||
                       (tab === "template" && !selectedId) ||
                       (tab === "custom" && !customMessage.trim())
                         ? "not-allowed"
@@ -777,6 +809,10 @@ export default function FollowupModal({
                 >
                   {sending
                     ? "Se trimite..."
+                    : contact.communication_blocked
+                    ? "Comunicare blocată"
+                    : contact.email_opt_out
+                    ? "Email dezactivat"
                     : `Trimite către ${contact.name?.split(" ")[0] || (contact.email ?? "").split("@")[0]}`}
                 </button>
               </div>

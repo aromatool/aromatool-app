@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 
 const C = {
-  primary: "#7B5EA7",
-  dark: "#2D1A4E",
-  muted: "#9B80C4",
-  border2: "rgba(196,168,232,0.5)",
-  bg2: "#F5F0FF",
+  primary: "#5C7A5C",
+  dark: "#3D3530",
+  muted: "#A89888",
+  border2: "rgba(92,122,92,0.25)",
+  bg2: "#EEF3EE",
   green: "#2E8A58",
   greenbg: "#E8F8F0",
   card: "#FFFFFF",
@@ -28,6 +28,7 @@ export default function EnrollLink({
   const [enrollerId, setEnrollerId] = useState("");
   const [copied, setCopied] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const [countryCode, setCountryCode] = useState("RO");
   const [culture, setCulture] = useState("ro-RO");
@@ -36,10 +37,26 @@ export default function EnrollLink({
     ? `https://www.youngliving.com/vo/#/signup/new-start?sponsorid=${sponsorId}&enrollerid=${enrollerId || sponsorId}&isocountrycode=${countryCode}&culture=${culture}&type=member`
     : "";
 
-  // Notify parent when link changes
+  // Dacă utilizatorul modifică datele după ce a salvat, invalidăm linkul
+  // salvat și îl scoatem din email până la o nouă salvare.
   useEffect(() => {
+    if (saved) {
+      setSaved(false);
+      if (onLinkGenerated) onLinkGenerated("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sponsorId, enrollerId, countryCode, culture]);
+
+  function saveLink() {
+    if (!enrollLink) return;
     if (onLinkGenerated) onLinkGenerated(enrollLink);
-  }, [enrollLink]);
+    setSaved(true);
+  }
+
+  function removeLink() {
+    if (onLinkGenerated) onLinkGenerated("");
+    setSaved(false);
+  }
 
   function copyLink() {
     if (!enrollLink) return;
@@ -67,18 +84,34 @@ export default function EnrollLink({
           onClick={() => setIsOpen(!isOpen)}
           style={{
             width: "100%",
-            background: C.bg2,
-            border: `1px solid ${C.border2}`,
+            background: saved ? C.greenbg : isOpen ? C.bg2 : C.card,
+            border: `1px solid ${saved ? C.green : C.border2}`,
             borderRadius: "10px",
-            padding: "10px",
-            color: C.dark,
+            padding: "11px",
+            color: saved ? C.green : C.primary,
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "13px",
-            fontWeight: 500,
+            fontWeight: 600,
             cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "7px",
           }}
         >
-          🔗 {isOpen ? "Ascunde link înscriere" : "Generează link înscriere YL"}
+          <i
+            className={saved ? "ti ti-circle-check" : "ti ti-link"}
+            style={{ fontSize: "15px" }}
+          />
+          {isOpen
+            ? "Ascunde link înscriere"
+            : saved
+              ? "Link înscriere adăugat"
+              : "Adaugă link înscriere"}
+          <i
+            className={isOpen ? "ti ti-chevron-up" : "ti ti-chevron-down"}
+            style={{ fontSize: "14px", marginLeft: "auto", opacity: 0.6 }}
+          />
         </button>
 
         {isOpen && (
@@ -176,35 +209,124 @@ export default function EnrollLink({
               <>
                 <div
                   style={{
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: C.primary,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Link generat — previzualizare
+                </div>
+                <div
+                  style={{
                     background: C.bg2,
                     borderRadius: "8px",
                     padding: "8px 10px",
                     fontSize: "11px",
                     color: C.muted,
                     wordBreak: "break-all",
-                    marginBottom: "8px",
+                    marginBottom: "10px",
                     lineHeight: 1.5,
                   }}
                 >
                   {enrollLink}
                 </div>
 
+                {/* Salvează linkul în email */}
+                {saved ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      background: C.greenbg,
+                      border: `1px solid ${C.green}`,
+                      borderRadius: "9px",
+                      padding: "9px 11px",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <i
+                      className="ti ti-circle-check"
+                      style={{ fontSize: "16px", color: C.green }}
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: C.green,
+                        fontFamily: "'DM Sans', sans-serif",
+                      }}
+                    >
+                      Linkul va fi inclus în email
+                    </span>
+                    <button
+                      onClick={removeLink}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: C.muted,
+                        fontSize: "11px",
+                        fontFamily: "'DM Sans', sans-serif",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        padding: 0,
+                      }}
+                    >
+                      Scoate
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={saveLink}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      background: C.primary,
+                      border: "none",
+                      borderRadius: "9px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "white",
+                      fontFamily: "'DM Sans', sans-serif",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    <i className="ti ti-plus" style={{ fontSize: "15px" }} />
+                    Adaugă linkul în email
+                  </button>
+                )}
+
                 <div style={{ display: "flex", gap: "6px" }}>
                   <button
                     onClick={copyLink}
                     style={{
                       flex: 1,
-                      padding: "8px",
+                      padding: "9px",
                       background: copied ? C.greenbg : C.bg2,
                       border: `1px solid ${copied ? C.green : C.border2}`,
-                      borderRadius: "8px",
+                      borderRadius: "9px",
                       fontSize: "12px",
+                      fontWeight: 500,
                       color: copied ? C.green : C.dark,
                       fontFamily: "'DM Sans', sans-serif",
                       cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "5px",
                     }}
                   >
-                    {copied ? "✅ Copiat!" : "📋 Copiază"}
+                    <i className={copied ? "ti ti-check" : "ti ti-copy"} style={{ fontSize: "14px" }} />
+                    {copied ? "Copiat!" : "Copiază"}
                   </button>
 
                   {clientPhone && (
@@ -212,17 +334,26 @@ export default function EnrollLink({
                       onClick={sendWhatsApp}
                       style={{
                         flex: 1,
-                        padding: "8px",
-                        background: "#25D366",
-                        border: "none",
-                        borderRadius: "8px",
+                        padding: "9px",
+                        background: C.card,
+                        border: `1px solid ${C.border2}`,
+                        borderRadius: "9px",
                         fontSize: "12px",
-                        color: "white",
+                        fontWeight: 600,
+                        color: "#25A85A",
                         fontFamily: "'DM Sans', sans-serif",
                         cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "5px",
                       }}
                     >
-                      💬 WhatsApp
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="#25A85A">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.851L.057 23.928l6.231-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818c-1.983 0-3.83-.543-5.41-1.485l-.387-.23-4.015 1.053 1.072-3.916-.251-.4A9.788 9.788 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.422 0 9.818 4.396 9.818 9.818 0 5.422-4.396 9.818-9.818 9.818z"/>
+                      </svg>
+                      WhatsApp
                     </button>
                   )}
                 </div>
@@ -370,7 +501,7 @@ export default function EnrollLink({
               onClick={copyLink}
               style={{
                 flex: 1,
-                padding: "9px",
+                padding: "10px",
                 background: copied ? C.greenbg : C.bg2,
                 border: `1px solid ${copied ? C.green : C.border2}`,
                 borderRadius: "9px",
@@ -379,9 +510,14 @@ export default function EnrollLink({
                 fontFamily: "'DM Sans', sans-serif",
                 cursor: "pointer",
                 fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
               }}
             >
-              {copied ? "✅ Copiat!" : "📋 Copiază linkul"}
+              <i className={copied ? "ti ti-check" : "ti ti-copy"} style={{ fontSize: "15px" }} />
+              {copied ? "Copiat!" : "Copiază linkul"}
             </button>
 
             {clientPhone && (
@@ -389,7 +525,7 @@ export default function EnrollLink({
                 onClick={sendWhatsApp}
                 style={{
                   flex: 1,
-                  padding: "9px",
+                  padding: "10px",
                   background: "#25D366",
                   border: "none",
                   borderRadius: "9px",
@@ -397,10 +533,19 @@ export default function EnrollLink({
                   color: "white",
                   fontFamily: "'DM Sans', sans-serif",
                   cursor: "pointer",
-                  fontWeight: 500,
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  boxShadow: "0 2px 8px rgba(37,211,102,0.28)",
                 }}
               >
-                💬 Trimite pe WhatsApp
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.851L.057 23.928l6.231-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818c-1.983 0-3.83-.543-5.41-1.485l-.387-.23-4.015 1.053 1.072-3.916-.251-.4A9.788 9.788 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.422 0 9.818 4.396 9.818 9.818 0 5.422-4.396 9.818-9.818 9.818z"/>
+                </svg>
+                Trimite pe WhatsApp
               </button>
             )}
           </div>
@@ -426,7 +571,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: "11px",
   fontWeight: 500,
-  color: "#6B5B9E",
+  color: "#6A5A50",
   marginBottom: "4px",
   letterSpacing: "0.04em",
 };
@@ -434,11 +579,11 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "9px 12px",
-  background: "#F9F7FF",
-  border: "1.5px solid rgba(196,168,232,0.4)",
+  background: "#F8FAF8",
+  border: "1.5px solid rgba(92,122,92,0.25)",
   borderRadius: "8px",
   fontSize: "13px",
-  color: "#2D1A4E",
+  color: "#3D3530",
   fontFamily: "'DM Sans', sans-serif",
   outline: "none",
   boxSizing: "border-box",
