@@ -24,13 +24,6 @@ const C = {
   bg2: "#F5F0FF",
 };
 
-function fmt(n: number) {
-  return n.toLocaleString("ro-RO", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 // ── SEARCH SECTION ────────────────────────────────────────
 function SearchSection() {
   const [query, setQuery] = useState("");
@@ -338,7 +331,6 @@ function CartSection() {
     loading: sending,
     error: sendError,
     success: sendSuccess,
-    setError: setSendError,
     setSuccess: setSendSuccess,
   } = useSendEmail();
 

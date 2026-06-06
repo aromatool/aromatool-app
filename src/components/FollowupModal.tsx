@@ -37,11 +37,11 @@ interface TemplateBody {
 
 interface Contact {
   id: string;
-  email: string;
+  email?: string;
   name: string | null;
   phone: string | null;
   status?: string;
-  followup_count: number;
+  followup_count?: number;
 }
 
 interface LastOffer {
@@ -195,8 +195,8 @@ export default function FollowupModal({
   const selectedBody = selected ? parseBody(selected.body_html) : null;
 
   const vars: Record<string, string> = {
-    "{{nume}}": contact.name || contact.email.split("@")[0],
-    "{{email}}": contact.email,
+    "{{nume}}": contact.name || (contact.email ?? "").split("@")[0],
+    "{{email}}": contact.email ?? "",
     "{{zile}}": lastOffer?.sent_at
       ? String(
           Math.floor(
@@ -267,7 +267,7 @@ export default function FollowupModal({
     }
 
     // Pre-completează subiectul custom
-    const nume = contact.name || contact.email.split("@")[0];
+    const nume = contact.name || (contact.email ?? "").split("@")[0];
     setCustomSubject(`Salut, ${nume}!`);
 
     setLoading(false);
@@ -763,7 +763,7 @@ export default function FollowupModal({
                 >
                   {sending
                     ? "Se trimite..."
-                    : `Trimite către ${contact.name?.split(" ")[0] || contact.email.split("@")[0]}`}
+                    : `Trimite către ${contact.name?.split(" ")[0] || (contact.email ?? "").split("@")[0]}`}
                 </button>
               </div>
             )}

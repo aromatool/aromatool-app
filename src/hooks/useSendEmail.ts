@@ -31,9 +31,6 @@ function fmtCurrency(amount: number, currency: string): string {
   return `${formatted} ${symbol}`
 }
 
-function fmt(n: number) {
-  return n.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string): string {
   const { clientName, items, transport, totalDisplay, totalEur, exchangeRate, currency, notes, enrollLink } = params

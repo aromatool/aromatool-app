@@ -477,7 +477,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         {/* Right items */}
         {NAV_RIGHT.map((item) => {
-          const active = isActive(item.path);
           // "Mai mult" deschide settings
           const handleClick =
             item.label === "Mai mult"

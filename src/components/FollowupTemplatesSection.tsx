@@ -65,7 +65,7 @@ function parseBody(body_html: string): TemplateBody {
   }
 }
 
-function buildPreviewHtml(body: TemplateBody, subject: string): string {
+function buildPreviewHtml(body: TemplateBody, _subject: string): string {
   return `
     <div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #E0D4F8;">
       <div style="background:#4A3270;padding:20px;text-align:center;">
@@ -169,10 +169,6 @@ export default function FollowupTemplatesSection() {
     setTemplates((prev) =>
       prev.map((t) => (t.id === id ? { ...t, active: !active } : t)),
     );
-  }
-
-  function insertVariable(key: string, field: keyof TemplateBody) {
-    setEditBody((prev) => ({ ...prev, [field]: (prev[field] || "") + key }));
   }
 
   if (loading)

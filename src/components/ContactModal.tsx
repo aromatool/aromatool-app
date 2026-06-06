@@ -86,13 +86,7 @@ function fmtTime(iso?: string | null): string {
     minute: "2-digit",
   });
 }
-function relativeDays(d?: string | null): string {
-  const n = daysSince(d);
-  if (n === null) return "—";
-  if (n === 0) return "Azi";
-  if (n === 1) return "Acum 1 zi";
-  return `Acum ${n} zile`;
-}
+
 function statusPill(status: string) {
   const shown = displayStatus(status as ContactStatus);
   switch (shown) {
@@ -265,7 +259,6 @@ export default function ContactModal({
     contact.last_activity_at ?? contact.first_offer_at,
   );
   const pill = statusPill(contact.status);
-  const currentStatusLabel = displayStatus(contact.status);
 
   const handleStatusSelect = async (s: ContactStatus) => {
     if (displayStatus(s) === displayStatus(contact.status)) {

@@ -88,14 +88,6 @@ function formatDate(d: string) {
   });
 }
 
-function formatDateTime(d: string) {
-  return new Date(d).toLocaleDateString("ro-RO", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 const STATUS_STYLE: Record<
   string,
@@ -132,7 +124,7 @@ export default function OffersPage() {
       )
       .eq("user_id", user!.id)
       .order("sent_at", { ascending: false });
-    if (!error && data) setOffers(data as Offer[]);
+    if (!error && data) setOffers(data as unknown as Offer[]);
     setLoading(false);
   }
 

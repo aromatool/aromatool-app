@@ -50,9 +50,9 @@ export default function SettingsPage() {
 
   async function loadProfile() {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
-      .select("full_name, phone, contact_email, country_code, language_code")
+      .select("full_name, phone, contact_email, country_code, language_code, follow_up_days, followup_enabled")
       .eq("id", user!.id)
       .single();
 

@@ -35,6 +35,7 @@ interface CartStore {
   setExchangeRate: (rate: number) => void
   setCurrency: (currency: string) => void
   setCustomRate: (currency: string, rate: number) => void
+  prefillContactId: string | null
   setPrefillContactId: (id: string | null) => void
   clearCart: () => void
 

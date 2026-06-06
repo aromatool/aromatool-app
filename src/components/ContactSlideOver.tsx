@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getRecommendedAction, displayStatus } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
-import type { Contact } from "./DashboardPage";
+import type { Contact } from "../pages/DashboardPage";
 
 interface Props {
   contact: Contact | null;
@@ -842,9 +842,9 @@ export default function ContactSlideOver({
           {contact.timeline && contact.timeline.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <SectionLabel>Istoric activități</SectionLabel>
-              {contact.timeline.slice(0, 6).map((item, idx) => {
+              {contact.timeline.slice(0, 6).map((item: any, idx: any) => {
                 const clickable = item.type === "offer" && item.offerId;
-                const iconCfg = {
+                const iconCfg: Record<string, { icon: string; bg: string; color: string }> = {
                   offer: { icon: "ti-file-text", bg: T.roseLt, color: T.rose },
                   email: { icon: "ti-mail", bg: T.lavLt, color: T.lav },
                   followup: { icon: "ti-send", bg: T.lavLt, color: T.lav },
@@ -1008,7 +1008,7 @@ export default function ContactSlideOver({
             <div style={{ marginBottom: 16 }}>
               <SectionLabel>Produse recomandate ultima dată</SectionLabel>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {contact.offer_products.map((p, i) => (
+                {contact.offer_products.map((p: any, i: any) => (
                   <span
                     key={i}
                     style={{
