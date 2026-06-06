@@ -842,9 +842,9 @@ export default function ContactSlideOver({
           {contact.timeline && contact.timeline.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <SectionLabel>Istoric activități</SectionLabel>
-              {contact.timeline.slice(0, 6).map((item: any, idx: any) => {
+              {contact.timeline.slice(0, 6).map((item: any, idx: number) => {
                 const clickable = item.type === "offer" && item.offerId;
-                const iconCfg: Record<string, { icon: string; bg: string; color: string }> = {
+                const iconCfgMap: Record<string, { icon: string; bg: string; color: string }> = {
                   offer: { icon: "ti-file-text", bg: T.roseLt, color: T.rose },
                   email: { icon: "ti-mail", bg: T.lavLt, color: T.lav },
                   followup: { icon: "ti-send", bg: T.lavLt, color: T.lav },
@@ -854,7 +854,8 @@ export default function ContactSlideOver({
                     color: T.grn,
                   },
                   event: { icon: "ti-user-plus", bg: T.linen, color: T.muted },
-                }[item.type];
+                };
+                const iconCfg = iconCfgMap[item.type as string] ?? iconCfgMap["event"];
                 return (
                   <div
                     key={idx}

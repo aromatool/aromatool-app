@@ -39,7 +39,7 @@ interface Contact {
   id: string;
   email?: string;
   name: string | null;
-  phone: string | null;
+  phone?: string | null;
   status?: string;
   followup_count?: number;
 }
