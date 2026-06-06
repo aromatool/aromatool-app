@@ -929,6 +929,14 @@ export default function ContactsPage() {
         onOpenOffer={(offerId: string) =>
           navigate(`/app/offers?offer=${offerId}`)
         }
+        onContactUpdate={(updated) => {
+          setContacts((prev) =>
+            prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+          );
+          setSelectedContact((prev) =>
+            prev?.id === updated.id ? { ...prev, ...updated } : prev
+          );
+        }}
       />
 
       {/* Follow-up modal */}

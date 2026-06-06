@@ -31,6 +31,7 @@ interface Props {
   onStatusChange?: (id: string, s: ContactStatus) => Promise<void> | void;
   onNotesChange?: (id: string, notes: string) => Promise<void> | void;
   onOpenOffer?: (offerId: string) => void;
+  onContactUpdate?: (updated: Contact) => void;
 }
 
 const T = {
@@ -130,6 +131,7 @@ export default function ContactModal({
   onStatusChange,
   onNotesChange,
   onOpenOffer,
+  onContactUpdate,
 }: Props) {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("offers");
@@ -142,6 +144,9 @@ export default function ContactModal({
   const [savingNotes, setSavingNotes] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editDraft, setEditDraft] = useState({ name: "", phone: "", email: "", source: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -156,6 +161,7 @@ export default function ContactModal({
     setEditingNotes(false);
     setStatusMenuOpen(false);
     setShowAllTimeline(false);
+    setEditMode(false);
     setNotesDraft(contact?.notes ?? "");
     if (contact) loadData(contact);
   }, [contact?.id]);
@@ -281,6 +287,33 @@ export default function ContactModal({
       setSavingNotes(false);
       setEditingNotes(false);
     }
+  };
+
+  const handleStartEdit = () => {
+    const isPlaceholder = (contact.email ?? "").includes("@noemail.local");
+    setEditDraft({
+      name: contact.name ?? "",
+      phone: contact.phone ?? "",
+      email: isPlaceholder ? "" : (contact.email ?? ""),
+      source: contact.source ?? "",
+    });
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = async () => {
+    setSavingEdit(true);
+    const updates: Record<string, string | null> = {
+      name: editDraft.name.trim() || null,
+      phone: editDraft.phone.trim() || null,
+      source: editDraft.source.trim() || null,
+    };
+    if (editDraft.email.trim()) updates.email = editDraft.email.trim();
+    const { error } = await supabase.from("contacts").update(updates).eq("id", contact.id);
+    if (!error) {
+      onContactUpdate?.({ ...contact, ...updates });
+      setEditMode(false);
+    }
+    setSavingEdit(false);
   };
 
   const visibleTimeline = showAllTimeline ? timeline : timeline.slice(0, 6);
@@ -448,10 +481,25 @@ export default function ContactModal({
               )}
             </div>
           </div>
-          <button onClick={() => onEmail?.(contact)} style={hdrBtn()}>
-            <i className="ti ti-edit" style={{ fontSize: 15 }} /> Editează
-            contact
-          </button>
+          {editMode ? (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                style={{ ...hdrBtn(), background: T.sage, color: "#fff", border: "none" }}
+              >
+                <i className="ti ti-check" style={{ fontSize: 15 }} />
+                {savingEdit ? "Se salvează..." : "Salvează"}
+              </button>
+              <button onClick={() => setEditMode(false)} style={hdrBtn()}>
+                <i className="ti ti-x" style={{ fontSize: 15 }} /> Anulează
+              </button>
+            </div>
+          ) : (
+            <button onClick={handleStartEdit} style={hdrBtn()}>
+              <i className="ti ti-edit" style={{ fontSize: 15 }} /> Editează contact
+            </button>
+          )}
           <div
             style={{ position: "relative" }}
             onClick={(e) => e.stopPropagation()}
@@ -552,6 +600,62 @@ export default function ContactModal({
             background: T.cream,
           }}
         >
+          {/* FORMULAR EDITARE */}
+          {editMode && (
+            <div style={{ background: T.white, border: `0.5px solid ${T.border}`, borderRadius: 14, padding: 24, maxWidth: 520 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: T.espresso, marginBottom: 20 }}>
+                Editează informații contact
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {[
+                  { key: "name", label: "Nume", icon: "ti-user", placeholder: "Numele contactului" },
+                  { key: "phone", label: "Telefon", icon: "ti-phone", placeholder: "ex: 0722 123 456" },
+                  { key: "email", label: "Email", icon: "ti-mail", placeholder: "adresa@email.com" },
+                  { key: "source", label: "Sursă", icon: "ti-map-pin", placeholder: "ex: Instagram, recomandare" },
+                ].map(({ key, label, icon, placeholder }) => (
+                  <div key={key}>
+                    <label style={{ fontSize: 12, color: T.muted, display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+                      <i className={`ti ${icon}`} style={{ fontSize: 13 }} /> {label}
+                    </label>
+                    <input
+                      type={key === "email" ? "email" : "text"}
+                      value={editDraft[key as keyof typeof editDraft]}
+                      onChange={(e) => setEditDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        fontSize: 14,
+                        color: T.espresso,
+                        border: `0.5px solid ${T.border}`,
+                        borderRadius: 9,
+                        outline: "none",
+                        fontFamily: "inherit",
+                        boxSizing: "border-box",
+                        background: T.white,
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={savingEdit}
+                  style={{ background: T.sage, color: "#fff", border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  {savingEdit ? "Se salvează..." : "Salvează modificările"}
+                </button>
+                <button
+                  onClick={() => setEditMode(false)}
+                  style={{ background: T.linen, color: T.warm, border: `0.5px solid ${T.border}`, borderRadius: 9, padding: "10px 16px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Anulează
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* RÂND 1: Acțiune recomandată + KPI-uri */}
           <div
             style={{
