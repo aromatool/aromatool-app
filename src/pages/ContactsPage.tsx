@@ -13,6 +13,7 @@ import {
 import type { CrmCategory } from "../lib/recommendedAction";
 import type { Contact } from "./DashboardPage";
 import type { ContactStatus } from "../lib/relationshipScore";
+import PhoneInput from "../components/PhoneInput";
 
 const T = {
   sage: "#5C7A5C",
@@ -1035,13 +1036,15 @@ export default function ContactsPage() {
               </div>
               <div>
                 <label style={labelStyle}>Telefon (WhatsApp)</label>
-                <input
+                <PhoneInput
                   value={addData.phone}
-                  onChange={(e) =>
-                    setAddData((p) => ({ ...p, phone: e.target.value }))
-                  }
-                  placeholder="+40712345678"
-                  style={inputStyle}
+                  onChange={(v) => setAddData((p) => ({ ...p, phone: v }))}
+                  theme={{
+                    border: T.border,
+                    inputBg: T.cream,
+                    text: T.espresso,
+                    focus: T.sage,
+                  }}
                 />
               </div>
               <div>

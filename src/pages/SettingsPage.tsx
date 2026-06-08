@@ -1,20 +1,23 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { COUNTRIES, flagOf } from "../lib/countries";
+import PhoneInput from "../components/PhoneInput";
 
+// Blossom Sage — temă unică pe tot app-ul.
 const C = {
-  bg: "#FDFAFF",
+  bg: "#FAFAF7",
   card: "#FFFFFF",
-  border: "rgba(196,168,232,0.3)",
-  border2: "rgba(196,168,232,0.5)",
-  primary: "#7B5EA7",
-  dark: "#2D1A4E",
-  muted: "#9B80C4",
+  border: "#EDE8E0",
+  border2: "#EDE8E0",
+  primary: "#5C7A5C",
+  dark: "#3D3530",
+  muted: "#A89888",
   green: "#2E8A58",
   greenbg: "#E8F8F0",
   red: "#C94F6A",
   redbg: "#FFF0F4",
-  bg2: "#F5F0FF",
+  bg2: "#F5EEE8",
 };
 
 interface Profile {
@@ -25,14 +28,13 @@ interface Profile {
   country_code: string;
   language_code: string;
   follow_up_days: number;
-  followup_enabled: boolean;
   daily_focus_enabled: boolean;
   daily_focus_hour: number;
   is_admin: boolean;
 }
 
 export default function SettingsPage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updatePassword } = useAuth();
   const [profile, setProfile] = useState<Profile>({
     full_name: "",
     phone: "",
@@ -41,7 +43,6 @@ export default function SettingsPage() {
     country_code: "RO",
     language_code: "ro",
     follow_up_days: 5,
-    followup_enabled: true,
     daily_focus_enabled: false,
     daily_focus_hour: 8,
     is_admin: false,
@@ -50,6 +51,37 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  // Schimbare parolă
+  const [pw1, setPw1] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSuccess, setPwSuccess] = useState(false);
+
+  async function changePassword() {
+    setPwError("");
+    setPwSuccess(false);
+    if (pw1.length < 6) {
+      setPwError("Parola trebuie să aibă minim 6 caractere.");
+      return;
+    }
+    if (pw1 !== pw2) {
+      setPwError("Parolele nu coincid.");
+      return;
+    }
+    setPwSaving(true);
+    const { error: pwErr } = await updatePassword(pw1);
+    setPwSaving(false);
+    if (pwErr) {
+      setPwError("Eroare la schimbarea parolei. Încearcă din nou.");
+    } else {
+      setPw1("");
+      setPw2("");
+      setPwSuccess(true);
+      setTimeout(() => setPwSuccess(false), 3000);
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -60,7 +92,7 @@ export default function SettingsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("profiles")
-      .select("full_name, phone, contact_email, email_signature, country_code, language_code, follow_up_days, followup_enabled, daily_focus_enabled, daily_focus_hour, is_admin")
+      .select("full_name, phone, contact_email, email_signature, country_code, language_code, follow_up_days, daily_focus_enabled, daily_focus_hour, is_admin")
       .eq("id", user!.id)
       .single();
 
@@ -73,7 +105,6 @@ export default function SettingsPage() {
         country_code: data.country_code || "RO",
         language_code: data.language_code || "ro",
         follow_up_days: data.follow_up_days || 5,
-        followup_enabled: data.followup_enabled !== false,
         daily_focus_enabled: data.daily_focus_enabled === true,
         daily_focus_hour: data.daily_focus_hour || 8,
         is_admin: data.is_admin === true,
@@ -97,7 +128,6 @@ export default function SettingsPage() {
         country_code: profile.country_code,
         language_code: profile.language_code,
         follow_up_days: profile.follow_up_days,
-        followup_enabled: profile.followup_enabled,
         daily_focus_enabled: profile.daily_focus_enabled,
         daily_focus_hour: profile.daily_focus_hour,
         // Timezone-ul curent al browserului — folosit ca să trimitem la ora
@@ -136,7 +166,7 @@ export default function SettingsPage() {
           style={{
             width: "28px",
             height: "28px",
-            border: "3px solid #E8E0F8",
+            border: "3px solid #E8F0E8",
             borderTopColor: C.primary,
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
@@ -206,13 +236,16 @@ export default function SettingsPage() {
           >
             <div>
               <label style={labelStyle}>Telefon (WhatsApp)</label>
-              <input
+              <PhoneInput
                 value={profile.phone}
-                onChange={(e) =>
-                  setProfile((p) => ({ ...p, phone: e.target.value }))
-                }
-                placeholder="+40712345678"
-                style={inputStyle}
+                defaultCountry={profile.country_code}
+                onChange={(v) => setProfile((p) => ({ ...p, phone: v }))}
+                theme={{
+                  border: "#EDE8E0",
+                  inputBg: C.bg,
+                  text: C.dark,
+                  focus: C.primary,
+                }}
               />
               <div
                 style={{ fontSize: "11px", color: C.muted, marginTop: "4px" }}
@@ -277,11 +310,11 @@ export default function SettingsPage() {
                 }
                 style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
               >
-                <option value="RO">🇷🇴 România</option>
-                <option value="DE">🇩🇪 Germania</option>
-                <option value="FR">🇫🇷 Franța</option>
-                <option value="GB">🇬🇧 Marea Britanie</option>
-                <option value="US">🇺🇸 SUA</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {flagOf(c.code)} {c.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -321,70 +354,10 @@ export default function SettingsPage() {
               <span
                 style={{ fontSize: "12px", color: C.muted, lineHeight: 1.4 }}
               >
-                zile — dacă un prospect nu a primit o ofertă în acest interval,
-                apare badge-ul ⏰ în pagina Clienți
+                zile — influențează când reapar contactele în Agenda din
+                Dashboard, dacă nu au primit o ofertă în acest interval
               </span>
             </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "12px 16px",
-              background: profile.followup_enabled ? C.greenbg : C.redbg,
-              borderRadius: "10px",
-              border: `1px solid ${profile.followup_enabled ? "rgba(46,138,88,0.2)" : "rgba(201,79,106,0.2)"}`,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "13px", fontWeight: 500, color: C.dark }}>
-                {profile.followup_enabled
-                  ? "✅ Follow-up automat activ"
-                  : "⏸️ Follow-up automat oprit"}
-              </div>
-              <div
-                style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}
-              >
-                {profile.followup_enabled
-                  ? "Clienții eligibili primesc mesaje automat conform template-urilor"
-                  : "Niciun mesaj automat nu va fi trimis"}
-              </div>
-            </div>
-            <button
-              onClick={() =>
-                setProfile((p) => ({
-                  ...p,
-                  followup_enabled: !p.followup_enabled,
-                }))
-              }
-              style={{
-                width: "48px",
-                height: "26px",
-                borderRadius: "999px",
-                border: "none",
-                background: profile.followup_enabled ? C.green : "#CCC",
-                cursor: "pointer",
-                position: "relative",
-                transition: "background 0.2s",
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: "3px",
-                  left: profile.followup_enabled ? "25px" : "3px",
-                  width: "20px",
-                  height: "20px",
-                  borderRadius: "50%",
-                  background: "white",
-                  transition: "left 0.2s",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }}
-              />
-            </button>
           </div>
 
           {/* ── Daily Focus Email ──────────────────────────── */}
@@ -543,7 +516,7 @@ export default function SettingsPage() {
             padding: "12px",
             background: saving
               ? C.muted
-              : `linear-gradient(135deg, ${C.primary}, #4A3270)`,
+              : `linear-gradient(135deg, #5C7A5C, #4A6A4A)`,
             border: "none",
             borderRadius: "10px",
             color: "white",
@@ -636,6 +609,110 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Change password */}
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "16px",
+          padding: "24px",
+          marginBottom: "16px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: C.primary,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: "16px",
+          }}
+        >
+          🔑 Schimbă parola
+        </div>
+
+        <div style={{ display: "grid", gap: "14px" }}>
+          <div>
+            <label style={labelStyle}>Parolă nouă</label>
+            <input
+              type="password"
+              value={pw1}
+              onChange={(e) => setPw1(e.target.value)}
+              placeholder="Minim 6 caractere"
+              autoComplete="new-password"
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Confirmă parola</label>
+            <input
+              type="password"
+              value={pw2}
+              onChange={(e) => setPw2(e.target.value)}
+              placeholder="Repetă parola nouă"
+              autoComplete="new-password"
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        {pwError && (
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "10px 14px",
+              background: C.redbg,
+              border: `1px solid rgba(201,79,106,0.2)`,
+              borderRadius: "10px",
+              fontSize: "13px",
+              color: C.red,
+            }}
+          >
+            ⚠️ {pwError}
+          </div>
+        )}
+
+        {pwSuccess && (
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "10px 14px",
+              background: C.greenbg,
+              border: `1px solid rgba(46,138,88,0.2)`,
+              borderRadius: "10px",
+              fontSize: "13px",
+              color: C.green,
+            }}
+          >
+            ✅ Parola a fost schimbată!
+          </div>
+        )}
+
+        <button
+          onClick={changePassword}
+          disabled={pwSaving || !pw1 || !pw2}
+          style={{
+            marginTop: "16px",
+            width: "100%",
+            padding: "12px",
+            background:
+              pwSaving || !pw1 || !pw2
+                ? C.muted
+                : `linear-gradient(135deg, #5C7A5C, #4A6A4A)`,
+            border: "none",
+            borderRadius: "10px",
+            color: "white",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: pwSaving || !pw1 || !pw2 ? "not-allowed" : "pointer",
+          }}
+        >
+          {pwSaving ? "Se schimbă..." : "Schimbă parola"}
+        </button>
+      </div>
+
       {/* Danger zone */}
       <div
         style={{
@@ -685,7 +762,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: "12px",
   fontWeight: 500,
-  color: "#6B5B9E",
+  color: "#6A5A50",
   marginBottom: "6px",
   letterSpacing: "0.04em",
 };
@@ -693,11 +770,11 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
-  background: "#F9F7FF",
-  border: "1.5px solid rgba(196,168,232,0.4)",
+  background: "#FAFAF7",
+  border: "1.5px solid #EDE8E0",
   borderRadius: "10px",
   fontSize: "14px",
-  color: "#2D1A4E",
+  color: "#3D3530",
   fontFamily: "'DM Sans', sans-serif",
   outline: "none",
   boxSizing: "border-box",

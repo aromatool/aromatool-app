@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { getRecommendedAction, displayStatus } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
 import type { Contact } from "../pages/DashboardPage";
+import PhoneInput from "./PhoneInput";
 
 interface OfferRow {
   id: string;
@@ -870,24 +871,37 @@ export default function ContactModal({
                     <label style={{ fontSize: 12, color: T.muted, display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
                       <i className={`ti ${icon}`} style={{ fontSize: 13 }} /> {label}
                     </label>
-                    <input
-                      type={key === "email" ? "email" : "text"}
-                      value={editDraft[key as keyof typeof editDraft]}
-                      onChange={(e) => setEditDraft((prev) => ({ ...prev, [key]: e.target.value }))}
-                      placeholder={placeholder}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        fontSize: 14,
-                        color: T.espresso,
-                        border: `0.5px solid ${T.border}`,
-                        borderRadius: 9,
-                        outline: "none",
-                        fontFamily: "inherit",
-                        boxSizing: "border-box",
-                        background: T.white,
-                      }}
-                    />
+                    {key === "phone" ? (
+                      <PhoneInput
+                        value={editDraft.phone}
+                        onChange={(v) => setEditDraft((prev) => ({ ...prev, phone: v }))}
+                        theme={{
+                          border: T.border,
+                          inputBg: T.white,
+                          text: T.espresso,
+                          focus: T.sage,
+                        }}
+                      />
+                    ) : (
+                      <input
+                        type={key === "email" ? "email" : "text"}
+                        value={editDraft[key as keyof typeof editDraft]}
+                        onChange={(e) => setEditDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          fontSize: 14,
+                          color: T.espresso,
+                          border: `0.5px solid ${T.border}`,
+                          borderRadius: 9,
+                          outline: "none",
+                          fontFamily: "inherit",
+                          boxSizing: "border-box",
+                          background: T.white,
+                        }}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
