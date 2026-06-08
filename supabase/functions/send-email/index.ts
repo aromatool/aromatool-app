@@ -4,7 +4,31 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const FROM_EMAIL = 'AromaTool <onboarding@resend.dev>'
+
+// Adresa tehnică de expediere. O singură dată verifici domeniul în Resend
+// și setezi secretul MAIL_FROM (ex: "trimite@mail.aromatool.com"). Până atunci
+// rămâne sandbox-ul de test Resend (merge doar către emailul tău verificat).
+const MAIL_FROM = Deno.env.get('MAIL_FROM') || 'onboarding@resend.dev'
+
+// Curăță numele afișat de caractere care ar strica header-ul „From"
+// (newline, ghilimele, paranteze unghiulare). Apoi îl punem între ghilimele.
+function sanitizeName(name?: string): string {
+  if (!name) return ''
+  return name.replace(/[<>"\r\n]/g, '').trim().slice(0, 80)
+}
+
+// Construiește header-ul „From": "Nume utilizator <adresa-ta>".
+function buildFrom(fromName?: string): string {
+  const clean = sanitizeName(fromName)
+  return clean ? `"${clean}" <${MAIL_FROM}>` : `AromaTool <${MAIL_FROM}>`
+}
+
+// Reply-To valid doar dacă pare un email (altfel îl ignorăm).
+function validReplyTo(email?: string): string | undefined {
+  if (!email) return undefined
+  const e = email.trim()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : undefined
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,7 +47,7 @@ serve(async (req) => {
     })
 
   try {
-    const { to, subject, html, contact_id, log_id } = await req.json()
+    const { to, subject, html, contact_id, log_id, from_name, reply_to } = await req.json()
 
     if (!to || !subject || !html) {
       return json({ error: 'Missing required fields: to, subject, html' }, 400)
@@ -65,13 +89,23 @@ serve(async (req) => {
     }
 
     // ── TRIMITERE EMAIL ──────────────────────────────────────
+    // From: numele utilizatorului pe domeniul nostru; Reply ajunge la el.
+    const payload: Record<string, unknown> = {
+      from: buildFrom(from_name),
+      to,
+      subject,
+      html,
+    }
+    const rt = validReplyTo(reply_to)
+    if (rt) payload.reply_to = rt
+
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+      body: JSON.stringify(payload),
     })
 
     const data = await res.json()

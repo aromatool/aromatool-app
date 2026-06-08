@@ -1,16 +1,23 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { EMAIL_HEADER_HTML } from "../lib/emailLogo";
+import { buildEmailFooter } from "../lib/emailFooter";
+import { useResources } from "../hooks/useResources";
 
+// ── BLOSSOM SAGE ───────────────────────────────────────────
 const C = {
   card: "#FFFFFF",
-  border: "rgba(196,168,232,0.3)",
-  border2: "rgba(196,168,232,0.5)",
-  primary: "#7B5EA7",
-  dark: "#2D1A4E",
-  muted: "#9B80C4",
-  text2: "#6B5B9E",
-  bg2: "#F5F0FF",
+  bg: "#FAFAF7",
+  border: "#EDE8E0",
+  border2: "#C8D8C8",
+  primary: "#5C7A5C",
+  primaryDark: "#4A6A4A",
+  dark: "#3D3530",
+  muted: "#A89888",
+  text2: "#6A5A50",
+  bg2: "#F5EEE8",
+  sageLight: "#E8F0E8",
   green: "#2E8A58",
   greenbg: "#E8F8F0",
   red: "#C94F6A",
@@ -26,21 +33,27 @@ const VARIABLES = [
   { key: "{{telefon}}", desc: "Telefonul tău" },
 ];
 
+// Tab-uri pe ACȚIUNE (legate de Recommended Action), nu pe status/zile.
 const TABS = [
   {
-    key: "prospect",
-    label: "🟡 Prospecți",
-    desc: "Follow-up după trimiterea ofertei",
+    key: "needs_offer",
+    label: "📨 Prima ofertă",
+    desc: "Mesaje pentru trimiterea primei oferte",
   },
   {
-    key: "client_nou",
-    label: "🟢 Clienți noi",
-    desc: "Mesaje după prima comandă",
+    key: "needs_followup",
+    label: "🔄 Follow-up",
+    desc: "Mesaje de revenire după ofertă",
   },
   {
-    key: "client_fidel",
-    label: "⭐ Clienți fideli",
-    desc: "Retenție și loialitate",
+    key: "reactivate",
+    label: "🌱 Reactivare",
+    desc: "Mesaje pentru contacte adormite",
+  },
+  {
+    key: "discuss_business",
+    label: "🤝 Business",
+    desc: "Mesaje despre oportunitatea de business",
   },
 ];
 
@@ -48,10 +61,11 @@ interface Template {
   id: string;
   subject: string;
   body_html: string;
-  trigger_day: number;
+  title: string | null;
+  trigger_action: string | null;
   active: boolean;
-  trigger_status: string;
-  user_id: string | null;
+  user_id: string | null; // null = mesaj de sistem (global)
+  system_key: string | null;
 }
 
 interface TemplateBody {
@@ -66,13 +80,7 @@ function parseBody(body_html: string): TemplateBody {
   try {
     return JSON.parse(body_html);
   } catch {
-    return {
-      type: "followup_1",
-      headline: "",
-      intro: "",
-      cta: "",
-      closing: "",
-    };
+    return { type: "", headline: "", intro: "", cta: "Scrie-mi", closing: "Cu drag" };
   }
 }
 
@@ -80,39 +88,131 @@ function buildPreviewHtml(
   body: TemplateBody,
   subject: string,
   userName = "Distribuitorul tău",
+  userPhone?: string,
+  userEmail?: string,
+  userSignature?: string,
 ): string {
-  return `<!DOCTYPE html><html><body style="margin:0;padding:16px;background:#F5F0FF;font-family:Georgia,serif;">
-    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #E0D4F8;">
-      <div style="background:#4A3270;padding:20px 24px;text-align:center;">
-        <div style="color:white;font-size:20px;margin-bottom:3px">AromaTool</div>
-        <div style="color:#C8BFFF;font-size:10px;letter-spacing:2px;font-style:italic">crafted for your team</div>
-      </div>
-      <div style="padding:24px;">
-        <p style="font-size:13px;color:#9B80C4;margin-bottom:4px;text-align:center">Subiect: <strong style="color:#4A3270">${subject || "..."}</strong></p>
-        <p style="font-size:16px;color:#4A3270;font-weight:600;margin:16px 0 10px;text-align:center">${body.headline || "..."}</p>
-        <p style="font-size:13px;color:#6B5B9E;line-height:1.7;margin-bottom:16px">${(
-          body.intro || "..."
-        )
-          .replace(/{{nume}}/g, "<strong>Maria</strong>")
-          .replace(/{{zile}}/g, "<strong>5</strong>")
-          .replace(/{{distribuitor}}/g, `<strong>${userName}</strong>`)}</p>
-        <div style="background:#F5F0FF;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
-          <div style="font-size:11px;color:#9B80C4;margin-bottom:6px">📦 Produse din oferta anterioară:</div>
-          <div style="font-size:12px;color:#4A3270">• Lavender 15ml ×2<br>• Peppermint 15ml ×1</div>
-          <div style="font-size:12px;color:#7B5EA7;font-weight:600;margin-top:6px">💜 Total: 245,00 RON</div>
+  const sub = (t: string) =>
+    t
+      .replace(/{{nume}}/g, "<strong>Maria</strong>")
+      .replace(/{{zile}}/g, "<strong>5</strong>")
+      .replace(/{{distribuitor}}/g, `<strong>${userName}</strong>`)
+      .replace(/{{telefon}}/g, "<strong>0712 345 678</strong>");
+  return `<!DOCTYPE html><html><body style="margin:0;padding:16px;background:#FAFAF7;font-family:Georgia,serif;">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #EDE8E0;">
+      ${EMAIL_HEADER_HTML}
+      <div style="padding:26px 24px;">
+        <p style="font-size:12px;color:#A89888;margin-bottom:6px;text-align:center">Subiect: <strong style="color:#4A6A4A">${sub(subject) || "..."}</strong></p>
+        <p style="font-size:16px;color:#4A6A4A;font-weight:600;margin:14px 0 12px;text-align:center">${sub(body.headline) || "..."}</p>
+        <p style="font-size:13px;color:#6A5A50;line-height:1.8;margin-bottom:18px;white-space:pre-wrap">${sub(body.intro) || "..."}</p>
+        <div style="background:#F5EEE8;border-radius:10px;padding:12px 16px;margin-bottom:18px;">
+          <div style="font-size:11px;color:#A89888;margin-bottom:6px">📦 Exemplu ofertă anterioară:</div>
+          <div style="font-size:12px;color:#3D3530">• Lavender 15ml ×2<br>• Peppermint 15ml ×1</div>
+          <div style="font-size:12px;color:#4A6A4A;font-weight:600;margin-top:6px">Total: 245,00 RON</div>
         </div>
-        <div style="text-align:center;margin-bottom:16px;">
-          <a style="display:inline-block;background:linear-gradient(135deg,#7B5EA7,#4A3270);border-radius:10px;padding:11px 28px;color:white;font-size:13px;font-weight:600;text-decoration:none;">${body.cta || "Scrie-mi"} →</a>
-        </div>
-        <p style="font-size:12px;color:#9B80C4;text-align:center;margin:0">${body.closing || "Cu drag"}, <strong style="color:#4A3270">${userName}</strong></p>
       </div>
-      <div style="background:#F9F7FF;border-top:1px solid #F0EEFF;padding:10px;text-align:center;">
-        <span style="font-size:10px;color:#C4A8E8">Trimis prin AromaTool</span>
+      ${buildEmailFooter({ userName, userPhone, userEmail, userSignature })}
+      <div style="background:#FAFAF7;border-top:1px solid #EDE8E0;padding:10px;text-align:center;">
+        <span style="font-size:10px;color:#C8D8C8">Trimis prin AromaTool</span>
       </div>
     </div>
   </body></html>`;
 }
 
+// ── CARD MESAJ DE SISTEM (read-only) ───────────────────────
+function SystemMessageCard({
+  template,
+  userName,
+  onPersonalize,
+}: {
+  template: Template;
+  userName: string;
+  onPersonalize: (t: Template) => void;
+}) {
+  const { user } = useAuth();
+  const meta = user?.user_metadata ?? {};
+  const body = parseBody(template.body_html);
+  const [showPreview, setShowPreview] = useState(false);
+  return (
+    <div
+      style={{
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        borderRadius: "12px",
+        marginBottom: "10px",
+        padding: "14px 16px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "8px",
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: C.dark }}>
+              {template.title || template.subject}
+            </span>
+            <span
+              style={{
+                fontSize: "10px",
+                background: C.sageLight,
+                color: C.primary,
+                padding: "1px 8px",
+                borderRadius: "999px",
+                fontWeight: 600,
+              }}
+            >
+              Sistem
+            </span>
+          </div>
+          <div style={{ fontSize: "11px", color: C.muted, marginTop: "3px" }}>
+            „{body.headline}"
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+          <button onClick={() => setShowPreview(!showPreview)} style={ghostBtn}>
+            {showPreview ? "Ascunde" : "👁"}
+          </button>
+          <button
+            onClick={() => onPersonalize(template)}
+            style={{ ...ghostBtn, color: C.primary, borderColor: C.border2 }}
+          >
+            Personalizează
+          </button>
+        </div>
+      </div>
+      {showPreview && (
+        <div
+          style={{
+            marginTop: "12px",
+            border: `1px solid ${C.border}`,
+            borderRadius: "10px",
+            overflow: "hidden",
+          }}
+        >
+          <iframe
+            srcDoc={buildPreviewHtml(
+              body,
+              template.subject,
+              userName,
+              meta.phone,
+              meta.contact_email || user?.email,
+              meta.email_signature,
+            )}
+            style={{ width: "100%", height: "460px", border: "none" }}
+            title="preview"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── EDITOR MESAJ PERSONAL ──────────────────────────────────
 function TemplateEditor({
   template,
   onSave,
@@ -126,27 +226,60 @@ function TemplateEditor({
   onDelete: (id: string) => void;
   userName: string;
 }) {
+  const { user } = useAuth();
+  const { resources } = useResources();
   const body = parseBody(template.body_html);
   const [editBody, setEditBody] = useState<TemplateBody>(body);
+  const [title, setTitle] = useState(template.title || "");
   const [subject, setSubject] = useState(template.subject);
-  const [days, setDays] = useState(template.trigger_day);
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const STEP_LABELS: Record<string, string> = {
-    followup_1: "1️⃣ Primul follow-up",
-    followup_2: "2️⃣ Al doilea follow-up",
-    followup_3: "3️⃣ Ultimul follow-up",
-  };
+  // Resurse implicite atașate acestui mesaj (template_resources)
+  const [attachedIds, setAttachedIds] = useState<string[]>([]);
+  const [showResPicker, setShowResPicker] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("template_resources")
+        .select("resource_id")
+        .eq("template_id", template.id);
+      if (!cancelled)
+        setAttachedIds((data ?? []).map((r) => r.resource_id));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [template.id]);
+
+  async function toggleAttach(resId: string) {
+    if (attachedIds.includes(resId)) {
+      setAttachedIds((prev) => prev.filter((x) => x !== resId));
+      await supabase
+        .from("template_resources")
+        .delete()
+        .eq("template_id", template.id)
+        .eq("resource_id", resId);
+    } else {
+      setAttachedIds((prev) => [...prev, resId]);
+      await supabase.from("template_resources").insert({
+        template_id: template.id,
+        resource_id: resId,
+        user_id: user!.id,
+      });
+    }
+  }
 
   async function save() {
     setSaving(true);
     await onSave(template.id, {
+      title: title || subject,
       subject,
       body_html: JSON.stringify(editBody),
-      trigger_day: days,
     });
     setSaving(false);
     setSaved(true);
@@ -174,12 +307,21 @@ function TemplateEditor({
         }}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "13px", fontWeight: 600, color: C.dark }}>
-            {STEP_LABELS[body.type] || body.type}
+            {template.title || template.subject}
           </span>
-          <span style={{ fontSize: "12px", color: C.muted }}>
-            ⏰ după {template.trigger_day} zile · "{template.subject}"
+          <span
+            style={{
+              fontSize: "10px",
+              background: "#EDE8E0",
+              color: C.text2,
+              padding: "1px 8px",
+              borderRadius: "999px",
+              fontWeight: 600,
+            }}
+          >
+            Al meu
           </span>
         </div>
         <div
@@ -214,7 +356,7 @@ function TemplateEditor({
               cursor: "pointer",
               fontFamily: "'DM Sans', sans-serif",
             }}
-            title="Șterge template"
+            title="Șterge mesaj"
           >
             🗑
           </button>
@@ -226,39 +368,26 @@ function TemplateEditor({
 
       {/* Editor */}
       {isOpen && (
-        <div
-          style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.border}` }}
-        >
+        <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.border}` }}>
           <div style={{ marginTop: "14px" }}>
-            {/* Days + Subject */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "110px 1fr",
-                gap: "10px",
-                marginBottom: "10px",
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Zile după ofertă</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={days}
-                  onChange={(e) => setDays(parseInt(e.target.value) || 1)}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Subiect email</label>
-                <input
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Subiectul emailului..."
-                  style={inputStyle}
-                />
-              </div>
+            <div style={{ marginBottom: "10px" }}>
+              <label style={labelStyle}>Nume mesaj (doar pentru tine)</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="ex: Follow-up cald — varianta mea"
+                style={inputStyle}
+              />
+            </div>
+
+            <div style={{ marginBottom: "10px" }}>
+              <label style={labelStyle}>Subiect email</label>
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Subiectul emailului..."
+                style={inputStyle}
+              />
             </div>
 
             <div style={{ marginBottom: "10px" }}>
@@ -318,6 +447,176 @@ function TemplateEditor({
               </div>
             </div>
 
+            {/* ── MATERIALE IMPLICITE ── */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={labelStyle}>Materiale atașate implicit</label>
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: C.muted,
+                  marginBottom: "8px",
+                  lineHeight: 1.5,
+                }}
+              >
+                Apar automat ca butoane în email când trimiți acest mesaj
+                (le poți ajusta la trimitere).
+              </div>
+              <button
+                onClick={() => setShowResPicker((s) => !s)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 12px",
+                  background: C.bg2,
+                  border: `1.5px dashed ${C.border2}`,
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: C.text2,
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
+                Alege materiale
+                {attachedIds.length > 0 && ` (${attachedIds.length})`}
+              </button>
+
+              {showResPicker && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    background: C.card,
+                    border: `1px solid ${C.border2}`,
+                    borderRadius: "10px",
+                    padding: "10px",
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                  }}
+                >
+                  {resources.length === 0 ? (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: C.muted,
+                        textAlign: "center",
+                        padding: "12px",
+                      }}
+                    >
+                      Nu ai resurse încă. Adaugă-le din pagina „Resurse".
+                    </div>
+                  ) : (
+                    resources.map((r) => {
+                      const checked = attachedIds.includes(r.id);
+                      return (
+                        <label
+                          key={r.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "7px 4px",
+                            cursor: "pointer",
+                            borderBottom: `1px solid ${C.border}`,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleAttach(r.id)}
+                            style={{
+                              accentColor: C.primary,
+                              width: "15px",
+                              height: "15px",
+                              cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          />
+                          <i
+                            className={
+                              r.file_type === "application/pdf"
+                                ? "ti ti-file-type-pdf"
+                                : "ti ti-photo"
+                            }
+                            style={{
+                              fontSize: "15px",
+                              color: C.primary,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              color: C.dark,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {r.title}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {attachedIds.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "6px",
+                    marginTop: "8px",
+                  }}
+                >
+                  {attachedIds.map((id) => {
+                    const r = resources.find((x) => x.id === id);
+                    if (!r) return null;
+                    return (
+                      <div
+                        key={id}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "5px 8px",
+                          background: C.sageLight,
+                          border: `1px solid ${C.border2}`,
+                          borderRadius: "8px",
+                          fontSize: "11px",
+                          color: C.dark,
+                        }}
+                      >
+                        <i
+                          className="ti ti-paperclip"
+                          style={{ fontSize: "12px", color: C.primary }}
+                        />
+                        {r.title}
+                        <button
+                          onClick={() => toggleAttach(id)}
+                          aria-label="Scoate"
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: C.muted,
+                            fontSize: "13px",
+                            padding: 0,
+                            lineHeight: 1,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={save}
@@ -325,9 +624,7 @@ function TemplateEditor({
                 style={{
                   flex: 1,
                   padding: "10px",
-                  background: saved
-                    ? C.greenbg
-                    : `linear-gradient(135deg, ${C.primary}, #4A3270)`,
+                  background: saved ? C.greenbg : C.primary,
                   border: saved ? `1px solid ${C.green}` : "none",
                   borderRadius: "9px",
                   color: saved ? C.green : "white",
@@ -337,18 +634,14 @@ function TemplateEditor({
                   cursor: "pointer",
                 }}
               >
-                {saving
-                  ? "Se salvează..."
-                  : saved
-                    ? "✅ Salvat!"
-                    : "Salvează template"}
+                {saving ? "Se salvează..." : saved ? "✅ Salvat!" : "Salvează mesajul"}
               </button>
               <button
                 onClick={() => setShowPreview(!showPreview)}
                 style={{
                   padding: "10px 14px",
                   background: C.bg2,
-                  border: `1px solid ${C.border2}`,
+                  border: `1px solid ${C.border}`,
                   borderRadius: "9px",
                   color: C.dark,
                   fontFamily: "'DM Sans', sans-serif",
@@ -370,8 +663,15 @@ function TemplateEditor({
                 }}
               >
                 <iframe
-                  srcDoc={buildPreviewHtml(editBody, subject, userName)}
-                  style={{ width: "100%", height: "520px", border: "none" }}
+                  srcDoc={buildPreviewHtml(
+                    editBody,
+                    subject,
+                    userName,
+                    user?.user_metadata?.phone,
+                    user?.user_metadata?.contact_email || user?.email,
+                    user?.user_metadata?.email_signature,
+                  )}
+                  style={{ width: "100%", height: "480px", border: "none" }}
                   title="preview"
                 />
               </div>
@@ -385,57 +685,21 @@ function TemplateEditor({
 
 export default function TemplatesPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("prospect");
+  const [activeTab, setActiveTab] = useState("needs_offer");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("Distribuitorul tău");
   const [showNewForm, setShowNewForm] = useState(false);
   const [addingSaving, setAddingSaving] = useState(false);
-  const [newTemplate, setNewTemplate] = useState({
-    trigger_day: 7,
+  const emptyNew = {
+    title: "",
     subject: "",
     headline: "",
     intro: "",
     cta: "Scrie-mi",
     closing: "Cu drag",
-  });
-
-  async function addTemplate() {
-    if (!newTemplate.subject || !newTemplate.headline) return;
-    setAddingSaving(true);
-    const body = {
-      type: `custom_${Date.now()}`,
-      headline: newTemplate.headline,
-      intro: newTemplate.intro,
-      cta: newTemplate.cta,
-      closing: newTemplate.closing,
-    };
-    const { data } = await supabase
-      .from("followup_templates")
-      .insert({
-        user_id: user!.id,
-        trigger_day: newTemplate.trigger_day,
-        subject: newTemplate.subject,
-        body_html: JSON.stringify(body),
-        language_code: "ro",
-        plan_required: "starter",
-        trigger_status: activeTab,
-        active: true,
-      })
-      .select("*")
-      .single();
-    if (data) setTemplates((prev) => [...prev, data]);
-    setNewTemplate({
-      trigger_day: 7,
-      subject: "",
-      headline: "",
-      intro: "",
-      cta: "Scrie-mi",
-      closing: "Cu drag",
-    });
-    setShowNewForm(false);
-    setAddingSaving(false);
-  }
+  };
+  const [newTemplate, setNewTemplate] = useState(emptyNew);
 
   useEffect(() => {
     if (user) {
@@ -455,41 +719,65 @@ export default function TemplatesPage() {
 
   async function loadTemplates() {
     setLoading(true);
-
-    // Încearcă să încarce template-urile utilizatorului
-    let { data } = await supabase
+    // Mesaje de sistem (globale) + personale, doar cele legate de o acțiune.
+    const { data } = await supabase
       .from("followup_templates")
-      .select("*")
-      .eq("user_id", user!.id)
-      .order("trigger_day");
-
-    // Dacă nu are template-uri proprii, copiază din cele globale
-    if (!data || data.length === 0) {
-      const { data: globalTemplates } = await supabase
-        .from("followup_templates")
-        .select("*")
-        .is("user_id", null)
-        .order("trigger_day");
-
-      if (globalTemplates && globalTemplates.length > 0) {
-        // Copiază template-urile globale pentru acest user
-        const copies = globalTemplates.map((t) => ({
-          ...t,
-          id: undefined,
-          user_id: user!.id,
-        }));
-
-        const { data: inserted } = await supabase
-          .from("followup_templates")
-          .insert(copies)
-          .select("*");
-
-        data = inserted || [];
-      }
-    }
-
+      .select(
+        "id, subject, body_html, title, trigger_action, active, user_id, system_key",
+      )
+      .or(`user_id.eq.${user!.id},user_id.is.null`)
+      .not("trigger_action", "is", null)
+      .order("user_id", { nullsFirst: true });
     setTemplates(data || []);
     setLoading(false);
+  }
+
+  async function addTemplate() {
+    if (!newTemplate.subject || !newTemplate.headline) return;
+    setAddingSaving(true);
+    const body = {
+      type: `custom_${Date.now()}`,
+      headline: newTemplate.headline,
+      intro: newTemplate.intro,
+      cta: newTemplate.cta,
+      closing: newTemplate.closing,
+    };
+    const { data } = await supabase
+      .from("followup_templates")
+      .insert({
+        user_id: user!.id,
+        trigger_action: activeTab,
+        trigger_status: activeTab === "discuss_business" ? "client_nou" : "prospect",
+        trigger_day: 0,
+        subject: newTemplate.subject,
+        title: newTemplate.title || newTemplate.subject,
+        body_html: JSON.stringify(body),
+        language_code: "ro",
+        plan_required: "starter",
+        active: true,
+      })
+      .select(
+        "id, subject, body_html, title, trigger_action, active, user_id, system_key",
+      )
+      .single();
+    if (data) setTemplates((prev) => [...prev, data]);
+    setNewTemplate(emptyNew);
+    setShowNewForm(false);
+    setAddingSaving(false);
+  }
+
+  function personalize(t: Template) {
+    const body = parseBody(t.body_html);
+    setNewTemplate({
+      title: `${t.title || t.subject} (varianta mea)`,
+      subject: t.subject,
+      headline: body.headline,
+      intro: body.intro,
+      cta: body.cta || "Scrie-mi",
+      closing: body.closing || "Cu drag",
+    });
+    setShowNewForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleSave(id: string, updates: Partial<Template>) {
@@ -510,24 +798,24 @@ export default function TemplatesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Ștergi acest template?")) return;
+    if (!confirm("Ștergi acest mesaj?")) return;
     await supabase.from("followup_templates").delete().eq("id", id);
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   }
 
-  const tabTemplates = templates.filter((t) => t.trigger_status === activeTab);
+  const tabTemplates = templates.filter((t) => t.trigger_action === activeTab);
+  const systemMsgs = tabTemplates.filter((t) => t.user_id === null);
+  const personalMsgs = tabTemplates.filter((t) => t.user_id !== null);
   const currentTab = TABS.find((t) => t.key === activeTab)!;
 
   if (loading)
     return (
-      <div
-        style={{ display: "flex", justifyContent: "center", padding: "60px" }}
-      >
+      <div style={{ display: "flex", justifyContent: "center", padding: "60px" }}>
         <div
           style={{
             width: "28px",
             height: "28px",
-            border: "3px solid #E8E0F8",
+            border: `3px solid ${C.sageLight}`,
             borderTopColor: C.primary,
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
@@ -551,11 +839,11 @@ export default function TemplatesPage() {
             marginBottom: "6px",
           }}
         >
-          Template-uri mesaje
+          Mesaje
         </div>
         <div style={{ fontSize: "13px", color: C.muted }}>
-          Personalizează mesajele de follow-up pentru fiecare tip de client.
-          Folosește variabilele pentru a face mesajele personale.
+          Mesaje recomandate în funcție de ce ai de făcut cu fiecare contact.
+          Folosește-le ca atare sau creează-ți propriile variante.
         </div>
       </div>
 
@@ -580,20 +868,11 @@ export default function TemplatesPage() {
         >
           Variabile disponibile — click pentru a copia
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "6px",
-            marginBottom: "6px",
-          }}
-        >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "6px" }}>
           {VARIABLES.map((v) => (
             <button
               key={v.key}
-              onClick={() => {
-                navigator.clipboard.writeText(v.key);
-              }}
+              onClick={() => navigator.clipboard.writeText(v.key)}
               title={`Click să copiezi · ${v.desc}`}
               style={{
                 padding: "4px 12px",
@@ -612,8 +891,7 @@ export default function TemplatesPage() {
           ))}
         </div>
         <div style={{ fontSize: "10px", color: C.muted }}>
-          Click pe o variabilă → se copiază automat → lipești în câmpul dorit
-          din template
+          Se înlocuiesc automat la trimitere — în subiect, titlu, mesaj și buton.
         </div>
       </div>
 
@@ -631,10 +909,13 @@ export default function TemplatesPage() {
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setShowNewForm(false);
+            }}
             style={{
               flex: 1,
-              padding: "10px 8px",
+              padding: "10px 6px",
               border: "none",
               borderRadius: "9px",
               cursor: "pointer",
@@ -644,9 +925,7 @@ export default function TemplatesPage() {
               background: activeTab === tab.key ? "white" : "transparent",
               color: activeTab === tab.key ? C.dark : C.muted,
               boxShadow:
-                activeTab === tab.key
-                  ? "0 1px 6px rgba(123,94,167,0.12)"
-                  : "none",
+                activeTab === tab.key ? "0 1px 6px rgba(92,122,92,0.12)" : "none",
               transition: "all 0.15s",
               textAlign: "center",
             }}
@@ -656,7 +935,7 @@ export default function TemplatesPage() {
         ))}
       </div>
 
-      {/* Tab description */}
+      {/* Tab description + add */}
       <div
         style={{
           display: "flex",
@@ -665,36 +944,26 @@ export default function TemplatesPage() {
           marginBottom: "14px",
         }}
       >
-        <div style={{ fontSize: "12px", color: C.muted }}>
-          {currentTab.desc} · {tabTemplates.filter((t) => t.active).length}{" "}
-          active din {tabTemplates.length}
-        </div>
+        <div style={{ fontSize: "12px", color: C.muted }}>{currentTab.desc}</div>
         <button
           onClick={() => setShowNewForm(!showNewForm)}
           style={{
             padding: "7px 14px",
-            background: showNewForm ? C.bg2 : C.primary,
-            border: "none",
+            border: showNewForm ? `1px solid ${C.border2}` : "none",
             borderRadius: "9px",
-            color: "white",
+            background: showNewForm ? C.bg2 : C.primary,
+            color: showNewForm ? C.dark : "white",
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "12px",
             fontWeight: 500,
             cursor: "pointer",
-            ...(showNewForm
-              ? {
-                  background: C.bg2,
-                  color: C.dark,
-                  border: `1px solid ${C.border2}`,
-                }
-              : {}),
           }}
         >
-          {showNewForm ? "✕ Anulează" : "+ Template nou"}
+          {showNewForm ? "✕ Anulează" : "+ Mesaj nou"}
         </button>
       </div>
 
-      {/* New template form */}
+      {/* New message form */}
       {showNewForm && (
         <div
           style={{
@@ -713,44 +982,31 @@ export default function TemplatesPage() {
               marginBottom: "14px",
             }}
           >
-            ✨ Template nou — {currentTab.label}
+            ✨ Mesaj nou — {currentTab.label}
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "110px 1fr",
-              gap: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <div>
-              <label style={labelStyle}>Zile după ofertă</label>
-              <input
-                type="number"
-                min={1}
-                max={60}
-                value={newTemplate.trigger_day}
-                onChange={(e) =>
-                  setNewTemplate((p) => ({
-                    ...p,
-                    trigger_day: parseInt(e.target.value) || 1,
-                  }))
-                }
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Subiect email</label>
-              <input
-                value={newTemplate.subject}
-                onChange={(e) =>
-                  setNewTemplate((p) => ({ ...p, subject: e.target.value }))
-                }
-                placeholder="Subiectul emailului..."
-                style={inputStyle}
-              />
-            </div>
+          <div style={{ marginBottom: "10px" }}>
+            <label style={labelStyle}>Nume mesaj (doar pentru tine)</label>
+            <input
+              value={newTemplate.title}
+              onChange={(e) =>
+                setNewTemplate((p) => ({ ...p, title: e.target.value }))
+              }
+              placeholder="ex: Follow-up cald"
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: "10px" }}>
+            <label style={labelStyle}>Subiect email</label>
+            <input
+              value={newTemplate.subject}
+              onChange={(e) =>
+                setNewTemplate((p) => ({ ...p, subject: e.target.value }))
+              }
+              placeholder="Subiectul emailului..."
+              style={inputStyle}
+            />
           </div>
 
           <div style={{ marginBottom: "10px" }}>
@@ -816,7 +1072,7 @@ export default function TemplatesPage() {
             style={{
               width: "100%",
               padding: "10px",
-              background: `linear-gradient(135deg, ${C.primary}, #4A3270)`,
+              background: C.primary,
               border: "none",
               borderRadius: "9px",
               color: "white",
@@ -826,13 +1082,44 @@ export default function TemplatesPage() {
               cursor: "pointer",
             }}
           >
-            {addingSaving ? "Se salvează..." : "+ Adaugă template"}
+            {addingSaving ? "Se salvează..." : "+ Adaugă mesaj"}
           </button>
         </div>
       )}
 
-      {/* Templates */}
-      {tabTemplates.length === 0 ? (
+      {/* Personal messages */}
+      {personalMsgs.length > 0 && (
+        <>
+          <div style={sectionLabel}>Mesajele mele</div>
+          {personalMsgs.map((t) => (
+            <TemplateEditor
+              key={t.id}
+              template={t}
+              onSave={handleSave}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+              userName={userName}
+            />
+          ))}
+        </>
+      )}
+
+      {/* System messages */}
+      {systemMsgs.length > 0 && (
+        <>
+          <div style={sectionLabel}>Mesaje AromaTool (sugestii)</div>
+          {systemMsgs.map((t) => (
+            <SystemMessageCard
+              key={t.id}
+              template={t}
+              userName={userName}
+              onPersonalize={personalize}
+            />
+          ))}
+        </>
+      )}
+
+      {tabTemplates.length === 0 && !showNewForm && (
         <div
           style={{
             textAlign: "center",
@@ -851,24 +1138,12 @@ export default function TemplatesPage() {
               marginBottom: "6px",
             }}
           >
-            Nu există template-uri pentru această categorie
+            Niciun mesaj pentru această acțiune
           </div>
           <div style={{ fontSize: "12px", color: C.muted }}>
-            Template-urile pentru clienți noi și fideli vor fi disponibile în
-            curând
+            Apasă „+ Mesaj nou" ca să creezi primul mesaj.
           </div>
         </div>
-      ) : (
-        tabTemplates.map((t) => (
-          <TemplateEditor
-            key={t.id}
-            template={t}
-            onSave={handleSave}
-            onToggle={handleToggle}
-            onDelete={handleDelete}
-            userName={userName}
-          />
-        ))
       )}
     </div>
   );
@@ -878,7 +1153,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: "11px",
   fontWeight: 500,
-  color: "#6B5B9E",
+  color: C.text2,
   marginBottom: "5px",
   letterSpacing: "0.04em",
 };
@@ -886,12 +1161,34 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "9px 12px",
-  background: "#F9F7FF",
-  border: "1.5px solid rgba(196,168,232,0.4)",
+  background: C.bg,
+  border: `1.5px solid ${C.border}`,
   borderRadius: "9px",
   fontSize: "13px",
-  color: "#2D1A4E",
+  color: C.dark,
   fontFamily: "'DM Sans', sans-serif",
   outline: "none",
   boxSizing: "border-box",
+};
+
+const ghostBtn: React.CSSProperties = {
+  padding: "5px 10px",
+  fontSize: "11px",
+  fontWeight: 500,
+  background: C.bg2,
+  border: `1px solid ${C.border}`,
+  borderRadius: "8px",
+  color: C.text2,
+  cursor: "pointer",
+  fontFamily: "'DM Sans', sans-serif",
+  whiteSpace: "nowrap",
+};
+
+const sectionLabel: React.CSSProperties = {
+  fontSize: "11px",
+  fontWeight: 600,
+  color: C.muted,
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  margin: "6px 0 10px",
 };

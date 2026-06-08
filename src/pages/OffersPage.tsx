@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 
@@ -100,8 +101,15 @@ const STATUS_STYLE: Record<
   inactiv: { bg: T.border, color: T.muted, label: "Inactiv" },
 };
 
+// Cheia de grupare per client (același calcul ca la grupare).
+function offerClientKey(offer: Offer): string {
+  return offer.contacts?.id || offer.contacts?.email || "unknown";
+}
+
 export default function OffersPage() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focusOfferId = searchParams.get("offer");
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -110,10 +118,30 @@ export default function OffersPage() {
   );
   const [expandedOffers, setExpandedOffers] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const appliedFocus = useRef<string | null>(null);
 
   useEffect(() => {
     if (user) loadOffers();
   }, [user]);
+
+  // Deep-link din Dashboard/CRM (?offer=<id>): expandează clientul + oferta
+  // țintă o singură dată per valoare, ca să nu suprascrie click-urile manuale.
+  useEffect(() => {
+    if (!focusOfferId || offers.length === 0) return;
+    if (appliedFocus.current === focusOfferId) return;
+    const target = offers.find((o) => o.id === focusOfferId);
+    if (!target) return;
+    const key = offerClientKey(target);
+    setExpandedClients((prev) => new Set(prev).add(key));
+    setExpandedOffers((prev) => new Set(prev).add(focusOfferId));
+    appliedFocus.current = focusOfferId;
+  }, [focusOfferId, offers]);
+
+  const clearFocus = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("offer");
+    setSearchParams(next, { replace: true });
+  };
 
   async function loadOffers() {
     setLoading(true);
@@ -167,6 +195,17 @@ export default function OffersPage() {
       )
     );
   });
+
+  // Deep-link: grupul-client al ofertei țintă (dacă există în datele încărcate).
+  const focusGroup =
+    focusOfferId && !search.trim()
+      ? grouped.find((g) => g.offers.some((o) => o.id === focusOfferId)) || null
+      : null;
+
+  // Când venim cu ?offer= și fără căutare activă, arătăm doar clientul ofertei.
+  const displayed = focusGroup
+    ? filtered.filter((g) => g.clientKey === focusGroup.clientKey)
+    : filtered;
 
   const toggleClient = (key: string) => {
     setExpandedClients((prev) => {
@@ -272,6 +311,66 @@ export default function OffersPage() {
         </div>
       </div>
 
+      {/* Banner filtrare deep-link (?offer=) */}
+      {focusGroup && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            background: T.sageLight,
+            border: `0.5px solid ${T.sageMid}`,
+            borderRadius: "10px",
+            padding: "10px 14px",
+            marginBottom: "16px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "13px",
+              color: T.sageDark,
+              minWidth: 0,
+            }}
+          >
+            <i className="ti ti-filter" style={{ fontSize: "16px" }} />
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Afișezi ofertele lui{" "}
+              <strong>{focusGroup.clientName}</strong>
+            </span>
+          </div>
+          <button
+            onClick={clearFocus}
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "6px 12px",
+              fontSize: "12px",
+              fontFamily: "inherit",
+              background: T.white,
+              border: `0.5px solid ${T.sageMid}`,
+              borderRadius: "8px",
+              color: T.sageDark,
+              cursor: "pointer",
+            }}
+          >
+            <i className="ti ti-x" style={{ fontSize: "13px" }} />
+            Vezi toate ofertele
+          </button>
+        </div>
+      )}
+
       {/* Search */}
       <div style={{ position: "relative", marginBottom: "16px" }}>
         <i
@@ -305,7 +404,7 @@ export default function OffersPage() {
       </div>
 
       {/* Grouped list */}
-      {filtered.length === 0 ? (
+      {displayed.length === 0 ? (
         <div
           style={{
             textAlign: "center",
@@ -341,7 +440,7 @@ export default function OffersPage() {
           </div>
         </div>
       ) : (
-        filtered.map((group) => {
+        displayed.map((group) => {
           const isExpanded = expandedClients.has(group.clientKey);
           const latestOffer = group.offers[0];
           const statusStyle =
@@ -465,6 +564,7 @@ export default function OffersPage() {
                 onToggle={() => toggleOffer(latestOffer.id)}
                 copiedId={copiedId}
                 setCopiedId={setCopiedId}
+                highlight={latestOffer.id === focusOfferId}
               />
 
               {/* Older offers — visible when client expanded */}
@@ -480,6 +580,7 @@ export default function OffersPage() {
                       onToggle={() => toggleOffer(offer.id)}
                       copiedId={copiedId}
                       setCopiedId={setCopiedId}
+                      highlight={offer.id === focusOfferId}
                     />
                   ))}
 
@@ -521,6 +622,7 @@ function OfferRow({
   onToggle,
   copiedId,
   setCopiedId,
+  highlight = false,
 }: {
   offer: Offer;
   isLatest: boolean;
@@ -528,6 +630,7 @@ function OfferRow({
   onToggle: () => void;
   copiedId: string | null;
   setCopiedId: (id: string | null) => void;
+  highlight?: boolean;
 }) {
   const currency = offer.currency || "RON";
   const productsPreview = offer.products_json
@@ -554,7 +657,12 @@ function OfferRow({
     <div
       style={{
         borderTop: `0.5px solid ${T.border}`,
-        background: isLatest ? T.white : T.cream,
+        background: highlight
+          ? T.sageLight
+          : isLatest
+            ? T.white
+            : T.cream,
+        boxShadow: highlight ? `inset 3px 0 0 ${T.sage}` : "none",
       }}
     >
       {/* Row header */}

@@ -72,6 +72,13 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
+    // ── HELPER: escape wildcards LIKE (%, _, \) pentru match exact ───
+    // Permite potrivire case-insensitive (ilike) fără ca _ sau % din email
+    // să fie interpretate ca wildcard-uri.
+    function likeEscape(s: string): string {
+      return s.replace(/([\\%_])/g, '\\$1')
+    }
+
     // ── HELPER: extrage email destinatar ────────────────────
     function extractEmail(p: Record<string, unknown>): string | null {
       const data = p?.data as Record<string, unknown> | null
@@ -105,7 +112,7 @@ serve(async (req) => {
           email_opt_out: true,
           email_opt_out_at: new Date().toISOString(),
         })
-        .eq('email', email)
+        .ilike('email', likeEscape(email))
         .select('id')
 
       if (updateError) {
@@ -135,7 +142,7 @@ serve(async (req) => {
         const { data: contacts } = await supabase
           .from('contacts')
           .select('id, email_opens')
-          .eq('email', email)
+          .ilike('email', likeEscape(email))
 
         for (const contact of (contacts ?? [])) {
           await supabase
@@ -167,7 +174,7 @@ serve(async (req) => {
         const { data: contacts } = await supabase
           .from('contacts')
           .select('id, email_clicks')
-          .eq('email', email)
+          .ilike('email', likeEscape(email))
 
         for (const contact of (contacts ?? [])) {
           await supabase

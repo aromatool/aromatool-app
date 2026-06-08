@@ -422,3 +422,29 @@ entrypoint = "./functions/send-email/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-email/*.html" ]
+
+# Redirect public pentru resurse — accesat din linkuri de email,
+# deci NU verificăm JWT. Securitatea vine din tokenul ne-ghicibil.
+[functions.resource-redirect]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/resource-redirect/index.ts"
+
+# Creare sesiune Stripe Checkout — necesită user autentificat.
+[functions.create-checkout]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/create-checkout/index.ts"
+
+# Webhook Stripe — apelat de Stripe, fără JWT (verificăm semnătura).
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/stripe-webhook/index.ts"
+
+# Daily Focus Email — apelat de pg_cron (fără JWT, verificăm x-cron-secret)
+# sau manual de admin pentru test (verificăm JWT + is_admin în funcție).
+[functions.daily-focus]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/daily-focus/index.ts"

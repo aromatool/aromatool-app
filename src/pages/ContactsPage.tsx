@@ -949,6 +949,7 @@ export default function ContactsPage() {
       {followupContact && (
         <FollowupModal
           contact={followupContact}
+          action={getRecommendedAction(followupContact).type}
           onClose={() => setFollowupContact(null)}
           onSent={(contactId: string) => {
             setContacts((prev) =>

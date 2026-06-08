@@ -9,73 +9,22 @@ import { openWhatsApp, startOffer } from "../lib/contactActions";
 import {
   getRecommendedAction,
   displayStatus,
-  ACTIONABLE_TYPES,
   shortReason,
   getNextAction,
   groupLabel,
 } from "../lib/recommendedAction";
-import type { ActionType } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
+import { aggregateContacts, selectFocusToday } from "../lib/focusToday";
 
-export interface ContactTimeline {
-  date: string;
-  label: string;
-  type: "offer" | "followup" | "email" | "whatsapp" | "event";
-  amount?: string;
-  offerId?: string;
-}
-
-export interface LastOfferInfo {
-  id: string;
-  sentAt: string;
-  productCount: number;
-  totalEur: number;
-  productNames: string[];
-}
-
-export interface Contact {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  status: ContactStatus;
-  notes?: string;
-  source?: string | null;
-  created_at: string;
-  updated_at?: string | null;
-  first_offer_at?: string | null;
-  last_activity_at?: string | null;
-  followup_count?: number;
-  followup_opted_out?: boolean;
-  last_followup_at?: string | null;
-  offers_count?: number;
-  total_eur?: number;
-  manual_high_interest?: boolean;
-  manual_business_interest?: boolean;
-  email_opens?: number | null;
-  email_clicks?: number | null;
-  offer_products?: string[];
-  // Communication controls
-  email_opt_out?: boolean;
-  email_opt_out_at?: string | null;
-  communication_blocked?: boolean;
-  communication_blocked_at?: string | null;
-  communication_blocked_reason?: string | null;
-  last_offer?: LastOfferInfo | null;
-  timeline?: ContactTimeline[];
-  // UI helpers
-  avatarBg?: string;
-  avatarColor?: string;
-  statusLabel?: string;
-  statusBg?: string;
-  statusColor?: string;
-  urgentLabel?: string;
-  urgencyDays?: number;
-  urgencyLabel?: string;
-  urgencyColor?: string;
-  barColor?: string;
-  actionText?: string;
-}
+// Tipurile trăiesc acum într-un modul curat (contactTypes.ts), refolosit și
+// de Edge Functions. Le re-exportăm de aici pentru compatibilitate cu
+// importurile existente (`import type { Contact } from "./DashboardPage"`).
+export type {
+  Contact,
+  LastOfferInfo,
+  ContactTimeline,
+} from "../lib/contactTypes";
+import type { Contact, LastOfferInfo } from "../lib/contactTypes";
 
 const T = {
   sage: "#5C7A5C",
@@ -473,59 +422,15 @@ export default function DashboardPage() {
       const fuLogList = fuLog ?? [];
 
       if (ctcts) {
-        const enriched = ctcts.map((c) => {
-          // Agregare oferte per contact — câmpurile NU există în tabela contacts
-          const contactOffers = offersList.filter((o) => o.contact_id === c.id);
-          const offersCount = contactOffers.length;
-          const totalEur = contactOffers.reduce(
-            (s, o) => s + (o.total_eur ?? 0),
-            0,
-          );
-
-          // Ultima activitate = cel mai recent dintre: ultima ofertă, ultimul follow-up, updated_at
-          const contactFu = fuLogList.filter((f) => f.contact_id === c.id);
-          const lastFollowupAt =
-            contactFu.length > 0
-              ? contactFu.reduce(
-                  (latest, f) =>
-                    new Date(f.sent_at) > new Date(latest) ? f.sent_at : latest,
-                  contactFu[0].sent_at,
-                )
-              : null;
-          const activityDates = [
-            ...contactOffers.map((o) => o.sent_at),
-            ...contactFu.map((f) => f.sent_at),
-            (c as Contact).updated_at,
-          ].filter(Boolean) as string[];
-          const lastActivityAt =
-            activityDates.length > 0
-              ? activityDates.reduce((latest, d) =>
-                  new Date(d) > new Date(latest) ? d : latest,
-                )
-              : null;
-
-          // Prima ofertă (cea mai veche)
-          const firstOfferAt =
-            contactOffers.length > 0
-              ? contactOffers.reduce(
-                  (earliest, o) =>
-                    new Date(o.sent_at) < new Date(earliest)
-                      ? o.sent_at
-                      : earliest,
-                  contactOffers[0].sent_at,
-                )
-              : ((c as Contact).first_offer_at ?? null);
-
-          return enrichContact({
-            ...(c as Contact),
-            offers_count: offersCount,
-            total_eur: totalEur,
-            last_activity_at: lastActivityAt,
-            last_followup_at: lastFollowupAt,
-            first_offer_at: firstOfferAt,
-          });
-        });
-        setContacts(enriched);
+        // Agregarea (oferte / follow-up / ultima activitate) e acum în modulul
+        // partajat focusToday.ts — aceeași sursă folosită de Daily Focus Email.
+        const aggregated = aggregateContacts(
+          ctcts as Contact[],
+          offersList,
+          fuLogList,
+        );
+        // enrichContact adaugă doar câmpurile vizuale (culori, etichete).
+        setContacts(aggregated.map(enrichContact));
       }
       setOffers(offersList);
       setFollowupLog(fuLogList);
@@ -562,24 +467,8 @@ export default function DashboardPage() {
     (c) => c.status === "client_nou" || c.status === "client_fidel",
   ).length;
 
-  // Focus today — contacte cu acțiune urgentă, sortate după prioritate
-  const ACTION_PRIORITY: ActionType[] = [
-    "reactivate",
-    "needs_offer",
-    "needs_followup",
-    "discuss_business",
-  ];
-  const focusToday = contacts
-    .filter((c) => !c.communication_blocked)
-    .map((c) => ({ contact: c, action: getRecommendedAction(c) }))
-    .filter((x) => ACTIONABLE_TYPES.includes(x.action.type))
-    .sort(
-      (a, b) =>
-        ACTION_PRIORITY.indexOf(a.action.type) -
-        ACTION_PRIORITY.indexOf(b.action.type),
-    )
-    .slice(0, 5)
-    .map((x) => x.contact);
+  // Focus today — sursă unică (focusToday.ts), refolosită de Daily Focus Email
+  const focusToday = selectFocusToday(contacts).map((x) => x.contact);
 
   // Activitate recentă = oferte + follow-up-uri combinate, sortate descrescător
   type ActivityItem = {
@@ -1404,6 +1293,7 @@ export default function DashboardPage() {
       {followupContact && (
         <FollowupModal
           contact={followupContact}
+          action={getRecommendedAction(followupContact).type}
           onClose={() => setFollowupContact(null)}
           onSent={(contactId: string) => {
             const now = new Date().toISOString();

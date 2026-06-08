@@ -2,7 +2,26 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 
-type Mode = "login" | "register";
+// ── BLOSSOM SAGE ───────────────────────────────────────────
+const T = {
+  sage: "#5C7A5C",
+  sageDark: "#4A6A4A",
+  sageLight: "#E8F0E8",
+  sageMid: "#C8D8C8",
+  cream: "#FAFAF7",
+  linen: "#F5EEE8",
+  espresso: "#3D3530",
+  warm: "#6A5A50",
+  muted: "#A89888",
+  border: "#EDE8E0",
+  white: "#FFFFFF",
+  green: "#2E8A58",
+  greenLight: "#E8F8F0",
+  red: "#C94F6A",
+  redLight: "#FFF0F4",
+};
+
+type Mode = "login" | "register" | "forgot";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<Mode>("login");
@@ -13,12 +32,21 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, recovery, resetPassword, updatePassword } =
+    useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) navigate("/app");
-  }, [user, navigate]);
+    // Nu redirecționa cât timp userul setează o parolă nouă din link.
+    if (user && !recovery) navigate("/app");
+  }, [user, recovery, navigate]);
+
+  function resetFields() {
+    setError("");
+    setSuccess("");
+    setPassword("");
+    setConfirmPassword("");
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,15 +54,8 @@ export default function AuthPage() {
     setSuccess("");
     setLoading(true);
 
-    if (mode === "login") {
-      const { error } = await signIn(email, password);
-      if (error) setError("Email sau parolă incorectă.");
-    } else {
-      if (!fullName.trim()) {
-        setError("Introdu numele tău.");
-        setLoading(false);
-        return;
-      }
+    // ── SETEAZĂ PAROLĂ NOUĂ (venit din link de resetare) ──
+    if (recovery) {
       if (password.length < 6) {
         setError("Parola trebuie să aibă minim 6 caractere.");
         setLoading(false);
@@ -45,19 +66,86 @@ export default function AuthPage() {
         setLoading(false);
         return;
       }
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await updatePassword(password);
       if (error) setError(error.message);
-      else setSuccess("Cont creat! Verifică emailul pentru confirmare.");
+      else {
+        setSuccess("Parolă schimbată! Te ducem în aplicație…");
+        setTimeout(() => navigate("/app"), 1200);
+      }
+      setLoading(false);
+      return;
     }
+
+    // ── AM UITAT PAROLA ──
+    if (mode === "forgot") {
+      if (!email.trim()) {
+        setError("Introdu adresa de email.");
+        setLoading(false);
+        return;
+      }
+      const { error } = await resetPassword(email);
+      if (error) setError(error.message);
+      else
+        setSuccess(
+          "Ți-am trimit un email cu un link de resetare. Verifică inbox-ul (și folderul Spam).",
+        );
+      setLoading(false);
+      return;
+    }
+
+    // ── LOGIN ──
+    if (mode === "login") {
+      const { error } = await signIn(email, password);
+      if (error) setError("Email sau parolă incorectă.");
+      setLoading(false);
+      return;
+    }
+
+    // ── REGISTER ──
+    if (!fullName.trim()) {
+      setError("Introdu numele tău.");
+      setLoading(false);
+      return;
+    }
+    if (password.length < 6) {
+      setError("Parola trebuie să aibă minim 6 caractere.");
+      setLoading(false);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Parolele nu coincid.");
+      setLoading(false);
+      return;
+    }
+    const { error } = await signUp(email, password, fullName);
+    if (error) setError(error.message);
+    else setSuccess("Cont creat! Verifică emailul pentru confirmare.");
     setLoading(false);
   };
+
+  // Titlu + buton în funcție de context.
+  const heading = recovery
+    ? "Setează o parolă nouă"
+    : mode === "login"
+      ? "Bun venit înapoi"
+      : mode === "register"
+        ? "Creează-ți contul"
+        : "Resetează parola";
+
+  const submitLabel = recovery
+    ? "Salvează parola"
+    : mode === "login"
+      ? "Intră în cont →"
+      : mode === "register"
+        ? "Creează cont →"
+        : "Trimite linkul →";
 
   return (
     <div
       style={{
         minHeight: "100vh",
         background:
-          "linear-gradient(135deg, #FDFAFF 0%, #F0EAFF 50%, #E8F4FF 100%)",
+          "linear-gradient(135deg, #FAFAF7 0%, #F0ECE4 45%, #E8F0E8 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -84,7 +172,7 @@ export default function AuthPage() {
             height: "400px",
             borderRadius: "50%",
             background:
-              "radial-gradient(circle, rgba(196,168,232,0.3) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(92,122,92,0.18) 0%, transparent 70%)",
           }}
         />
         <div
@@ -96,7 +184,7 @@ export default function AuthPage() {
             height: "500px",
             borderRadius: "50%",
             background:
-              "radial-gradient(circle, rgba(168,196,232,0.2) 0%, transparent 70%)",
+              "radial-gradient(circle, rgba(200,216,200,0.35) 0%, transparent 70%)",
           }}
         />
       </div>
@@ -110,12 +198,12 @@ export default function AuthPage() {
         }}
       >
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "36px" }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <div
             style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: "32px",
-              color: "#2D1A4E",
+              color: T.espresso,
               letterSpacing: "-0.5px",
               marginBottom: "8px",
             }}
@@ -131,25 +219,21 @@ export default function AuthPage() {
               marginBottom: "6px",
             }}
           >
-            <div
-              style={{ height: "1px", width: "48px", background: "#C4A8E8" }}
-            />
+            <div style={{ height: "1px", width: "48px", background: T.sageMid }} />
             <div
               style={{
                 width: "6px",
                 height: "6px",
                 borderRadius: "50%",
-                background: "#7B5EA7",
+                background: T.sage,
               }}
             />
-            <div
-              style={{ height: "1px", width: "48px", background: "#C4A8E8" }}
-            />
+            <div style={{ height: "1px", width: "48px", background: T.sageMid }} />
           </div>
           <div
             style={{
               fontSize: "11px",
-              color: "#9B80C4",
+              color: T.muted,
               fontStyle: "italic",
               letterSpacing: "2px",
             }}
@@ -161,68 +245,97 @@ export default function AuthPage() {
         {/* Card */}
         <div
           style={{
-            background: "white",
+            background: T.white,
             borderRadius: "20px",
             padding: "36px 32px",
-            boxShadow: "0 8px 40px rgba(123,94,167,0.12)",
-            border: "1px solid rgba(196,168,232,0.3)",
+            boxShadow: "0 8px 40px rgba(92,122,92,0.10)",
+            border: `1px solid ${T.border}`,
           }}
         >
-          {/* Tabs */}
-          <div
-            style={{
-              display: "flex",
-              background: "#F5F0FF",
-              borderRadius: "12px",
-              padding: "4px",
-              marginBottom: "28px",
-            }}
-          >
-            {(["login", "register"] as Mode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => {
-                  setMode(m);
-                  setError("");
-                  setSuccess("");
-                  setConfirmPassword("");
-                }}
-                style={{
-                  flex: 1,
-                  padding: "9px",
-                  border: "none",
-                  borderRadius: "9px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  fontFamily: "'DM Sans', sans-serif",
-                  transition: "all 0.2s",
-                  background: mode === m ? "white" : "transparent",
-                  color: mode === m ? "#2D1A4E" : "#9B80C4",
-                  boxShadow:
-                    mode === m ? "0 1px 8px rgba(123,94,167,0.15)" : "none",
-                }}
-              >
-                {m === "login" ? "Intră în cont" : "Cont nou"}
-              </button>
-            ))}
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            {mode === "register" && (
-              <div style={{ marginBottom: "16px" }}>
-                <label
+          {/* Tabs — ascunse în modurile forgot/recovery */}
+          {!recovery && mode !== "forgot" && (
+            <div
+              style={{
+                display: "flex",
+                background: T.cream,
+                borderRadius: "12px",
+                padding: "4px",
+                marginBottom: "28px",
+              }}
+            >
+              {(["login", "register"] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setMode(m);
+                    resetFields();
+                  }}
                   style={{
-                    display: "block",
-                    fontSize: "12px",
+                    flex: 1,
+                    padding: "9px",
+                    border: "none",
+                    borderRadius: "9px",
+                    cursor: "pointer",
+                    fontSize: "14px",
                     fontWeight: 500,
-                    color: "#6B5B9E",
-                    marginBottom: "6px",
-                    letterSpacing: "0.04em",
+                    fontFamily: "'DM Sans', sans-serif",
+                    transition: "all 0.2s",
+                    background: mode === m ? T.white : "transparent",
+                    color: mode === m ? T.espresso : T.muted,
+                    boxShadow:
+                      mode === m ? "0 1px 8px rgba(92,122,92,0.15)" : "none",
                   }}
                 >
-                  NUMELE TĂU
-                </label>
+                  {m === "login" ? "Intră în cont" : "Cont nou"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Titlu */}
+          <div
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              color: T.espresso,
+              marginBottom: mode === "forgot" || recovery ? "6px" : "20px",
+              textAlign: mode === "forgot" || recovery ? "center" : "left",
+            }}
+          >
+            {heading}
+          </div>
+          {mode === "forgot" && !recovery && (
+            <div
+              style={{
+                fontSize: "13px",
+                color: T.muted,
+                lineHeight: 1.6,
+                textAlign: "center",
+                marginBottom: "22px",
+              }}
+            >
+              Îți trimitem pe email un link ca să-ți alegi o parolă nouă.
+            </div>
+          )}
+          {recovery && (
+            <div
+              style={{
+                fontSize: "13px",
+                color: T.muted,
+                lineHeight: 1.6,
+                textAlign: "center",
+                marginBottom: "22px",
+              }}
+            >
+              Alege o parolă nouă pentru contul tău.
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {/* Nume — doar la register */}
+            {mode === "register" && !recovery && (
+              <div style={{ marginBottom: "16px" }}>
+                <label style={labelStyle}>NUMELE TĂU</label>
                 <input
                   type="text"
                   value={fullName}
@@ -230,82 +343,65 @@ export default function AuthPage() {
                   placeholder="Cum te cheamă?"
                   required
                   style={inputStyle}
-                  onFocus={(e) =>
-                    Object.assign(e.target.style, inputFocusStyle)
-                  }
+                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
                   onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                 />
               </div>
             )}
 
-            <div style={{ marginBottom: "16px" }}>
-              <label
+            {/* Email — la login/register/forgot (nu la recovery) */}
+            {!recovery && (
+              <div
                 style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: "#6B5B9E",
-                  marginBottom: "6px",
-                  letterSpacing: "0.04em",
+                  marginBottom: mode === "forgot" ? "24px" : "16px",
                 }}
               >
-                EMAIL
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="email@tau.com"
-                required
-                style={inputStyle}
-                onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                onBlur={(e) => Object.assign(e.target.style, inputStyle)}
-              />
-            </div>
+                <label style={labelStyle}>EMAIL</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="email@tau.com"
+                  required
+                  style={inputStyle}
+                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                  onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+                />
+              </div>
+            )}
 
-            <div
-              style={{ marginBottom: mode === "register" ? "16px" : "24px" }}
-            >
-              <label
+            {/* Parolă — la login/register/recovery (nu la forgot) */}
+            {mode !== "forgot" && (
+              <div
                 style={{
-                  display: "block",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: "#6B5B9E",
-                  marginBottom: "6px",
-                  letterSpacing: "0.04em",
+                  marginBottom:
+                    mode === "register" || recovery ? "16px" : "10px",
                 }}
               >
-                PAROLĂ
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  mode === "register" ? "Minim 6 caractere" : "••••••••"
-                }
-                required
-                style={inputStyle}
-                onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                onBlur={(e) => Object.assign(e.target.style, inputStyle)}
-              />
-            </div>
-
-            {mode === "register" && (
-              <div style={{ marginBottom: "24px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    color: "#6B5B9E",
-                    marginBottom: "6px",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  CONFIRMĂ PAROLA
+                <label style={labelStyle}>
+                  {recovery ? "PAROLĂ NOUĂ" : "PAROLĂ"}
                 </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={
+                    mode === "register" || recovery
+                      ? "Minim 6 caractere"
+                      : "••••••••"
+                  }
+                  required
+                  style={inputStyle}
+                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                  onBlur={(e) => Object.assign(e.target.style, inputStyle)}
+                />
+              </div>
+            )}
+
+            {/* Confirmă parola — la register/recovery */}
+            {(mode === "register" || recovery) && (
+              <div style={{ marginBottom: "24px" }}>
+                <label style={labelStyle}>CONFIRMĂ PAROLA</label>
                 <input
                   type="password"
                   value={confirmPassword}
@@ -313,23 +409,45 @@ export default function AuthPage() {
                   placeholder="Repetă parola"
                   required
                   style={inputStyle}
-                  onFocus={(e) =>
-                    Object.assign(e.target.style, inputFocusStyle)
-                  }
+                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
                   onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                 />
+              </div>
+            )}
+
+            {/* Link „am uitat parola" — doar la login */}
+            {mode === "login" && !recovery && (
+              <div style={{ textAlign: "right", marginBottom: "20px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("forgot");
+                    resetFields();
+                  }}
+                  style={{
+                    fontSize: "12px",
+                    color: T.sage,
+                    fontWeight: 500,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  Ai uitat parola?
+                </button>
               </div>
             )}
 
             {error && (
               <div
                 style={{
-                  background: "#FFF0F4",
+                  background: T.redLight,
                   border: "1px solid rgba(201,79,106,0.2)",
                   borderRadius: "10px",
                   padding: "10px 14px",
                   fontSize: "13px",
-                  color: "#C94F6A",
+                  color: T.red,
                   marginBottom: "16px",
                 }}
               >
@@ -340,12 +458,12 @@ export default function AuthPage() {
             {success && (
               <div
                 style={{
-                  background: "#E8F8F0",
+                  background: T.greenLight,
                   border: "1px solid rgba(46,138,88,0.2)",
                   borderRadius: "10px",
                   padding: "10px 14px",
                   fontSize: "13px",
-                  color: "#2E8A58",
+                  color: T.green,
                   marginBottom: "16px",
                 }}
               >
@@ -360,37 +478,59 @@ export default function AuthPage() {
                 width: "100%",
                 padding: "13px",
                 background: loading
-                  ? "#C4A8E8"
-                  : "linear-gradient(135deg, #7B5EA7, #4A3270)",
+                  ? T.sageMid
+                  : "linear-gradient(135deg, #5C7A5C, #4A6A4A)",
                 border: "none",
                 borderRadius: "12px",
-                color: "white",
+                color: T.white,
                 fontSize: "15px",
-                fontWeight: 500,
+                fontWeight: 600,
                 fontFamily: "'DM Sans', sans-serif",
                 cursor: loading ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
                 letterSpacing: "0.02em",
               }}
             >
-              {loading
-                ? "..."
-                : mode === "login"
-                  ? "Intră în cont →"
-                  : "Creează cont →"}
+              {loading ? "..." : submitLabel}
             </button>
           </form>
 
-          {mode === "login" && (
+          {/* Înapoi la login din forgot */}
+          {mode === "forgot" && !recovery && (
             <div style={{ textAlign: "center", marginTop: "20px" }}>
-              <span style={{ fontSize: "13px", color: "#9B80C4" }}>
+              <button
+                onClick={() => {
+                  setMode("login");
+                  resetFields();
+                }}
+                style={{
+                  fontSize: "13px",
+                  color: T.sage,
+                  fontWeight: 500,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                ← Înapoi la autentificare
+              </button>
+            </div>
+          )}
+
+          {mode === "login" && !recovery && (
+            <div style={{ textAlign: "center", marginTop: "20px" }}>
+              <span style={{ fontSize: "13px", color: T.muted }}>
                 Nu ai cont?{" "}
               </span>
               <button
-                onClick={() => setMode("register")}
+                onClick={() => {
+                  setMode("register");
+                  resetFields();
+                }}
                 style={{
                   fontSize: "13px",
-                  color: "#7B5EA7",
+                  color: T.sage,
                   fontWeight: 500,
                   background: "none",
                   border: "none",
@@ -404,29 +544,40 @@ export default function AuthPage() {
           )}
         </div>
 
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: "20px",
-            fontSize: "11px",
-            color: "#C4A8E8",
-          }}
-        >
-          14 zile trial gratuit · Fără card de credit
-        </div>
+        {!recovery && mode !== "forgot" && (
+          <div
+            style={{
+              textAlign: "center",
+              marginTop: "20px",
+              fontSize: "11px",
+              color: T.muted,
+            }}
+          >
+            14 zile trial gratuit · Fără card de credit
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "12px",
+  fontWeight: 500,
+  color: T.warm,
+  marginBottom: "6px",
+  letterSpacing: "0.04em",
+};
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "11px 14px",
-  background: "#F9F7FF",
-  border: "1.5px solid rgba(196,168,232,0.4)",
+  background: T.cream,
+  border: `1.5px solid ${T.border}`,
   borderRadius: "10px",
   fontSize: "14px",
-  color: "#2D1A4E",
+  color: T.espresso,
   fontFamily: "'DM Sans', sans-serif",
   outline: "none",
   boxSizing: "border-box",
@@ -435,5 +586,5 @@ const inputStyle: React.CSSProperties = {
 
 const inputFocusStyle: React.CSSProperties = {
   ...inputStyle,
-  borderColor: "#7B5EA7",
+  borderColor: T.sage,
 };

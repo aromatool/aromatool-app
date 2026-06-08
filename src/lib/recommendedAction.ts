@@ -1,5 +1,5 @@
-import type { Contact } from '../pages/DashboardPage'
-import type { ContactStatus } from './relationshipScore'
+import type { Contact } from './contactTypes.ts'
+import type { ContactStatus } from './relationshipScore.ts'
 
 // Tipul de acțiune — folosit intern pentru grupare/filtrare în Dashboard.
 // Utilizatorul NU vede acest tip, doar textul acțiunii.

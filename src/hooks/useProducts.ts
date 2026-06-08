@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
+import { useCompany } from "./useCompany";
 
 export interface Product {
   id: string;
@@ -17,12 +18,16 @@ export interface ExchangeRate {
 }
 
 export function useProducts(countryCode = "RO") {
+  const { data: company } = useCompany();
+  const companyId = company?.id;
   return useQuery({
-    queryKey: ["products", countryCode],
+    queryKey: ["products", companyId, countryCode],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
         .select("id, name, sku, points, price_eur")
+        .eq("company_id", companyId!)
         .eq("country_code", countryCode)
         .eq("active", true)
         .order("name");

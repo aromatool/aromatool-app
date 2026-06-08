@@ -12,6 +12,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  // true cât timp userul a venit dintr-un link de resetare parolă.
+  recovery: boolean;
   signUp: (
     email: string,
     password: string,
@@ -19,6 +21,10 @@ interface AuthContextType {
   ) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  // Trimite emailul cu link de resetare.
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  // Setează parola nouă (după ce userul a venit din link).
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -37,7 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Linkul de resetare creează o sesiune + emite PASSWORD_RECOVERY.
+      // Marcăm starea ca să afișăm ecranul „setează parolă nouă", nu app-ul.
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -69,9 +79,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+    return { error };
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) setRecovery(false);
+    return { error };
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signUp, signIn, signOut }}
+      value={{
+        user,
+        session,
+        loading,
+        recovery,
+        signUp,
+        signIn,
+        signOut,
+        resetPassword,
+        updatePassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

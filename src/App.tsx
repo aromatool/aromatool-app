@@ -9,6 +9,9 @@ import OffersPage from "./pages/OffersPage";
 import ContactsPage from "./pages/ContactsPage";
 import TemplatesPage from "./pages/TemplatesPage";
 import DashboardPage from "./pages/DashboardPage";
+import ResourcesPage from "./pages/ResourcesPage";
+import HelpPage from "./pages/HelpPage";
+import AdminPage from "./pages/AdminPage";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
@@ -71,13 +74,19 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 }
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, recovery } = useAuth();
   if (loading) return null;
   return (
     <Routes>
       <Route
         path="/auth"
-        element={user ? <Navigate to="/app/dashboard" replace /> : <AuthPage />}
+        element={
+          user && !recovery ? (
+            <Navigate to="/app/dashboard" replace />
+          ) : (
+            <AuthPage />
+          )
+        }
       />
       <Route
         path="/app/calculator"
@@ -120,6 +129,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/app/resources"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <ResourcesPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/app/templates"
         element={
           <ProtectedRoute>
@@ -145,6 +164,26 @@ function AppRoutes() {
           <ProtectedRoute>
             <AppLayout>
               <SettingsPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/help"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <HelpPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/admin"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <AdminPage />
             </AppLayout>
           </ProtectedRoute>
         }

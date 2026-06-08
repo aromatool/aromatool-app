@@ -288,6 +288,10 @@ export default function ContactSlideOver({
     ? daysSince(contact.last_activity_at)
     : null;
 
+  const emailOpens = contact.email_opens ?? 0;
+  const emailClicks = contact.email_clicks ?? 0;
+  const hasEmailTracking = emailOpens > 0 || emailClicks > 0;
+
   const handleStatusSelect = async (newStatus: ContactStatus) => {
     // Dacă alegerea corespunde aceluiași status canonic, nu schimbăm nimic
     // (ex: contact e client_fidel, userul apasă "Client" → rămâne client_fidel)
@@ -1068,44 +1072,101 @@ export default function ContactSlideOver({
           {/* Email tracking */}
           <div style={{ marginBottom: 8 }}>
             <SectionLabel>Email tracking</SectionLabel>
-            <div
-              style={{
-                background: T.lavLt,
-                border: `0.5px solid ${T.lavBd}`,
-                borderRadius: 8,
-                padding: "10px 12px",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
+            {hasEmailTracking ? (
+              <div style={{ display: "flex", gap: 8 }}>
+                <div
+                  style={{
+                    flex: 1,
+                    background: T.lavLt,
+                    border: `0.5px solid ${T.lavBd}`,
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <i
+                    className="ti ti-mail-opened"
+                    style={{ fontSize: 16, color: T.lav }}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
+                      {emailOpens}
+                    </div>
+                    <div style={{ fontSize: 11, color: T.warm }}>
+                      {emailOpens === 1 ? "deschidere" : "deschideri"}
+                    </div>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    flex: 1,
+                    background: T.lavLt,
+                    border: `0.5px solid ${T.lavBd}`,
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <i
+                    className="ti ti-click"
+                    style={{ fontSize: 16, color: T.lav }}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
+                      {emailClicks}
+                    </div>
+                    <div style={{ fontSize: 11, color: T.warm }}>
+                      {emailClicks === 1 ? "click" : "click-uri"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 7,
-                  background: T.wh,
-                  flexShrink: 0,
+                  background: T.lavLt,
+                  border: `0.5px solid ${T.lavBd}`,
+                  borderRadius: 8,
+                  padding: "10px 12px",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
+                  gap: 10,
                 }}
               >
-                <i
-                  className="ti ti-mail"
-                  style={{ fontSize: 16, color: T.lav }}
-                  aria-hidden="true"
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: T.lav }}>
-                  Disponibil după activarea domeniului
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 7,
+                    background: T.wh,
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <i
+                    className="ti ti-mail"
+                    style={{ fontSize: 16, color: T.lav }}
+                    aria-hidden="true"
+                  />
                 </div>
-                <div style={{ fontSize: 11, color: T.warm, marginTop: 1 }}>
-                  Activează Resend pentru a urmări emailurile trimise.
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: T.lav }}>
+                    Disponibil după activarea domeniului
+                  </div>
+                  <div style={{ fontSize: 11, color: T.warm, marginTop: 1 }}>
+                    Activează Resend pentru a urmări emailurile trimise.
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

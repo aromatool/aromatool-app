@@ -21,10 +21,14 @@ interface Profile {
   full_name: string;
   phone: string;
   contact_email: string;
+  email_signature: string;
   country_code: string;
   language_code: string;
   follow_up_days: number;
   followup_enabled: boolean;
+  daily_focus_enabled: boolean;
+  daily_focus_hour: number;
+  is_admin: boolean;
 }
 
 export default function SettingsPage() {
@@ -33,10 +37,14 @@ export default function SettingsPage() {
     full_name: "",
     phone: "",
     contact_email: "",
+    email_signature: "",
     country_code: "RO",
     language_code: "ro",
     follow_up_days: 5,
     followup_enabled: true,
+    daily_focus_enabled: false,
+    daily_focus_hour: 8,
+    is_admin: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,7 +60,7 @@ export default function SettingsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("profiles")
-      .select("full_name, phone, contact_email, country_code, language_code, follow_up_days, followup_enabled")
+      .select("full_name, phone, contact_email, email_signature, country_code, language_code, follow_up_days, followup_enabled, daily_focus_enabled, daily_focus_hour, is_admin")
       .eq("id", user!.id)
       .single();
 
@@ -61,10 +69,14 @@ export default function SettingsPage() {
         full_name: data.full_name || user?.user_metadata?.full_name || "",
         phone: data.phone || "",
         contact_email: data.contact_email || user?.email || "",
+        email_signature: data.email_signature || "",
         country_code: data.country_code || "RO",
         language_code: data.language_code || "ro",
         follow_up_days: data.follow_up_days || 5,
         followup_enabled: data.followup_enabled !== false,
+        daily_focus_enabled: data.daily_focus_enabled === true,
+        daily_focus_hour: data.daily_focus_hour || 8,
+        is_admin: data.is_admin === true,
       });
     }
     setLoading(false);
@@ -81,10 +93,18 @@ export default function SettingsPage() {
         full_name: profile.full_name,
         phone: profile.phone,
         contact_email: profile.contact_email,
+        email_signature: profile.email_signature,
         country_code: profile.country_code,
         language_code: profile.language_code,
         follow_up_days: profile.follow_up_days,
         followup_enabled: profile.followup_enabled,
+        daily_focus_enabled: profile.daily_focus_enabled,
+        daily_focus_hour: profile.daily_focus_hour,
+        // Timezone-ul curent al browserului — folosit ca să trimitem la ora
+        // locală aleasă, nu la ora serverului.
+        timezone:
+          Intl.DateTimeFormat().resolvedOptions().timeZone ||
+          "Europe/Bucharest",
         updated_at: new Date().toISOString(),
       })
       .eq("id", user!.id);
@@ -98,6 +118,7 @@ export default function SettingsPage() {
           full_name: profile.full_name,
           phone: profile.phone,
           contact_email: profile.contact_email,
+          email_signature: profile.email_signature,
         },
       });
       setSuccess(true);
@@ -215,6 +236,28 @@ export default function SettingsPage() {
               >
                 Apare în emailurile trimise clienților
               </div>
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Semnătură email</label>
+            <textarea
+              value={profile.email_signature}
+              onChange={(e) =>
+                setProfile((p) => ({ ...p, email_signature: e.target.value }))
+              }
+              rows={3}
+              placeholder={"Cu drag,\nMaria Popescu\nDistribuitor independent Young Living"}
+              style={{
+                ...inputStyle,
+                resize: "vertical",
+                lineHeight: 1.6,
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            />
+            <div style={{ fontSize: "11px", color: C.muted, marginTop: "4px" }}>
+              Apare la finalul emailurilor trimise clienților (ofertă și
+              follow-up). Lasă gol pentru mesajul standard.
             </div>
           </div>
 
@@ -342,6 +385,120 @@ export default function SettingsPage() {
                 }}
               />
             </button>
+          </div>
+
+          {/* ── Daily Focus Email ──────────────────────────── */}
+          <div
+            style={{
+              borderTop: `1px solid ${C.border}`,
+              paddingTop: "18px",
+              marginTop: "4px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "12px 16px",
+                background: profile.daily_focus_enabled ? C.greenbg : C.bg2,
+                borderRadius: "10px",
+                border: `1px solid ${
+                  profile.daily_focus_enabled
+                    ? "rgba(46,138,88,0.2)"
+                    : C.border
+                }`,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: C.dark,
+                  }}
+                >
+                  🌿 Daily Focus Email
+                </div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: C.muted,
+                    marginTop: "2px",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  În fiecare dimineață primești pe email contactele care merită
+                  atenția ta azi. Dacă nu e nimic de făcut, nu primești nimic.
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  setProfile((p) => ({
+                    ...p,
+                    daily_focus_enabled: !p.daily_focus_enabled,
+                  }))
+                }
+                style={{
+                  width: "48px",
+                  height: "26px",
+                  borderRadius: "999px",
+                  border: "none",
+                  background: profile.daily_focus_enabled ? C.green : "#CCC",
+                  cursor: "pointer",
+                  position: "relative",
+                  transition: "background 0.2s",
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "3px",
+                    left: profile.daily_focus_enabled ? "25px" : "3px",
+                    width: "20px",
+                    height: "20px",
+                    borderRadius: "50%",
+                    background: "white",
+                    transition: "left 0.2s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  }}
+                />
+              </button>
+            </div>
+
+            {profile.daily_focus_enabled && (
+              <div style={{ marginTop: "12px" }}>
+                <label style={labelStyle}>Ora trimiterii</label>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
+                  <select
+                    value={profile.daily_focus_hour}
+                    onChange={(e) =>
+                      setProfile((p) => ({
+                        ...p,
+                        daily_focus_hour: parseInt(e.target.value) || 8,
+                      }))
+                    }
+                    style={{ ...inputStyle, width: "110px" }}
+                  >
+                    <option value={8}>08:00</option>
+                    <option value={9}>09:00</option>
+                    <option value={10}>10:00</option>
+                  </select>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: C.muted,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    ora locală ({Intl.DateTimeFormat().resolvedOptions().timeZone})
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

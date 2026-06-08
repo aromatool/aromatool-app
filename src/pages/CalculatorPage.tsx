@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useProducts, useExchangeRate } from "../hooks/useProducts";
 import { useCartStore } from "../hooks/useCartStore";
 import { useSendEmail, buildEmailHtml } from "../hooks/useSendEmail";
+import { useResources } from "../hooks/useResources";
 import EnrollLink from "../components/EnrollLink";
 import CurrencyPanel from "../components/CurrencyPanel";
 import { useExchangeRates } from "../hooks/useExchangeRates";
@@ -241,9 +242,6 @@ function SearchSection() {
                       <i className="ti ti-star" style={{ fontSize: "11px" }} />
                       {p.points} pct
                     </span>
-                    <span style={{ fontSize: "11px", color: C.muted }}>
-                      € {p.price_eur.toFixed(2)}
-                    </span>
                   </div>
                 </div>
                 <div
@@ -312,7 +310,6 @@ function CartSection() {
     removeItem,
     updateQty,
     updateDisc,
-    toggleGuide,
     setTransport,
     setClientName,
     setClientEmail,
@@ -329,7 +326,6 @@ function CartSection() {
   const { convertFromEur, formatAmount, getRate } = useExchangeRates();
 
   const [showCustom, setShowCustom] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [enrollLink, setEnrollLink] = useState("");
   const [successEmail, setSuccessEmail] = useState("");
   const [showPreview, setShowPreview] = useState(false);
@@ -342,6 +338,9 @@ function CartSection() {
   const [customPrice, setCustomPrice] = useState("");
   const [customQty, setCustomQty] = useState("1");
   const [customDisc, setCustomDisc] = useState("");
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
+  const [showResourcePicker, setShowResourcePicker] = useState(false);
+  const { resources } = useResources();
   const {
     sendOffer,
     loading: sending,
@@ -349,6 +348,13 @@ function CartSection() {
     success: sendSuccess,
     setSuccess: setSendSuccess,
   } = useSendEmail();
+
+  // Banner-ul de succes dispare automat după câteva secunde
+  useEffect(() => {
+    if (!sendSuccess) return;
+    const t = setTimeout(() => setSendSuccess(false), 6000);
+    return () => clearTimeout(t);
+  }, [sendSuccess, setSendSuccess]);
 
   const activeCurrency = currency || "RON";
 
@@ -389,6 +395,26 @@ function CartSection() {
     setTimeout(() => setOfferTextCopied(false), 2000);
   }
 
+  // Deschide WhatsApp cu textul ofertei precompletat.
+  // Dacă avem telefonul clientului, deschide direct conversația cu el.
+  function sendOfferWhatsApp() {
+    const text = encodeURIComponent(offerText || buildOfferText());
+    const digits = clientPhone
+      ? clientPhone.replace(/[^0-9]/g, "").replace(/^0/, "40")
+      : "";
+    const url = digits
+      ? `https://wa.me/${digits}?text=${text}`
+      : `https://wa.me/?text=${text}`;
+    window.open(url, "_blank", "noopener");
+  }
+
+  // ── Resurse: selectare din biblioteca userului, trimise ca linkuri ──
+  function toggleResource(id: string) {
+    setSelectedResourceIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
   function toggleOfferText() {
     if (!showOfferText) {
       // La deschidere populăm textarea cu textul generat din coș
@@ -408,6 +434,26 @@ function CartSection() {
     return (
       <>
         <CurrencyPanel />
+        {sendSuccess && (
+          <div
+            style={{
+              marginBottom: "12px",
+              padding: "14px",
+              background: C.greenbg,
+              border: `1px solid rgba(46,138,88,0.2)`,
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+              fontSize: "13px",
+              color: C.green,
+              fontWeight: 600,
+            }}
+          >
+            <i className="ti ti-circle-check" style={{ fontSize: "18px" }} />
+            Oferta a fost trimisă către {successEmail}!
+          </div>
+        )}
         <div
           style={{
             textAlign: "center",
@@ -712,8 +758,8 @@ function CartSection() {
           <div
             style={{ fontSize: "11px", color: C.muted, marginBottom: "8px" }}
           >
-            Prețul se introduce în <strong>{activeCurrency}</strong> și se
-            convertește automat în EUR
+            Adaugă un produs care nu e în listă — introdu prețul în{" "}
+            <strong>{activeCurrency}</strong>
           </div>
           <input
             value={customName}
@@ -827,117 +873,6 @@ function CartSection() {
             <i className="ti ti-plus" style={{ fontSize: "14px" }} />
             Adaugă în coș
           </button>
-        </div>
-      )}
-
-      {/* Guide toggle */}
-      <button
-        onClick={() => setShowGuide(!showGuide)}
-        style={{
-          width: "100%",
-          background: C.bg2,
-          border: `1px solid ${C.border2}`,
-          borderRadius: "10px",
-          padding: "10px",
-          color: C.dark,
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: "13px",
-          fontWeight: 500,
-          cursor: "pointer",
-          marginBottom: "8px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "6px",
-        }}
-      >
-        <i className="ti ti-book" style={{ fontSize: "14px" }} />
-        {showGuide ? "Ascunde ghid" : "Generează ghid produse"}
-      </button>
-
-      {showGuide && (
-        <div
-          style={{
-            background: C.card,
-            border: `1px solid ${C.border2}`,
-            borderRadius: "10px",
-            padding: "14px",
-            marginBottom: "8px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "13px",
-              fontWeight: 600,
-              color: C.dark,
-              marginBottom: "10px",
-            }}
-          >
-            <i className="ti ti-book" style={{ fontSize: "14px", color: C.primary }} />
-            Ghid produse din coș
-          </div>
-          {items.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "6px 0",
-                borderBottom: `1px solid ${C.border}`,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={item.guideSelected !== false}
-                onChange={(e) => toggleGuide(item.id, e.target.checked)}
-                style={{
-                  accentColor: C.primary,
-                  width: "15px",
-                  height: "15px",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "12px",
-                  color: C.dark,
-                  opacity: item.guideSelected !== false ? 1 : 0.4,
-                }}
-              >
-                {item.name}
-              </span>
-            </div>
-          ))}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              marginTop: "10px",
-              paddingTop: "10px",
-              borderTop: `1px solid ${C.border}`,
-            }}
-          >
-            <span style={{ fontSize: "13px", color: C.text2, flex: 1 }}>
-              Trimite ghidul cu oferta
-            </span>
-            <input
-              type="checkbox"
-              id="sendGuide"
-              defaultChecked
-              style={{
-                accentColor: C.primary,
-                width: "16px",
-                height: "16px",
-                cursor: "pointer",
-              }}
-            />
-          </div>
         </div>
       )}
 
@@ -1115,6 +1050,173 @@ function CartSection() {
             boxSizing: "border-box",
           }}
         />
+
+        {/* Resurse atașate (ca linkuri securizate) */}
+        <div style={{ marginBottom: "8px" }}>
+          <button
+            onClick={() => setShowResourcePicker((v) => !v)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 12px",
+              background: C.bg2,
+              border: `1.5px dashed ${C.border2}`,
+              borderRadius: "8px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: C.text2,
+              cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
+            + Adaugă resursă
+            {selectedResourceIds.length > 0 && ` (${selectedResourceIds.length})`}
+          </button>
+
+          {showResourcePicker && (
+            <div
+              style={{
+                marginTop: "8px",
+                background: C.card,
+                border: `1px solid ${C.border2}`,
+                borderRadius: "10px",
+                padding: "10px",
+                maxHeight: "220px",
+                overflowY: "auto",
+              }}
+            >
+              {resources.length === 0 ? (
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: C.muted,
+                    textAlign: "center",
+                    padding: "12px",
+                  }}
+                >
+                  Nu ai resurse încă. Adaugă-le din pagina „Resurse".
+                </div>
+              ) : (
+                resources.map((r) => {
+                  const checked = selectedResourceIds.includes(r.id);
+                  return (
+                    <label
+                      key={r.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "7px 4px",
+                        cursor: "pointer",
+                        borderBottom: `1px solid ${C.border}`,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleResource(r.id)}
+                        style={{
+                          accentColor: C.primary,
+                          width: "15px",
+                          height: "15px",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <i
+                        className={
+                          r.file_type === "application/pdf"
+                            ? "ti ti-file-type-pdf"
+                            : "ti ti-photo"
+                        }
+                        style={{ fontSize: "15px", color: C.primary, flexShrink: 0 }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          color: C.dark,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {r.title}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {selectedResourceIds.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "6px",
+                marginTop: "8px",
+              }}
+            >
+              {selectedResourceIds.map((id) => {
+                const r = resources.find((x) => x.id === id);
+                if (!r) return null;
+                return (
+                  <div
+                    key={id}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 8px",
+                      background: C.bg2,
+                      border: `1px solid ${C.border2}`,
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      color: C.dark,
+                    }}
+                  >
+                    <i
+                      className={
+                        r.file_type === "application/pdf"
+                          ? "ti ti-file-type-pdf"
+                          : "ti ti-photo"
+                      }
+                      style={{ fontSize: "13px", color: C.primary, flexShrink: 0 }}
+                    />
+                    <span
+                      style={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: "160px",
+                      }}
+                    >
+                      {r.title}
+                    </span>
+                    <button
+                      onClick={() => toggleResource(id)}
+                      title="Elimină"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: C.muted,
+                        display: "flex",
+                        padding: 0,
+                      }}
+                    >
+                      <i className="ti ti-x" style={{ fontSize: "13px" }} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <div style={{ display: "flex", gap: "8px" }}>
           <input
             type="email"
@@ -1150,6 +1252,7 @@ function CartSection() {
                 currency: activeCurrency,
                 contactId: prefillContactId || undefined,
                 enrollLink: enrollLink || undefined,
+                resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
               });
               if (ok) {
                 // Golire automată după trimitere reușită
@@ -1160,6 +1263,8 @@ function CartSection() {
                 setClientPhone("");
                 setNotes("");
                 setPrefillContactId(null);
+                setSelectedResourceIds([]);
+                setShowResourcePicker(false);
               }
             }}
             style={{
@@ -1413,31 +1518,56 @@ function CartSection() {
                 maxHeight: "320px",
               }}
             />
-            <button
-              onClick={copyOfferText}
-              style={{
-                width: "100%",
-                padding: "10px",
-                background: offerTextCopied ? C.greenbg : C.primary,
-                border: offerTextCopied ? `1px solid ${C.green}` : "none",
-                borderRadius: "9px",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: offerTextCopied ? C.green : "white",
-                fontFamily: "'DM Sans', sans-serif",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-              }}
-            >
-              <i
-                className={offerTextCopied ? "ti ti-check" : "ti ti-copy"}
-                style={{ fontSize: "15px" }}
-              />
-              {offerTextCopied ? "Text copiat!" : "Copiază textul ofertei"}
-            </button>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={copyOfferText}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: offerTextCopied ? C.greenbg : C.primary,
+                  border: offerTextCopied ? `1px solid ${C.green}` : "none",
+                  borderRadius: "9px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: offerTextCopied ? C.green : "white",
+                  fontFamily: "'DM Sans', sans-serif",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                }}
+              >
+                <i
+                  className={offerTextCopied ? "ti ti-check" : "ti ti-copy"}
+                  style={{ fontSize: "15px" }}
+                />
+                {offerTextCopied ? "Text copiat!" : "Copiază textul ofertei"}
+              </button>
+              <button
+                onClick={sendOfferWhatsApp}
+                title="Trimite pe WhatsApp"
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  background: "#25D366",
+                  border: "none",
+                  borderRadius: "9px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "white",
+                  fontFamily: "'DM Sans', sans-serif",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                }}
+              >
+                <i className="ti ti-brand-whatsapp" style={{ fontSize: "16px" }} />
+                WhatsApp
+              </button>
+            </div>
           </div>
         )}
 
@@ -1480,6 +1610,13 @@ function CartSection() {
         const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'AromaTool';
         const userPhone = user?.user_metadata?.phone || '';
         const userEmail = user?.user_metadata?.contact_email || user?.email || '';
+        const userSignature = user?.user_metadata?.email_signature || '';
+        // Resursele selectate, ca butoane în preview (URL placeholder — linkurile reale
+        // cu token se generează la trimitere).
+        const previewResourceLinks = selectedResourceIds
+          .map((id) => resources.find((r) => r.id === id))
+          .filter((r): r is NonNullable<typeof r> => Boolean(r))
+          .map((r) => ({ title: r.title, url: '#' }));
         const previewHtml = buildEmailHtml(
           {
             clientName,
@@ -1497,6 +1634,8 @@ function CartSection() {
           userName,
           userPhone,
           userEmail,
+          previewResourceLinks,
+          userSignature,
         );
         return (
           <div
@@ -1549,7 +1688,7 @@ function CartSection() {
                 style={{
                   flex: 1, border: 'none',
                   borderRadius: '16px',
-                  background: '#F5F0FF',
+                  background: '#F2F5F0',
                   width: '100%',
                 }}
                 sandbox="allow-same-origin"

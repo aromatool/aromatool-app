@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
+import { createResourceLinks } from '../lib/resourceLink'
+import { EMAIL_HEADER_HTML } from '../lib/emailLogo'
+import { buildEmailFooter } from '../lib/emailFooter'
 import type { CartItem } from './useCartStore'
 
 interface SendOfferParams {
@@ -17,6 +20,12 @@ interface SendOfferParams {
   currency: string        // display currency code
   includeGuide?: boolean
   enrollLink?: string
+  resourceIds?: string[]   // resurse din bibliotecă, inserate ca linkuri
+}
+
+interface ResourceLink {
+  title: string
+  url: string
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -32,7 +41,7 @@ function fmtCurrency(amount: number, currency: string): string {
 }
 
 
-export function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string): string {
+export function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string, resourceLinks: ResourceLink[] = [], userSignature?: string): string {
   const { clientName, items, transport, totalDisplay, totalEur, exchangeRate, currency, notes, enrollLink } = params
   const displayCurrency = currency || 'RON'
   const rate = exchangeRate || 5.2523
@@ -42,48 +51,48 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     const lineTotalEur = priceEur * item.qty * (1 - item.disc / 100)
     const lineTotalDisplay = lineTotalEur * rate
     const disc = item.disc > 0 ? `<span style="color:#C94F6A;font-size:11px"> −${item.disc}%</span>` : ''
-    const secondaryEur = displayCurrency !== 'EUR' ? `<div style="font-size:11px;color:#C4A8E8;margin-top:2px">€ ${lineTotalEur.toFixed(2)}</div>` : ''
+    const secondaryEur = displayCurrency !== 'EUR' ? `<div style="font-size:11px;color:#A89888;margin-top:2px">€ ${lineTotalEur.toFixed(2)}</div>` : ''
     return `<tr>
-      <td style="padding:12px 16px;border-bottom:1px solid #F0EEFF;font-size:14px;color:#2D1A4E">${item.name}${disc}</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #F0EEFF;font-size:14px;color:#9B80C4;text-align:center">${item.qty}</td>
-      <td style="padding:12px 16px;border-bottom:1px solid #F0EEFF;font-size:14px;color:#4A3270;text-align:right;font-weight:600">
+      <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530">${item.name}${disc}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#A89888;text-align:center">${item.qty}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530;text-align:right;font-weight:600">
         ${fmtCurrency(lineTotalDisplay, displayCurrency)}${secondaryEur}
       </td>
     </tr>`
   }).join('')
 
   const transportDisplay = transport * rate
-  const waLink = userPhone ? `https://wa.me/${userPhone.replace(/[^0-9]/g, '').replace(/^0/, '40')}` : ''
+
+  const resourceButtons = resourceLinks.length > 0 ? `
+    <div style="margin-top:16px;padding:16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
+      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px">Materiale atașate</div>
+      ${resourceLinks.map(r => `
+        <a href="${r.url}" style="display:block;margin-bottom:8px;padding:11px 16px;background:#5C7A5C;border-radius:8px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;text-align:center">
+          📎 ${r.title}
+        </a>`).join('')}
+    </div>` : ''
 
   return `<!DOCTYPE html>
-<html><body style="margin:0;padding:0;background:#F5F0FF;font-family:'Helvetica Neue',Arial,sans-serif;">
-<div style="max-width:520px;margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #E0D4F8;">
+<html><body style="margin:0;padding:0;background:#F2F5F0;font-family:'Helvetica Neue',Arial,sans-serif;">
+<div style="max-width:520px;margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #DDE6DD;">
 
-  <div style="background:#4A3270;padding:24px 28px 20px;text-align:center;">
-    <svg width="160" height="52" viewBox="0 0 200 65" xmlns="http://www.w3.org/2000/svg">
-      <line x1="32" y1="10" x2="88" y2="10" stroke="#C4A8E8" stroke-width="1"/>
-      <circle cx="100" cy="10" r="3.5" fill="#C4A8E8"/>
-      <line x1="112" y1="10" x2="168" y2="10" stroke="#C4A8E8" stroke-width="1"/>
-      <text x="100" y="36" text-anchor="middle" font-family="Georgia,serif" font-size="26" fill="#ffffff">AromaTool</text>
-      <text x="100" y="52" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-style="italic" fill="#C8BFFF" letter-spacing="1.5">crafted for your team</text>
-    </svg>
-  </div>
+  ${EMAIL_HEADER_HTML}
 
   <div style="padding:28px 28px 0;">
-    <p style="font-size:15px;color:#4A3270;margin-bottom:6px;text-align:center">
+    <p style="font-size:15px;color:#3D3530;margin-bottom:6px;text-align:center">
       Bună ziua${clientName ? `, <strong>${clientName}</strong>` : ''}!
     </p>
-    <p style="font-size:13px;color:#9B80C4;margin-bottom:24px;text-align:center">
+    <p style="font-size:13px;color:#A89888;margin-bottom:24px;text-align:center">
       Oferta de mai jos a fost pregătită special pentru dumneavoastră<br>
-      de către <strong style="color:#6B5B9E">${userName}</strong>.
+      de către <strong style="color:#5C7A5C">${userName}</strong>.
     </p>
 
-    <table style="width:100%;border-collapse:collapse;border:1px solid #E8E0F8;border-radius:10px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;border:1px solid #E8F0E8;border-radius:10px;overflow:hidden;">
       <thead>
-        <tr style="background:#F5F0FF;">
-          <th style="padding:10px 16px;font-size:11px;color:#9B80C4;text-align:left;font-weight:500;text-transform:uppercase">Produs</th>
-          <th style="padding:10px 16px;font-size:11px;color:#9B80C4;text-align:center;font-weight:500;text-transform:uppercase">Cant.</th>
-          <th style="padding:10px 16px;font-size:11px;color:#9B80C4;text-align:right;font-weight:500;text-transform:uppercase">Total</th>
+        <tr style="background:#F2F5F0;">
+          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:left;font-weight:600;text-transform:uppercase">Produs</th>
+          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:center;font-weight:600;text-transform:uppercase">Cant.</th>
+          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:right;font-weight:600;text-transform:uppercase">Total</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -92,60 +101,55 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     ${transport > 0 ? `
     <table style="width:100%;border-collapse:collapse;margin-top:8px;">
       <tr>
-        <td style="padding:6px 16px;font-size:13px;color:#9B80C4">🚚 Transport</td>
-        <td style="padding:6px 16px;font-size:13px;color:#6B5B9E;text-align:right;font-weight:500">
+        <td style="padding:6px 16px;font-size:13px;color:#A89888">🚚 Transport</td>
+        <td style="padding:6px 16px;font-size:13px;color:#6A5A50;text-align:right;font-weight:500">
           ${fmtCurrency(transportDisplay, displayCurrency)}
-          ${displayCurrency !== 'EUR' ? `<span style="font-size:11px;color:#C4A8E8;margin-left:6px">€ ${transport.toFixed(2)}</span>` : ''}
+          ${displayCurrency !== 'EUR' ? `<span style="font-size:11px;color:#A89888;margin-left:6px">€ ${transport.toFixed(2)}</span>` : ''}
         </td>
       </tr>
     </table>` : ''}
 
-    <table style="width:100%;border-collapse:collapse;background:#F5F0FF;border-radius:10px;margin-top:8px;overflow:hidden;">
+    <table style="width:100%;border-collapse:collapse;background:#E8F0E8;border-radius:10px;margin-top:8px;overflow:hidden;">
       <tr>
-        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:15px;color:#4A3270">Total de plată</td>
-        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:26px;color:#4A3270;font-weight:600;text-align:right">
+        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:15px;color:#3D3530">Total de plată</td>
+        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:26px;color:#3D3530;font-weight:600;text-align:right">
           ${fmtCurrency(totalDisplay, displayCurrency)}
-          ${displayCurrency !== 'EUR' ? `<div style="font-size:13px;color:#9B80C4;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:400">€ ${totalEur.toFixed(2)}</div>` : ''}
+          ${displayCurrency !== 'EUR' ? `<div style="font-size:13px;color:#A89888;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:400">€ ${totalEur.toFixed(2)}</div>` : ''}
         </td>
       </tr>
     </table>
 
     ${notes ? `
-    <div style="margin-top:14px;padding:14px 16px;background:#FDFAFF;border-radius:10px;border:1px solid #E8E0F8;">
-      <div style="font-size:10px;color:#9B80C4;text-transform:uppercase;letter-spacing:.08em;font-weight:500;margin-bottom:8px">Notițe personalizate</div>
-      <div style="font-size:13px;color:#4A3270;line-height:1.7;white-space:pre-wrap">${notes}</div>
+    <div style="margin-top:14px;padding:14px 16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
+      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px">Notițe personalizate</div>
+      <div style="font-size:13px;color:#3D3530;line-height:1.7;white-space:pre-wrap">${notes}</div>
     </div>` : ''}
 
+    ${resourceButtons}
+
     ${enrollLink ? `
-    <div style="margin-top:16px;padding:24px;background:linear-gradient(135deg,#F5F0FF,#EDE5FF);border-radius:12px;border:1px solid #D4C0F0;text-align:center;">
+    <div style="margin-top:16px;padding:24px;background:linear-gradient(135deg,#E8F0E8,#E8F8F0);border-radius:12px;border:1px solid #CADBCA;text-align:center;">
       <div style="font-size:22px;margin-bottom:8px">🌸</div>
-      <div style="font-family:Georgia,serif;font-size:18px;color:#4A3270;font-weight:600;margin-bottom:8px">
+      <div style="font-family:Georgia,serif;font-size:18px;color:#3D3530;font-weight:600;margin-bottom:8px">
         Începe călătoria ta alături de noi!
       </div>
-      <div style="font-size:13px;color:#9B80C4;margin-bottom:18px;line-height:1.7;max-width:340px;margin-left:auto;margin-right:auto">
+      <div style="font-size:13px;color:#6A5A50;margin-bottom:18px;line-height:1.7;max-width:340px;margin-left:auto;margin-right:auto">
         Fii parte dintr-o echipă care te susține, te inspiră și crește împreună cu tine. Un singur pas te separă de această comunitate minunată.
       </div>
       <a href="${enrollLink}"
-        style="display:inline-block;background:linear-gradient(135deg,#7B5EA7,#4A3270);border-radius:10px;padding:13px 36px;color:white;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:0.03em;box-shadow:0 4px 15px rgba(123,94,167,0.3)">
+        style="display:inline-block;background:linear-gradient(135deg,#6B8E6B,#5C7A5C);border-radius:10px;padding:13px 36px;color:white;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:0.03em;box-shadow:0 4px 15px rgba(92,122,92,0.3)">
         Înscrie-te în echipă →
       </a>
-      <div style="font-size:11px;color:#C4A8E8;margin-top:12px">
+      <div style="font-size:11px;color:#A89888;margin-top:12px">
         🌿 Young Living · Înregistrare oficială
       </div>
     </div>` : ''}
   </div>
 
-  <div style="border-top:1px solid #F0EEFF;padding:20px 28px;text-align:center;">
-    <p style="font-size:13px;color:#9B80C4;margin-bottom:16px;line-height:1.6">
-      Ai întrebări? Mă bucur să te ajut!
-    </p>
-    ${userEmail ? `<p style="margin-bottom:8px"><a href="mailto:${userEmail}" style="color:#7B5EA7;text-decoration:none;font-size:13px">${userEmail}</a></p>` : ''}
-    ${userPhone ? `<p style="margin-bottom:16px"><a href="${waLink}" style="color:#6B5B9E;text-decoration:none;font-size:13px">${userPhone}</a></p>` : ''}
-    ${waLink ? `<a href="${waLink}" style="display:inline-block;background:#25D366;border-radius:8px;padding:10px 28px;color:white;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:500;text-decoration:none">Scrie-mi pe WhatsApp</a>` : ''}
-  </div>
+  ${buildEmailFooter({ userName, userPhone, userEmail, userSignature })}
 
-  <div style="background:#F9F7FF;border-top:1px solid #F0EEFF;padding:12px 28px;text-align:center;">
-    <span style="font-size:11px;color:#C4A8E8">Trimis prin AromaTool</span>
+  <div style="background:#FAFAF7;border-top:1px solid #EEF3EE;padding:12px 28px;text-align:center;">
+    <span style="font-size:11px;color:#A89888">Trimis prin AromaTool</span>
   </div>
 
 </div>
@@ -196,12 +200,19 @@ export function useSendEmail() {
       const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'AromaTool'
       const userPhone = user?.user_metadata?.phone || ''
       const userEmail = user?.user_metadata?.contact_email || user?.email || ''
+      const userSignature = user?.user_metadata?.email_signature || ''
 
       const subject = params.clientName
         ? `${params.clientName}, iată oferta ta — ${userName}`
         : `Oferta ta — ${userName}`
 
-      const html = buildEmailHtml(params, userName, userPhone, userEmail)
+      // ── RESURSE: creăm linkuri securizate (token) înainte de trimitere ──
+      const resourceIds = params.resourceIds ?? []
+      const createdLinks = await createResourceLinks(user!.id, resourceIds, params.contactId)
+      const linkRows = createdLinks.map(l => ({ id: l.id }))
+      const resourceLinks: ResourceLink[] = createdLinks.map(l => ({ title: l.title, url: l.url }))
+
+      const html = buildEmailHtml(params, userName, userPhone, userEmail, resourceLinks, userSignature)
 
       // 1. Trimite emailul
       const { data, error: fnError } = await supabase.functions.invoke('send-email', {
@@ -210,11 +221,19 @@ export function useSendEmail() {
           subject,
           html,
           contact_id: params.contactId || undefined,
+          from_name: userName,
+          reply_to: userEmail || undefined,
         }
       })
 
-      if (fnError) throw fnError
-      if (data?.error) throw new Error(data.error)
+      if (fnError || data?.error) {
+        // Curățăm linkurile create dacă emailul a eșuat (fără orfani)
+        if (linkRows.length > 0) {
+          await supabase.from('resource_links').delete().in('id', linkRows.map(l => l.id))
+        }
+        if (fnError) throw fnError
+        throw new Error(data.error)
+      }
 
       // 2. Salvează/actualizează contactul
       let contactId: string | null = params.contactId || null
@@ -258,7 +277,7 @@ export function useSendEmail() {
       }
 
       // 3. Salvează oferta
-      await supabase
+      const { data: newOffer } = await supabase
         .from('offers')
         .insert({
           user_id: user!.id,
@@ -278,6 +297,16 @@ export function useSendEmail() {
           currency: params.currency || 'RON',
           sent_via: 'email',
         })
+        .select('id')
+        .single()
+
+      // 4. Leagă linkurile de resurse de ofertă + contact (tracking)
+      if (linkRows.length > 0) {
+        await supabase
+          .from('resource_links')
+          .update({ offer_id: newOffer?.id ?? null, contact_id: contactId })
+          .in('id', linkRows.map(l => l.id))
+      }
 
       setSuccess(true)
       return true

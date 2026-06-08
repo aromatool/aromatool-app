@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { supabase } from "../lib/supabase";
+import FeedbackWidget from "./FeedbackWidget";
 
 // ── BLOSSOM SAGE THEME ─────────────────────────────────────
 const T = {
@@ -38,8 +40,9 @@ const NAV_RIGHT = [
 const ALL_NAV = [
   { path: "/app/dashboard", icon: "ti-layout-dashboard", label: "Home" },
   { path: "/app/contacts", icon: "ti-users", label: "CRM" },
-  { path: "/app/calculator", icon: "ti-calculator", label: "Calculator" },
+  { path: "/app/calculator", icon: "ti-calculator", label: "Construiește oferta" },
   { path: "/app/offers", icon: "ti-file-text", label: "Oferte" },
+  { path: "/app/resources", icon: "ti-folder", label: "Resurse" },
   { path: "/app/templates", icon: "ti-template", label: "Mesaje" },
 ];
 
@@ -49,8 +52,28 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id) {
+      setIsAdmin(false);
+      return;
+    }
+    supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (active) setIsAdmin(!!data?.is_admin);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -285,6 +308,34 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 />
                 Setări cont
               </button>
+              <button
+                onClick={() => {
+                  navigate("/app/help");
+                  setShowUserMenu(false);
+                }}
+                style={menuItemStyle}
+              >
+                <i
+                  className="ti ti-help-circle"
+                  style={{ fontSize: "15px", color: T.muted }}
+                />
+                Ghid & ajutor
+              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    navigate("/app/admin");
+                    setShowUserMenu(false);
+                  }}
+                  style={menuItemStyle}
+                >
+                  <i
+                    className="ti ti-shield-lock"
+                    style={{ fontSize: "15px", color: T.muted }}
+                  />
+                  Admin
+                </button>
+              )}
               <button
                 onClick={() => {
                   signOut();
@@ -557,6 +608,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
         * { box-sizing: border-box; }
         button { -webkit-tap-highlight-color: transparent; }
       `}</style>
+
+      <FeedbackWidget />
     </div>
   );
 }
