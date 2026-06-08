@@ -12,6 +12,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ResourcesPage from "./pages/ResourcesPage";
 import HelpPage from "./pages/HelpPage";
 import AdminPage from "./pages/AdminPage";
+import { PrivacyPage, TermsPage, CookiePage } from "./pages/legal/Legal";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
@@ -188,6 +189,10 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      {/* Pagini legale — publice */}
+      <Route path="/legal/privacy" element={<PrivacyPage />} />
+      <Route path="/legal/terms" element={<TermsPage />} />
+      <Route path="/legal/cookies" element={<CookiePage />} />
       <Route
         path="*"
         element={<Navigate to={user ? "/app/dashboard" : "/auth"} replace />}

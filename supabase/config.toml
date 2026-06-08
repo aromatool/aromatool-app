@@ -448,3 +448,17 @@ entrypoint = "./functions/stripe-webhook/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/daily-focus/index.ts"
+
+# Dezabonare destinatar — accesat din linkul de email (GET) și one-click
+# (POST de la Gmail/Yahoo). Public; autorizarea vine din tokenul HMAC.
+[functions.unsubscribe]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/unsubscribe/index.ts"
+
+# Ștergere cont (GDPR) — apelat din aplicație; verificăm JWT în funcție
+# (verify_jwt = false ca să citim manual tokenul, ca la send-email).
+[functions.delete-account]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/delete-account/index.ts"

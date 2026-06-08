@@ -1,8 +1,26 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { COUNTRIES, flagOf } from "../lib/countries";
 import PhoneInput from "../components/PhoneInput";
+
+// Declanșează descărcarea unui fișier în browser.
+function downloadFile(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Escapează o valoare pentru CSV (RFC 4180).
+function csvCell(v: unknown): string {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 // Blossom Sage — temă unică pe tot app-ul.
 const C = {
@@ -81,6 +99,87 @@ export default function SettingsPage() {
       setPwSuccess(true);
       setTimeout(() => setPwSuccess(false), 3000);
     }
+  }
+
+  // ── Export date ────────────────────────────────────────────
+  const [exporting, setExporting] = useState(false);
+
+  async function exportContactsCsv() {
+    setExporting(true);
+    const { data } = await supabase
+      .from("contacts")
+      .select(
+        "name, email, phone, source, status, notes, created_at, updated_at",
+      )
+      .eq("user_id", user!.id);
+    const rows = data || [];
+    const cols = [
+      "name",
+      "email",
+      "phone",
+      "source",
+      "status",
+      "notes",
+      "created_at",
+      "updated_at",
+    ];
+    const csv = [
+      cols.join(","),
+      ...rows.map((r) =>
+        cols.map((c) => csvCell((r as Record<string, unknown>)[c])).join(","),
+      ),
+    ].join("\n");
+    downloadFile(
+      `aromatool-contacte-${new Date().toISOString().slice(0, 10)}.csv`,
+      "﻿" + csv, // BOM pentru diacritice în Excel
+      "text/csv;charset=utf-8",
+    );
+    setExporting(false);
+  }
+
+  async function exportAccountJson() {
+    setExporting(true);
+    const [profileRes, contactsRes, offersRes] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", user!.id).single(),
+      supabase.from("contacts").select("*").eq("user_id", user!.id),
+      supabase.from("offers").select("*").eq("user_id", user!.id),
+    ]);
+    const bundle = {
+      exported_at: new Date().toISOString(),
+      account: { id: user!.id, email: user!.email },
+      profile: profileRes.data ?? null,
+      contacts: contactsRes.data ?? [],
+      offers: offersRes.data ?? [],
+    };
+    downloadFile(
+      `aromatool-date-cont-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify(bundle, null, 2),
+      "application/json",
+    );
+    setExporting(false);
+  }
+
+  // ── Ștergere cont ──────────────────────────────────────────
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  async function deleteAccount() {
+    setDeleteError("");
+    setDeleting(true);
+    const { data, error: fnErr } = await supabase.functions.invoke(
+      "delete-account",
+      { body: {} },
+    );
+    if (fnErr || data?.error) {
+      setDeleting(false);
+      setDeleteError(
+        "Nu am putut șterge contul. Încearcă din nou sau scrie-ne.",
+      );
+      return;
+    }
+    // Cont șters — deconectăm și ieșim.
+    await signOut();
   }
 
   useEffect(() => {
@@ -607,6 +706,101 @@ export default function SettingsPage() {
               : "—"}
           </span>
         </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "16px",
+            marginTop: "14px",
+            paddingTop: "14px",
+            borderTop: `1px solid ${C.border}`,
+            fontSize: "12px",
+          }}
+        >
+          <Link to="/legal/terms" style={{ color: C.primary }}>
+            Termeni
+          </Link>
+          <Link to="/legal/privacy" style={{ color: C.primary }}>
+            Confidențialitate
+          </Link>
+          <Link to="/legal/cookies" style={{ color: C.primary }}>
+            Cookie-uri
+          </Link>
+        </div>
+      </div>
+
+      {/* Date & export (GDPR) */}
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "16px",
+          padding: "24px",
+          marginBottom: "16px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: C.primary,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: "6px",
+          }}
+        >
+          📦 Datele tale
+        </div>
+        <div
+          style={{
+            fontSize: "12px",
+            color: C.muted,
+            marginBottom: "16px",
+            lineHeight: 1.5,
+          }}
+        >
+          Descarcă o copie a datelor tale oricând.
+        </div>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button
+            onClick={exportContactsCsv}
+            disabled={exporting}
+            style={{
+              flex: 1,
+              minWidth: "180px",
+              padding: "11px",
+              background: C.bg,
+              border: `1px solid ${C.border2}`,
+              borderRadius: "10px",
+              color: C.dark,
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: exporting ? "not-allowed" : "pointer",
+            }}
+          >
+            ⬇️ Export contacte (CSV)
+          </button>
+          <button
+            onClick={exportAccountJson}
+            disabled={exporting}
+            style={{
+              flex: 1,
+              minWidth: "180px",
+              padding: "11px",
+              background: C.bg,
+              border: `1px solid ${C.border2}`,
+              borderRadius: "10px",
+              color: C.dark,
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: exporting ? "not-allowed" : "pointer",
+            }}
+          >
+            ⬇️ Toate datele (JSON)
+          </button>
+        </div>
       </div>
 
       {/* Change password */}
@@ -749,10 +943,94 @@ export default function SettingsPage() {
             fontSize: "13px",
             fontWeight: 500,
             cursor: "pointer",
+            marginBottom: "20px",
           }}
         >
           🚪 Ieși din cont
         </button>
+
+        {/* Ștergere definitivă cont */}
+        <div
+          style={{
+            borderTop: `1px solid rgba(201,79,106,0.2)`,
+            paddingTop: "18px",
+          }}
+        >
+          <div style={{ fontSize: "13px", fontWeight: 600, color: C.dark }}>
+            Șterge definitiv contul
+          </div>
+          <div
+            style={{
+              fontSize: "12px",
+              color: C.muted,
+              marginTop: "4px",
+              lineHeight: 1.5,
+              marginBottom: "12px",
+            }}
+          >
+            Se șterg definitiv toate contactele, ofertele, resursele și datele
+            tale. Acțiunea nu poate fi anulată. (Facturile se păstrează conform
+            legii contabile.)
+          </div>
+
+          <label style={{ ...labelStyle, color: C.red }}>
+            Scrie <strong>STERGE</strong> ca să confirmi
+          </label>
+          <input
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder="STERGE"
+            style={{
+              ...inputStyle,
+              border: "1.5px solid rgba(201,79,106,0.35)",
+            }}
+          />
+
+          {deleteError && (
+            <div
+              style={{
+                marginTop: "10px",
+                fontSize: "12px",
+                color: C.red,
+              }}
+            >
+              ⚠️ {deleteError}
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  "Ești absolut sigur? Toate datele tale vor fi șterse definitiv.",
+                )
+              )
+                deleteAccount();
+            }}
+            disabled={deleteConfirm.trim() !== "STERGE" || deleting}
+            style={{
+              marginTop: "12px",
+              width: "100%",
+              padding: "12px",
+              background:
+                deleteConfirm.trim() === "STERGE" && !deleting
+                  ? C.red
+                  : "#E5D5DA",
+              border: "none",
+              borderRadius: "10px",
+              color: "white",
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor:
+                deleteConfirm.trim() === "STERGE" && !deleting
+                  ? "pointer"
+                  : "not-allowed",
+            }}
+          >
+            {deleting ? "Se șterge contul..." : "🗑️ Șterge contul definitiv"}
+          </button>
+        </div>
       </div>
     </div>
   );

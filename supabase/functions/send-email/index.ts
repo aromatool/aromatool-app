@@ -4,6 +4,42 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+// Secret pentru semnarea linkului de dezabonare; același ca în funcția
+// `unsubscribe`. Fallback pe CRON_SECRET ca să nu adăugăm un secret nou.
+const UNSUB_SECRET =
+  Deno.env.get('UNSUBSCRIBE_SECRET') || Deno.env.get('CRON_SECRET') || ''
+
+// HMAC-SHA256(contactId) → hex. Identic cu funcția `unsubscribe`.
+async function signUnsub(contactId: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(UNSUB_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(contactId),
+  )
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// Construiește URL-ul de dezabonare pentru un contact.
+function unsubUrl(contactId: string, token: string): string {
+  return `${SUPABASE_URL}/functions/v1/unsubscribe?c=${contactId}&t=${token}`
+}
+
+// Footer HTML cu linkul de dezabonare, inserat înainte de </body>.
+function injectUnsubFooter(html: string, link: string): string {
+  const footer = `<div style="margin-top:24px;padding-top:16px;border-top:1px solid #EDE8E0;font-size:11px;color:#A89888;text-align:center;font-family:sans-serif">Nu mai vrei aceste emailuri? <a href="${link}" style="color:#A89888">Dezabonează-te</a>.</div>`
+  return html.includes('</body>')
+    ? html.replace('</body>', `${footer}</body>`)
+    : html + footer
+}
 
 // Adresa tehnică de expediere. O singură dată verifici domeniul în Resend
 // și setezi secretul MAIL_FROM (ex: "trimite@mail.aromatool.com"). Până atunci
@@ -88,14 +124,30 @@ serve(async (req) => {
       }
     }
 
+    // ── DEZABONARE (conformitate email UE) ───────────────────
+    // Dacă avem un contact, generăm link semnat + îl injectăm în HTML
+    // și adăugăm header-ele List-Unsubscribe (cerute de Gmail/Yahoo).
+    let finalHtml = html
+    let unsubHeaders: Record<string, string> = {}
+    if (contact_id && UNSUB_SECRET) {
+      const token = await signUnsub(contact_id)
+      const link = unsubUrl(contact_id, token)
+      finalHtml = injectUnsubFooter(html, link)
+      unsubHeaders = {
+        'List-Unsubscribe': `<${link}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      }
+    }
+
     // ── TRIMITERE EMAIL ──────────────────────────────────────
     // From: numele utilizatorului pe domeniul nostru; Reply ajunge la el.
     const payload: Record<string, unknown> = {
       from: buildFrom(from_name),
       to,
       subject,
-      html,
+      html: finalHtml,
     }
+    if (Object.keys(unsubHeaders).length) payload.headers = unsubHeaders
     const rt = validReplyTo(reply_to)
     if (rt) payload.reply_to = rt
 

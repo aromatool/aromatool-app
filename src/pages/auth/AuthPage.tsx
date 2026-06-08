@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 
 // ── BLOSSOM SAGE ───────────────────────────────────────────
@@ -556,6 +556,29 @@ export default function AuthPage() {
             14 zile trial gratuit · Fără card de credit
           </div>
         )}
+
+        {/* Linkuri legale */}
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "14px",
+            fontSize: "11px",
+            color: T.muted,
+            display: "flex",
+            gap: "14px",
+            justifyContent: "center",
+          }}
+        >
+          <Link to="/legal/terms" style={{ color: T.muted }}>
+            Termeni
+          </Link>
+          <Link to="/legal/privacy" style={{ color: T.muted }}>
+            Confidențialitate
+          </Link>
+          <Link to="/legal/cookies" style={{ color: T.muted }}>
+            Cookie-uri
+          </Link>
+        </div>
       </div>
     </div>
   );
