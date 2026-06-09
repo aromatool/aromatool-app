@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resetează-ți parola AromaTool</title>
+  </head>
+  <body style="margin:0; padding:0; background:#F4F1EC; font-family:'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#3D3530;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F1EC; padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px; background:#FFFFFF; border:1px solid #EDE8E0; border-radius:18px; overflow:hidden;">
+            <tr>
+              <td style="background:linear-gradient(135deg,#5C7A5C,#4A6A4A); padding:28px 32px; text-align:center;">
+                <div style="font-size:30px; line-height:1;">🌿</div>
+                <div style="color:#FFFFFF; font-family:'Playfair Display', Georgia, serif; font-size:22px; font-weight:600; margin-top:8px;">AromaTool</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 32px 8px;">
+                <h1 style="margin:0 0 12px; font-family:'Playfair Display', Georgia, serif; font-size:22px; font-weight:600; color:#3D3530;">Resetare parolă</h1>
+                <p style="margin:0 0 20px; font-size:15px; line-height:1.6; color:#6A5A50;">
+                  Am primit o cerere de resetare a parolei pentru contul tău. Apasă butonul de mai jos ca să-ți alegi o parolă nouă.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 8px;" align="center">
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block; background:#5C7A5C; color:#FFFFFF; text-decoration:none; font-size:15px; font-weight:600; padding:14px 32px; border-radius:12px;">
+                  Setează o parolă nouă
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 0;">
+                <p style="margin:0 0 8px; font-size:13px; line-height:1.6; color:#A89888;">
+                  Dacă butonul nu funcționează, copiază și deschide linkul de mai jos:
+                </p>
+                <p style="margin:0 0 20px; font-size:12px; line-height:1.5; word-break:break-all;">
+                  <a href="{{ .ConfirmationURL }}" style="color:#5C7A5C; text-decoration:underline;">{{ .ConfirmationURL }}</a>
+                </p>
+                <p style="margin:0 0 8px; font-size:13px; line-height:1.6; color:#A89888;">
+                  Nu ai cerut tu resetarea? Ignoră acest mesaj — parola ta rămâne neschimbată.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px; border-top:1px solid #EDE8E0;">
+                <p style="margin:0; font-size:12px; line-height:1.5; color:#A89888; text-align:center;">
+                  AromaTool — unealta ta de zi cu zi pentru echipa Young Living.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

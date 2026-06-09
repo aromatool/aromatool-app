@@ -10,8 +10,10 @@ const STRIPE_SECRET_KEY         = Deno.env.get('STRIPE_SECRET_KEY') ?? ''
 const APP_URL                   = Deno.env.get('APP_URL') ?? ''
 
 // Mapping plan → Stripe Price ID (le creezi în Stripe Dashboard).
-// Setezi ca secrete: STRIPE_PRICE_STARTER, STRIPE_PRICE_GROWTH, ...
+// La lansare folosim un singur plan: „pro" (STRIPE_PRICE_PRO, lunar).
+// Restul rămân pentru compatibilitate dacă au fost vreodată setate.
 const PRICE_BY_PLAN: Record<string, string> = {
+  pro:      Deno.env.get('STRIPE_PRICE_PRO')      ?? '',
   starter:  Deno.env.get('STRIPE_PRICE_STARTER')  ?? '',
   growth:   Deno.env.get('STRIPE_PRICE_GROWTH')   ?? '',
   team:     Deno.env.get('STRIPE_PRICE_TEAM')     ?? '',
@@ -79,8 +81,22 @@ serve(async (req) => {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${base}/app/resources?upgrade=success`,
-      cancel_url: `${base}/app/resources?upgrade=cancel`,
+      // Permite introducerea codurilor de lansare (promotion codes) la checkout.
+      allow_promotion_codes: true,
+      // ── MULTI-COUNTRY ────────────────────────────────────
+      // Valuta clientului e aleasă automat de Stripe DACĂ Price-ul are
+      // currency_options (RON, EUR, ...) setate în Dashboard.
+      // Colectăm adresa ca să putem calcula TVA-ul corect pe țară.
+      billing_address_collection: 'auto',
+      // TVA automat per țară (necesită activarea Stripe Tax în Dashboard).
+      automatic_tax: { enabled: true },
+      // Obligatoriu când refolosim un customer + automatic_tax: lăsăm
+      // Stripe să sincronizeze adresa/numele din checkout pe customer.
+      customer_update: { address: 'auto', name: 'auto' },
+      // Permite firmelor să-și introducă codul de TVA (B2B UE).
+      tax_id_collection: { enabled: true },
+      success_url: `${base}/app/settings?upgrade=success`,
+      cancel_url: `${base}/app/settings?upgrade=cancel`,
       // metadata e citită de webhook ca să seteze planul
       metadata: { supabase_user_id: user.id, plan },
       subscription_data: { metadata: { supabase_user_id: user.id, plan } },

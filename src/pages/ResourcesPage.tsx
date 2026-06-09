@@ -7,6 +7,7 @@ import {
 } from "../hooks/useResources";
 import type { Resource } from "../hooks/useResources";
 import { useUpgrade } from "../hooks/useUpgrade";
+import { useSubscription } from "../lib/subscription";
 
 // Ordinea planurilor pentru a sugera următorul upgrade
 const PLAN_ORDER = ["trial", "starter", "growth", "team", "business"];
@@ -66,6 +67,7 @@ export default function ResourcesPage() {
   const { resources, loading, usedBytes, quotaBytes, plan, upload, rename, remove } =
     useResources();
   const { upgrade, loading: upgrading } = useUpgrade();
+  const { requireAccess } = useSubscription();
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -80,6 +82,7 @@ export default function ResourcesPage() {
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
+    if (!requireAccess()) return;
     setError("");
     for (const file of Array.from(files)) {
       if (!ALLOWED_TYPES.includes(file.type)) {

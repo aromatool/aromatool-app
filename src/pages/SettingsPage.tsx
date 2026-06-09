@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { COUNTRIES, flagOf } from "../lib/countries";
 import PhoneInput from "../components/PhoneInput";
+import { useSubscription, PLAN } from "../lib/subscription";
+import { useUpgrade } from "../hooks/useUpgrade";
 
 // Declanșează descărcarea unui fișier în browser.
 function downloadFile(filename: string, content: string, mime: string) {
@@ -53,6 +55,44 @@ interface Profile {
 
 export default function SettingsPage() {
   const { user, signOut, updatePassword } = useAuth();
+
+  // ── Abonament ──────────────────────────────────────────────
+  const sub = useSubscription();
+  const { upgrade, loading: upgradeLoading, error: upgradeError } = useUpgrade();
+  const [searchParams] = useSearchParams();
+  const upgradeResult = searchParams.get("upgrade"); // "success" | "cancel"
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState("");
+
+  // După întoarcerea din checkout reîmprospătăm starea abonamentului.
+  useEffect(() => {
+    if (upgradeResult === "success") sub.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upgradeResult]);
+
+  async function openPortal() {
+    setPortalError("");
+    setPortalLoading(true);
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "customer-portal",
+        { body: {} },
+      );
+      if (fnErr) throw fnErr;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) {
+        window.location.href = data.url as string;
+        return;
+      }
+      throw new Error("Nu am primit linkul portalului.");
+    } catch (e) {
+      setPortalError(
+        e instanceof Error ? e.message : "Eroare la deschiderea portalului.",
+      );
+    } finally {
+      setPortalLoading(false);
+    }
+  }
   const [profile, setProfile] = useState<Profile>({
     full_name: "",
     phone: "",
@@ -673,30 +713,6 @@ export default function SettingsPage() {
             justifyContent: "space-between",
             alignItems: "center",
             padding: "10px 0",
-            borderBottom: `1px solid ${C.border}`,
-          }}
-        >
-          <span style={{ fontSize: "13px", color: C.muted }}>Plan</span>
-          <span
-            style={{
-              fontSize: "12px",
-              background: C.bg2,
-              color: C.primary,
-              padding: "3px 10px",
-              borderRadius: "999px",
-              fontWeight: 500,
-            }}
-          >
-            Trial gratuit
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "10px 0",
           }}
         >
           <span style={{ fontSize: "13px", color: C.muted }}>Cont creat</span>
@@ -727,6 +743,187 @@ export default function SettingsPage() {
             Cookie-uri
           </Link>
         </div>
+      </div>
+
+      {/* Abonament / Plan */}
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "16px",
+          padding: "24px",
+          marginBottom: "16px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: C.primary,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: "16px",
+          }}
+        >
+          💳 Abonament
+        </div>
+
+        {upgradeResult === "success" && (
+          <div
+            style={{
+              marginBottom: "14px",
+              padding: "10px 14px",
+              background: C.greenbg,
+              border: `1px solid rgba(46,138,88,0.2)`,
+              borderRadius: "10px",
+              fontSize: "13px",
+              color: C.green,
+            }}
+          >
+            ✅ Mulțumim! Abonamentul tău este activ.
+          </div>
+        )}
+
+        {/* Status curent */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            padding: "14px 16px",
+            background: C.bg,
+            border: `1px solid ${C.border2}`,
+            borderRadius: "12px",
+            marginBottom: "16px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: C.dark }}>
+              {sub.isAdmin
+                ? "Cont administrator"
+                : sub.freeAccess
+                  ? "Acces gratuit"
+                  : sub.isActive
+                    ? PLAN.name
+                    : sub.isTrialing
+                      ? "Perioadă gratuită"
+                      : "Fără abonament"}
+            </div>
+            <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>
+              {sub.isAdmin
+                ? "Acces complet, fără abonament."
+                : sub.freeAccess
+                  ? "Acces oferit de echipă, fără plată."
+                  : sub.isActive
+                    ? "Abonament activ."
+                    : sub.isPastDue
+                      ? "Plata a eșuat — actualizează metoda de plată."
+                      : sub.isTrialing
+                        ? sub.daysLeft === 1
+                          ? "Expiră mâine."
+                          : `${sub.daysLeft} zile rămase.`
+                        : "Perioada gratuită s-a încheiat."}
+            </div>
+          </div>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 600,
+              padding: "4px 10px",
+              borderRadius: "999px",
+              background: sub.hasAccess ? C.greenbg : C.redbg,
+              color: sub.hasAccess ? C.green : C.red,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {sub.hasAccess ? "Acces activ" : "Acces blocat"}
+          </span>
+        </div>
+
+        {(portalError || upgradeError) && (
+          <div
+            style={{
+              marginBottom: "12px",
+              padding: "10px 14px",
+              background: C.redbg,
+              border: `1px solid rgba(201,79,106,0.2)`,
+              borderRadius: "10px",
+              fontSize: "13px",
+              color: C.red,
+            }}
+          >
+            ⚠️ {portalError || upgradeError}
+          </div>
+        )}
+
+        {/* Acțiuni — adminii și conturile cu acces gratuit nu plătesc. */}
+        {sub.isAdmin || sub.freeAccess ? null : sub.isActive ||
+          sub.isPastDue ? (
+          <button
+            onClick={openPortal}
+            disabled={portalLoading}
+            style={{
+              width: "100%",
+              padding: "12px",
+              background: C.bg,
+              border: `1px solid ${C.border2}`,
+              borderRadius: "10px",
+              color: C.dark,
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "14px",
+              fontWeight: 500,
+              cursor: portalLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {portalLoading ? "Se deschide..." : "Gestionează abonamentul"}
+          </button>
+        ) : (
+          <>
+            <div
+              style={{
+                fontSize: "13px",
+                color: C.muted,
+                marginBottom: "12px",
+                lineHeight: 1.5,
+              }}
+            >
+              {PLAN.name} — <strong style={{ color: C.dark }}>{PLAN.priceText}</strong>.{" "}
+              {PLAN.tagline}
+            </div>
+            <button
+              onClick={() => upgrade(PLAN.id)}
+              disabled={upgradeLoading}
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: upgradeLoading
+                  ? C.muted
+                  : `linear-gradient(135deg, #5C7A5C, #4A6A4A)`,
+                border: "none",
+                borderRadius: "10px",
+                color: "white",
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: upgradeLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              {upgradeLoading ? "Se deschide..." : "Abonează-te"}
+            </button>
+            <div
+              style={{
+                fontSize: "12px",
+                color: C.muted,
+                textAlign: "center",
+                marginTop: "10px",
+              }}
+            >
+              Ai un cod de lansare? Îl introduci la pasul de plată.
+            </div>
+          </>
+        )}
       </div>
 
       {/* Date & export (GDPR) */}

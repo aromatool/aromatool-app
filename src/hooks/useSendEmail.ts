@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
+import { useSubscription } from '../lib/subscription'
 import { createResourceLinks } from '../lib/resourceLink'
 import { EMAIL_HEADER_HTML } from '../lib/emailLogo'
 import { buildEmailFooter } from '../lib/emailFooter'
@@ -161,8 +162,10 @@ export function useSendEmail() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const { user } = useAuth()
+  const { requireAccess } = useSubscription()
 
   const sendOffer = async (params: SendOfferParams) => {
+    if (!requireAccess()) return false
     if (!params.clientEmail || !params.clientEmail.includes('@') || params.clientEmail.includes('@noemail.local')) {
       setError('Clientul nu are un email valid. Adaugă un email în fișa de contact înainte să trimiți oferta.')
       return false

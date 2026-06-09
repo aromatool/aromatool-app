@@ -62,6 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { full_name: fullName },
+        // Linkul de confirmare duce înapoi în aplicație (trebuie să fie
+        // și în Authentication → URL Configuration → Redirect URLs).
+        emailRedirectTo: `${window.location.origin}/auth`,
       },
     });
     return { error };

@@ -140,6 +140,36 @@ const HELP: HelpCategory[] = [
     ],
   },
   {
+    icon: "ti-credit-card",
+    title: "Abonament & perioadă gratuită",
+    items: [
+      {
+        q: "Cât durează perioada gratuită (trial)?",
+        a: "La crearea contului primești o perioadă gratuită în care ai acces la toate funcțiile, fără să introduci un card. Numărul exact de zile rămase îl vezi oricând în Setări, în cardul „Abonament”.",
+      },
+      {
+        q: "Am nevoie de card ca să încep?",
+        a: "Nu. Perioada gratuită pornește automat, fără card de credit. Introduci o metodă de plată doar atunci când decizi să te abonezi.",
+      },
+      {
+        q: "Ce se întâmplă când expiră perioada gratuită?",
+        a: "Poți în continuare să te autentifici, să-ți vezi datele și să le exporți. Acțiunile de scriere (adăugare contacte, trimitere mesaje și oferte, încărcare resurse) se deblochează după ce te abonezi.",
+      },
+      {
+        q: "Cum mă abonez?",
+        a: "Din Setări → cardul „Abonament” apeși „Abonează-te”. Te ducem la pagina de plată securizată, unde alegi metoda de plată și, dacă ai, introduci codul de lansare. După confirmare, contul tău se deblochează automat.",
+      },
+      {
+        q: "Am un cod de lansare / reducere. Unde îl introduc?",
+        a: "La pasul de plată, după ce apeși „Abonează-te”, există un câmp pentru codul promoțional. Îl introduci acolo și reducerea se aplică automat.",
+      },
+      {
+        q: "Cum îmi gestionez abonamentul sau factura?",
+        a: "Din Setări → cardul „Abonament” → „Gestionează abonamentul”. Acolo poți schimba metoda de plată, vedea facturile sau anula abonamentul, oricând.",
+      },
+    ],
+  },
+  {
     icon: "ti-settings",
     title: "Setări & cont",
     items: [

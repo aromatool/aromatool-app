@@ -243,10 +243,18 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Șabloane de email personalizate (RO, brandate AromaTool).
+[auth.email.template.confirmation]
+subject = "Confirmă-ți contul AromaTool 🌿"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Resetează-ți parola AromaTool"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirmă noua adresă de email — AromaTool"
+content_path = "./supabase/templates/email_change.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
@@ -435,6 +443,12 @@ entrypoint = "./functions/resource-redirect/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/create-checkout/index.ts"
+
+# Customer Portal Stripe — gestionarea abonamentului (card, facturi, anulare).
+[functions.customer-portal]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/customer-portal/index.ts"
 
 # Webhook Stripe — apelat de Stripe, fără JWT (verificăm semnătura).
 [functions.stripe-webhook]

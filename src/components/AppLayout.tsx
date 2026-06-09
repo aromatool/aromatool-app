@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useSubscription } from "../lib/subscription";
 import { supabase } from "../lib/supabase";
 import FeedbackWidget from "./FeedbackWidget";
 
@@ -48,6 +49,7 @@ const ALL_NAV = [
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, signOut } = useAuth();
+  const sub = useSubscription();
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -351,6 +353,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
       </header>
 
+      {/* ── BANNER ABONAMENT ─────────────────────────────── */}
+      <SubscriptionBanner sub={sub} onAction={() => navigate("/app/settings")} />
+
       {/* ── MAIN CONTENT ─────────────────────────────────── */}
       <main
         style={{
@@ -610,6 +615,137 @@ export default function AppLayout({ children }: AppLayoutProps) {
       `}</style>
 
       <FeedbackWidget />
+    </div>
+  );
+}
+
+// ── BANNER ABONAMENT ────────────────────────────────────────
+interface BannerSub {
+  loading: boolean;
+  isActive: boolean;
+  isTrialing: boolean;
+  isPastDue: boolean;
+  isAdmin: boolean;
+  freeAccess: boolean;
+  hasAccess: boolean;
+  daysLeft: number;
+  openPaywall: () => void;
+}
+
+function SubscriptionBanner({
+  sub,
+  onAction,
+}: {
+  sub: BannerSub;
+  onAction: () => void;
+}) {
+  // Adminii și utilizatorii cu acces gratuit nu văd niciun banner.
+  if (sub.loading || sub.isActive || sub.isAdmin || sub.freeAccess) return null;
+
+  // Plată eșuată — prioritate maximă.
+  if (sub.isPastDue) {
+    return (
+      <BannerBar
+        bg="#FFF0F4"
+        border="#F3C9D3"
+        color="#A23A52"
+        icon="ti-alert-triangle"
+        text="Plata abonamentului a eșuat. Actualizează metoda de plată ca să nu pierzi accesul."
+        cta="Gestionează"
+        onClick={onAction}
+      />
+    );
+  }
+
+  // Trial activ — afișăm un memento discret.
+  if (sub.isTrialing) {
+    const urgent = sub.daysLeft <= 3;
+    return (
+      <BannerBar
+        bg={urgent ? "#FBF3E8" : "#E8F0E8"}
+        border={urgent ? "#E8D5B5" : "#C8D8C8"}
+        color={urgent ? "#9A6A2A" : "#4A6A4A"}
+        icon="ti-clock"
+        text={
+          sub.daysLeft === 1
+            ? "Perioada gratuită expiră mâine."
+            : `Perioada gratuită: ${sub.daysLeft} zile rămase.`
+        }
+        cta="Vezi planul"
+        onClick={onAction}
+      />
+    );
+  }
+
+  // Fără acces (trial expirat, fără abonament) — poarta blândă.
+  if (!sub.hasAccess) {
+    return (
+      <BannerBar
+        bg="#FBF3E8"
+        border="#E8D5B5"
+        color="#9A6A2A"
+        icon="ti-lock"
+        text="Perioada gratuită s-a încheiat. Abonează-te ca să continui să adaugi contacte și să trimiți mesaje."
+        cta="Abonează-te"
+        onClick={sub.openPaywall}
+      />
+    );
+  }
+
+  return null;
+}
+
+function BannerBar({
+  bg,
+  border,
+  color,
+  icon,
+  text,
+  cta,
+  onClick,
+}: {
+  bg: string;
+  border: string;
+  color: string;
+  icon: string;
+  text: string;
+  cta: string;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: bg,
+        borderBottom: `1px solid ${border}`,
+        padding: "10px 24px",
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        fontSize: "13px",
+        color,
+        fontFamily: "'DM Sans', Inter, system-ui, sans-serif",
+      }}
+    >
+      <i className={`ti ${icon}`} style={{ fontSize: "16px", flexShrink: 0 }} />
+      <span style={{ flex: 1, lineHeight: 1.4 }}>{text}</span>
+      <button
+        onClick={onClick}
+        style={{
+          border: `1px solid ${color}`,
+          background: "transparent",
+          color,
+          borderRadius: "8px",
+          padding: "5px 12px",
+          fontSize: "12px",
+          fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: "inherit",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
+        }}
+      >
+        {cta}
+      </button>
     </div>
   );
 }

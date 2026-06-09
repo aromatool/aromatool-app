@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { useSubscription } from "../lib/subscription";
 import type { ActionType } from "../lib/recommendedAction";
 import { EMAIL_HEADER_HTML } from "../lib/emailLogo";
 import { createResourceLinks } from "../lib/resourceLink";
@@ -229,6 +230,7 @@ export default function FollowupModal({
   action,
 }: FollowupModalProps) {
   const { user } = useAuth();
+  const { requireAccess } = useSubscription();
   const { resources } = useResources();
   const [tab, setTab] = useState<Tab>("template");
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -373,6 +375,7 @@ export default function FollowupModal({
   }
 
   async function send() {
+    if (!requireAccess()) return;
     setSending(true);
     setError("");
 

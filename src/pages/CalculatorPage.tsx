@@ -7,6 +7,7 @@ import EnrollLink from "../components/EnrollLink";
 import CurrencyPanel from "../components/CurrencyPanel";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 import { useAuth } from "../lib/auth";
+import { useSubscription } from "../lib/subscription";
 import type { Product } from "../hooks/useProducts";
 
 // ── BLOSSOM SAGE COLORS ───────────────────────────────────
@@ -334,6 +335,7 @@ function CartSection() {
   const [offerText, setOfferText] = useState("");
   const { addCustomItem } = useCartStore();
   const { user } = useAuth();
+  const { requireAccess } = useSubscription();
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
   const [customQty, setCustomQty] = useState("1");
@@ -398,6 +400,7 @@ function CartSection() {
   // Deschide WhatsApp cu textul ofertei precompletat.
   // Dacă avem telefonul clientului, deschide direct conversația cu el.
   function sendOfferWhatsApp() {
+    if (!requireAccess()) return;
     const text = encodeURIComponent(offerText || buildOfferText());
     const digits = clientPhone
       ? clientPhone.replace(/[^0-9]/g, "").replace(/^0/, "40")

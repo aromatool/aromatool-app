@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/auth";
+import { SubscriptionProvider } from "./lib/subscription";
 import AuthPage from "./pages/auth/AuthPage";
 import AppLayout from "./components/AppLayout";
 import CalculatorPage from "./pages/CalculatorPage";
@@ -204,7 +205,9 @@ function AppRoutes() {
 function AppWithAuth() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <SubscriptionProvider>
+        <AppRoutes />
+      </SubscriptionProvider>
     </AuthProvider>
   );
 }

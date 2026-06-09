@@ -38,6 +38,9 @@ interface AdminUser {
   email: string;
   full_name: string | null;
   subscription_plan: string | null;
+  subscription_status: string | null;
+  trial_ends_at: string | null;
+  free_access: boolean;
   is_admin: boolean;
   created_at: string;
   last_sign_in_at: string | null;
@@ -158,6 +161,17 @@ function fmtLastSeen(iso: string | null): string {
   return fmtDate(iso);
 }
 
+// Stare trial scurtă pentru tabelul de utilizatori.
+function trialLabel(iso: string | null): { text: string; expired: boolean } {
+  if (!iso) return { text: "—", expired: false };
+  const end = new Date(iso).getTime();
+  if (Number.isNaN(end)) return { text: "—", expired: false };
+  const days = Math.ceil((end - Date.now()) / 86_400_000);
+  if (days <= 0) return { text: "expirat", expired: true };
+  if (days === 1) return { text: "1 zi", expired: false };
+  return { text: `${days} zile`, expired: false };
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -171,6 +185,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+
+  // ── Config trial (global) ────────────────────────────────
+  const [trialDays, setTrialDays] = useState<number | null>(null);
+  const [trialInput, setTrialInput] = useState("");
+  const [trialSaving, setTrialSaving] = useState(false);
+  const [trialMsg, setTrialMsg] = useState("");
 
   // ── Catalog produse ──────────────────────────────────────
   const [lastJob, setLastJob] = useState<ImportJob | null>(null);
@@ -216,7 +236,7 @@ export default function AdminPage() {
     (async () => {
       setLoading(true);
       setError("");
-      const [ov, us, fb, job, focus, failed] = await Promise.all([
+      const [ov, us, fb, job, focus, failed, td] = await Promise.all([
         supabase.rpc("admin_overview"),
         supabase.rpc("admin_users"),
         supabase
@@ -242,6 +262,7 @@ export default function AdminPage() {
           .eq("status", "failed")
           .order("created_at", { ascending: false })
           .limit(20),
+        supabase.rpc("admin_get_trial_days"),
       ]);
       if (!active) return;
       if (ov.error || us.error || fb.error) {
@@ -253,6 +274,10 @@ export default function AdminPage() {
         if (job.data) setLastJob(job.data as ImportJob);
         setFocusJobs((focus.data as FocusJob[]) ?? []);
         setFailedImports((failed.data as FailedImport[]) ?? []);
+        if (typeof td.data === "number") {
+          setTrialDays(td.data);
+          setTrialInput(String(td.data));
+        }
       }
       setLoading(false);
     })();
@@ -343,6 +368,85 @@ export default function AdminPage() {
     }
     setUsers((prev) =>
       prev.map((u) => (u.id === target.id ? { ...u, is_admin: makeAdmin } : u))
+    );
+  }
+
+  // Salvează durata globală de trial (pentru conturi noi).
+  async function saveTrialDays() {
+    const n = parseInt(trialInput, 10);
+    if (Number.isNaN(n) || n < 0 || n > 365) {
+      setTrialMsg("Introdu un număr între 0 și 365.");
+      return;
+    }
+    setTrialSaving(true);
+    setTrialMsg("");
+    const { data, error: rpcErr } = await supabase.rpc("admin_set_trial_days", {
+      p_days: n,
+    });
+    setTrialSaving(false);
+    if (rpcErr) {
+      setTrialMsg(rpcErr.message || "Nu am putut salva.");
+      return;
+    }
+    const saved = typeof data === "number" ? data : n;
+    setTrialDays(saved);
+    setTrialInput(String(saved));
+    setTrialMsg(`Salvat: ${saved} zile pentru conturile noi.`);
+    setTimeout(() => setTrialMsg(""), 3000);
+  }
+
+  // Setează trialul unui utilizator la „azi + X zile".
+  async function setUserTrial(target: AdminUser) {
+    const name = target.full_name || target.email;
+    const input = prompt(
+      `Câte zile de trial primește ${name}? (de azi înainte)`,
+      "14",
+    );
+    if (input === null) return;
+    const n = parseInt(input, 10);
+    if (Number.isNaN(n) || n < 0 || n > 3650) {
+      alert("Număr de zile invalid (0–3650).");
+      return;
+    }
+    setBusyUser(target.id);
+    const { data, error: rpcErr } = await supabase.rpc("admin_set_user_trial", {
+      p_user: target.id,
+      p_days: n,
+    });
+    setBusyUser(null);
+    if (rpcErr) {
+      alert(rpcErr.message || "Nu am putut actualiza trialul.");
+      return;
+    }
+    const newEnd = typeof data === "string" ? data : null;
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === target.id ? { ...u, trial_ends_at: newEnd } : u,
+      ),
+    );
+  }
+
+  // Acordă/retrage acces gratuit (cont fără abonament, fără drepturi de admin).
+  async function toggleFreeAccess(target: AdminUser) {
+    const makeFree = !target.free_access;
+    const name = target.full_name || target.email;
+    const msg = makeFree
+      ? `Acorzi acces gratuit (fără plată) lui ${name}?`
+      : `Retragi accesul gratuit lui ${name}?`;
+    if (!confirm(msg)) return;
+    setBusyUser(target.id);
+    const { data, error: rpcErr } = await supabase.rpc(
+      "admin_set_user_free_access",
+      { p_user: target.id, p_value: makeFree },
+    );
+    setBusyUser(null);
+    if (rpcErr) {
+      alert(rpcErr.message || "Nu am putut actualiza accesul gratuit.");
+      return;
+    }
+    const saved = typeof data === "boolean" ? data : makeFree;
+    setUsers((prev) =>
+      prev.map((u) => (u.id === target.id ? { ...u, free_access: saved } : u)),
     );
   }
 
@@ -657,6 +761,85 @@ export default function AdminPage() {
       {/* ── TAB: UTILIZATORI ────────────────────────────────── */}
       {tab === "users" && (
         <div>
+          {/* Config trial global */}
+          <div
+            style={{
+              background: T.white,
+              border: `1px solid ${T.border}`,
+              borderRadius: "14px",
+              padding: "16px 18px",
+              marginBottom: "14px",
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <i
+              className="ti ti-clock-hour-4"
+              style={{ fontSize: "20px", color: T.sage }}
+            />
+            <div style={{ flex: 1, minWidth: "180px" }}>
+              <div
+                style={{ fontSize: "13px", fontWeight: 600, color: T.espresso }}
+              >
+                Perioadă de trial pentru conturi noi
+              </div>
+              <div style={{ fontSize: "12px", color: T.muted }}>
+                Se aplică instant la conturile create de acum înainte.
+              </div>
+            </div>
+            <input
+              type="number"
+              min={0}
+              max={365}
+              value={trialInput}
+              onChange={(e) => setTrialInput(e.target.value)}
+              style={{
+                width: "72px",
+                padding: "8px 10px",
+                background: T.cream,
+                border: `1px solid ${T.border}`,
+                borderRadius: "8px",
+                fontSize: "13px",
+                color: T.espresso,
+                fontFamily: "inherit",
+                outline: "none",
+              }}
+            />
+            <span style={{ fontSize: "13px", color: T.warm }}>zile</span>
+            <button
+              onClick={saveTrialDays}
+              disabled={trialSaving || trialInput === String(trialDays ?? "")}
+              style={{
+                padding: "8px 14px",
+                fontSize: "13px",
+                fontWeight: 500,
+                fontFamily: "inherit",
+                background:
+                  trialSaving || trialInput === String(trialDays ?? "")
+                    ? T.sageMid
+                    : T.sage,
+                color: T.white,
+                border: "none",
+                borderRadius: "8px",
+                cursor:
+                  trialSaving || trialInput === String(trialDays ?? "")
+                    ? "default"
+                    : "pointer",
+              }}
+            >
+              {trialSaving ? "Se salvează…" : "Salvează"}
+            </button>
+            {trialMsg && (
+              <span
+                style={{ fontSize: "12px", color: T.sageDark, width: "100%" }}
+              >
+                {trialMsg}
+              </span>
+            )}
+          </div>
+
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -706,6 +889,7 @@ export default function AdminPage() {
                     <tr style={{ background: T.cream }}>
                       <th style={thStyle}>Utilizator</th>
                       <th style={thStyle}>Plan</th>
+                      <th style={thStyle}>Trial</th>
                       <th style={{ ...thStyle, textAlign: "center" }}>Contacte</th>
                       <th style={{ ...thStyle, textAlign: "center" }}>Oferte</th>
                       <th style={thStyle}>Înscris</th>
@@ -746,6 +930,20 @@ export default function AdminPage() {
                                 admin
                               </span>
                             )}
+                            {!u.is_admin && u.free_access && (
+                              <span
+                                style={{
+                                  background: "#EAF4EF",
+                                  color: T.green,
+                                  fontSize: "10px",
+                                  fontWeight: 600,
+                                  borderRadius: "6px",
+                                  padding: "1px 6px",
+                                }}
+                              >
+                                gratuit
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: "12px", color: T.muted }}>
                             {u.email}
@@ -767,6 +965,27 @@ export default function AdminPage() {
                               "—"}
                           </span>
                         </td>
+                        <td style={tdStyle}>
+                          {(() => {
+                            const t = trialLabel(u.trial_ends_at);
+                            const isSubActive =
+                              u.subscription_status === "active";
+                            if (isSubActive)
+                              return (
+                                <span style={{ color: T.muted }}>—</span>
+                              );
+                            return (
+                              <span
+                                style={{
+                                  color: t.expired ? T.red : T.warm,
+                                  fontWeight: t.expired ? 600 : 400,
+                                }}
+                              >
+                                {t.text}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td style={{ ...tdStyle, textAlign: "center" }}>
                           {u.contacts_count}
                         </td>
@@ -785,19 +1004,18 @@ export default function AdminPage() {
                           {fmtLastSeen(u.last_sign_in_at)}
                         </td>
                         <td style={{ ...tdStyle, textAlign: "right" }}>
-                          {u.id === user?.id ? (
-                            <span style={{ fontSize: "12px", color: T.muted }}>
-                              tu
-                            </span>
-                          ) : (
+                          <div
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              justifyContent: "flex-end",
+                            }}
+                          >
                             <button
-                              onClick={() => toggleAdmin(u)}
+                              onClick={() => setUserTrial(u)}
                               disabled={busyUser === u.id}
-                              title={
-                                u.is_admin
-                                  ? "Retrage admin"
-                                  : "Acordă admin"
-                              }
+                              title="Setează zile de trial (de azi)"
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
@@ -806,25 +1024,102 @@ export default function AdminPage() {
                                 fontSize: "12px",
                                 fontFamily: "inherit",
                                 fontWeight: 500,
-                                background: u.is_admin ? T.redLight : T.sageLight,
-                                color: u.is_admin ? T.red : T.sageDark,
+                                background: T.lavenderLight,
+                                color: T.lavender,
                                 border: "none",
                                 borderRadius: "8px",
-                                cursor: busyUser === u.id ? "default" : "pointer",
+                                cursor:
+                                  busyUser === u.id ? "default" : "pointer",
                                 whiteSpace: "nowrap",
                                 opacity: busyUser === u.id ? 0.6 : 1,
                               }}
                             >
-                              <i
-                                className={
-                                  u.is_admin
-                                    ? "ti ti-shield-off"
-                                    : "ti ti-shield-plus"
-                                }
-                              />
-                              {u.is_admin ? "Retrage admin" : "Fă admin"}
+                              <i className="ti ti-clock-plus" />
+                              Trial
                             </button>
-                          )}
+                            {!u.is_admin && (
+                              <button
+                                onClick={() => toggleFreeAccess(u)}
+                                disabled={busyUser === u.id}
+                                title={
+                                  u.free_access
+                                    ? "Retrage accesul gratuit"
+                                    : "Acordă acces gratuit (fără plată)"
+                                }
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                  padding: "5px 10px",
+                                  fontSize: "12px",
+                                  fontFamily: "inherit",
+                                  fontWeight: 500,
+                                  background: u.free_access
+                                    ? T.greenLight
+                                    : T.linen,
+                                  color: u.free_access ? T.green : T.warm,
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  cursor:
+                                    busyUser === u.id ? "default" : "pointer",
+                                  whiteSpace: "nowrap",
+                                  opacity: busyUser === u.id ? 0.6 : 1,
+                                }}
+                              >
+                                <i
+                                  className={
+                                    u.free_access
+                                      ? "ti ti-gift-off"
+                                      : "ti ti-gift"
+                                  }
+                                />
+                                {u.free_access ? "Retrage gratuit" : "Gratuit"}
+                              </button>
+                            )}
+                            {u.id === user?.id ? (
+                              <span
+                                style={{ fontSize: "12px", color: T.muted }}
+                              >
+                                tu
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => toggleAdmin(u)}
+                                disabled={busyUser === u.id}
+                                title={
+                                  u.is_admin ? "Retrage admin" : "Acordă admin"
+                                }
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                  padding: "5px 10px",
+                                  fontSize: "12px",
+                                  fontFamily: "inherit",
+                                  fontWeight: 500,
+                                  background: u.is_admin
+                                    ? T.redLight
+                                    : T.sageLight,
+                                  color: u.is_admin ? T.red : T.sageDark,
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  cursor:
+                                    busyUser === u.id ? "default" : "pointer",
+                                  whiteSpace: "nowrap",
+                                  opacity: busyUser === u.id ? 0.6 : 1,
+                                }}
+                              >
+                                <i
+                                  className={
+                                    u.is_admin
+                                      ? "ti ti-shield-off"
+                                      : "ti ti-shield-plus"
+                                  }
+                                />
+                                {u.is_admin ? "Retrage admin" : "Fă admin"}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

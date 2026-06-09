@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { useSubscription } from "../lib/subscription";
 import FollowupModal from "../components/FollowupModal";
 import ContactModal from "../components/ContactModal";
 import {
@@ -149,6 +150,7 @@ const ACTION_OPTIONS: { key: "all" | CrmCategory; label: string }[] = [
 
 export default function ContactsPage() {
   const { user } = useAuth();
+  const { requireAccess } = useSubscription();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -271,6 +273,7 @@ export default function ContactsPage() {
 
   async function addContact() {
     if (!addData.name && !addData.email && !addData.phone) return;
+    if (!requireAccess()) return;
     setAddSaving(true);
     const { data } = await supabase
       .from("contacts")
