@@ -1,0 +1,74 @@
+{
+  "greetingMorning": "Bună dimineața",
+  "greetingAfternoon": "Bună ziua",
+  "greetingEvening": "Bună seara",
+  "status": {
+    "prospect": "Prospect",
+    "in_followup": "În follow-up",
+    "inactiv": "Inactiv",
+    "client_nou": "Client nou",
+    "client_fidel": "Client fidel",
+    "team_member": "Membru echipă"
+  },
+  "urgentLabel": "Client în risc",
+  "urgency": {
+    "daysInactive": "zile inactivă",
+    "daysInCrm": "zile în CRM",
+    "daysSinceOffer": "zile de la ofertă",
+    "daysSinceLastActivity": "zile de la ultima activitate"
+  },
+  "action": {
+    "reactivate": "Reactivează",
+    "sendOffer": "Trimite ofertă",
+    "followup": "Follow-up",
+    "contact": "Contactează"
+  },
+  "badge": {
+    "urgent": "Urgent",
+    "attention": "Atenție"
+  },
+  "period": {
+    "today": "azi",
+    "week": "săptămâna asta",
+    "month": "luna asta",
+    "todayFull": "Astăzi",
+    "weekFull": "Săptămâna aceasta",
+    "monthFull": "Luna aceasta"
+  },
+  "defaultName": "tu",
+  "activity": {
+    "offerSent": "Ofertă trimisă",
+    "whatsappSent": "WhatsApp trimis",
+    "emailSent": "Email trimis",
+    "followupSent": "Follow-up trimis",
+    "offerSentNumbered": "Ofertă trimisă #{{number}}",
+    "contactCreated": "Contact creat"
+  },
+  "loading": "Se încarcă...",
+  "greetingLine": "{{greeting}}, {{name}}! 🌿",
+  "focusCount_one": "Ai {{count}} acțiune care merită atenția ta azi.",
+  "focusCount_other": "Ai {{count}} acțiuni care merită atenția ta azi.",
+  "allUpToDate": "Totul e la zi. Zi productivă!",
+  "newContact": "Contact nou",
+  "seeAll": "Vezi toate",
+  "focusToday": "Focus today",
+  "focusEmpty": "Totul e la zi! Nicio acțiune urgentă. 🌿",
+  "weeklyAgenda": "Agenda săptămânii",
+  "agendaEmpty": "Nimic programat momentan. 🌿",
+  "sendBtn": "Trimite",
+  "waBtn": "WhatsApp",
+  "quickStats": "Statistici rapide",
+  "stats": {
+    "contactsAdded": "Contacte adăugate",
+    "activeClients": "Clienți activi",
+    "activeClientsDelta": "din {{total}} total",
+    "offersSent": "Oferte trimise",
+    "offersValue": "Valoare oferte trimise"
+  },
+  "recentActivity": "Activitate recentă",
+  "seeAllFem": "Vezi toată",
+  "noActivity": "Nicio activitate încă.",
+  "deletedContact": "Contact șters",
+  "today": "Azi",
+  "daysAgo": "Acum {{count}} zile"
+}

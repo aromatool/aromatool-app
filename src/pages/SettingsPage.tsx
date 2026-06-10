@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { setUiLang, type Lang } from "../i18n";
+import { uiLocale } from "../lib/locale";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { COUNTRIES, flagOf } from "../lib/countries";
@@ -54,6 +57,7 @@ interface Profile {
 }
 
 export default function SettingsPage() {
+  const { t, i18n } = useTranslation();
   const { user, signOut, updatePassword } = useAuth();
 
   // ── Abonament ──────────────────────────────────────────────
@@ -109,6 +113,42 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  // Probă Daily Focus — trimite imediat o rulare de test pe propriul cont.
+  const [focusTesting, setFocusTesting] = useState(false);
+  const [focusTestMsg, setFocusTestMsg] = useState("");
+  const [focusTestErr, setFocusTestErr] = useState("");
+
+  async function testDailyFocus() {
+    setFocusTesting(true);
+    setFocusTestMsg("");
+    setFocusTestErr("");
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke("daily-focus");
+      if (fnErr) throw fnErr;
+      if (data?.error) throw new Error(data.error);
+      if (data?.sent > 0) {
+        setFocusTestMsg("Ți-am trimis o probă pe email. Verifică inbox-ul.");
+      } else if (data?.failed > 0) {
+        const detail = data?.errors?.[0]?.error;
+        setFocusTestErr(
+          detail
+            ? `Trimiterea a eșuat: ${detail}`
+            : "Trimiterea a eșuat. Verifică configurarea de email."
+        );
+      } else {
+        setFocusTestMsg(
+          "Nu ai contacte care necesită atenție azi, deci nu s-a trimis nimic (e normal)."
+        );
+      }
+    } catch (e) {
+      setFocusTestErr(
+        e instanceof Error ? e.message : "Nu am putut rula proba. Încearcă din nou."
+      );
+    } finally {
+      setFocusTesting(false);
+    }
+  }
 
   // Schimbare parolă
   const [pw1, setPw1] = useState("");
@@ -236,18 +276,24 @@ export default function SettingsPage() {
       .single();
 
     if (data) {
+      // UI-ul suportă doar ro/en; valori vechi (de/fr) cad pe 'ro'.
+      const langCode =
+        data.language_code === "en" ? "en" : "ro";
       setProfile({
         full_name: data.full_name || user?.user_metadata?.full_name || "",
         phone: data.phone || "",
         contact_email: data.contact_email || user?.email || "",
         email_signature: data.email_signature || "",
         country_code: data.country_code || "RO",
-        language_code: data.language_code || "ro",
+        language_code: langCode,
         follow_up_days: data.follow_up_days || 5,
         daily_focus_enabled: data.daily_focus_enabled === true,
         daily_focus_hour: data.daily_focus_hour || 8,
         is_admin: data.is_admin === true,
       });
+      // Sincronizează limba interfeței cu preferința din profil (sursa
+      // de adevăr între dispozitive).
+      setUiLang(langCode as Lang);
     }
     setLoading(false);
   }
@@ -458,18 +504,19 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label style={labelStyle}>Limba</label>
+              <label style={labelStyle}>{t("common.language")}</label>
               <select
                 value={profile.language_code}
-                onChange={(e) =>
-                  setProfile((p) => ({ ...p, language_code: e.target.value }))
-                }
+                onChange={(e) => {
+                  const lng = e.target.value as Lang;
+                  setProfile((p) => ({ ...p, language_code: lng }));
+                  // Schimbă imediat limba interfeței (+ persistă local).
+                  setUiLang(lng);
+                }}
                 style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
               >
-                <option value="ro">Română</option>
-                <option value="en">English</option>
-                <option value="de">Deutsch</option>
-                <option value="fr">Français</option>
+                <option value="ro">{t("common.romanian")}</option>
+                <option value="en">{t("common.english")}</option>
               </select>
             </div>
           </div>
@@ -609,6 +656,67 @@ export default function SettingsPage() {
                     ora locală ({Intl.DateTimeFormat().resolvedOptions().timeZone})
                   </span>
                 </div>
+
+                {/* Probă — trimite acum o rulare de test pe propriul cont */}
+                <div style={{ marginTop: "14px" }}>
+                  <button
+                    type="button"
+                    onClick={testDailyFocus}
+                    disabled={focusTesting}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                      padding: "9px 16px",
+                      fontSize: "13px",
+                      fontFamily: "inherit",
+                      fontWeight: 500,
+                      background: focusTesting ? C.bg2 : C.green,
+                      color: focusTesting ? C.muted : "#fff",
+                      border: "none",
+                      borderRadius: "10px",
+                      cursor: focusTesting ? "default" : "pointer",
+                    }}
+                  >
+                    <i className="ti ti-send" style={{ fontSize: "15px" }} />
+                    {focusTesting ? "Se trimite..." : "Trimite-mi o probă acum"}
+                  </button>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: C.muted,
+                      marginTop: "6px",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Trimite imediat emailul Daily Focus pe adresa ta de login, ca
+                    să vezi cum arată (ignoră ora aleasă).
+                  </div>
+                  {focusTestMsg && (
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        fontSize: "12px",
+                        color: C.green,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      ✓ {focusTestMsg}
+                    </div>
+                  )}
+                  {focusTestErr && (
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        fontSize: "12px",
+                        color: C.red,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      ⚠️ {focusTestErr}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -718,7 +826,7 @@ export default function SettingsPage() {
           <span style={{ fontSize: "13px", color: C.muted }}>Cont creat</span>
           <span style={{ fontSize: "13px", color: C.dark }}>
             {user?.created_at
-              ? new Date(user.created_at).toLocaleDateString("ro-RO")
+              ? new Date(user.created_at).toLocaleDateString(uiLocale(i18n.language))
               : "—"}
           </span>
         </div>

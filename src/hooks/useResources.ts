@@ -140,12 +140,22 @@ export function useResources() {
         throw upErr;
       }
 
-      // 3. Salvăm path-ul
+      // 3. Salvăm path-ul. Trigger-ul BEFORE UPDATE (sync_resource_size_and_quota)
+      //    rescrie file_size cu mărimea REALĂ din storage și re-verifică quota.
+      //    Dacă quota e depășită aici, obiectul e deja urcat → curățăm orfanul
+      //    (obiect storage + rând) ca să nu rămână bytes „fantomă".
       const { error: updErr } = await supabase
         .from("resources")
         .update({ file_path: path, updated_at: new Date().toISOString() })
         .eq("id", row.id);
-      if (updErr) throw updErr;
+      if (updErr) {
+        await supabase.storage.from("resources").remove([path]);
+        await supabase.from("resources").delete().eq("id", row.id);
+        if (updErr.message?.includes("STORAGE_QUOTA_EXCEEDED")) {
+          throw new Error("Ai atins limita de stocare a planului tău.");
+        }
+        throw updErr;
+      }
 
       return row.id as string;
     },

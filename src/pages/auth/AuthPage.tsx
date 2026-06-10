@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/auth";
 
 // ── BLOSSOM SAGE ───────────────────────────────────────────
@@ -24,6 +25,7 @@ const T = {
 type Mode = "login" | "register" | "forgot";
 
 export default function AuthPage() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,6 +34,9 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  // După register reușit: emailul la care s-a trimis confirmarea (afișează
+  // panoul „verifică-ți inboxul" în loc de formularul gol — fără dead-end).
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const { signIn, signUp, user, recovery, resetPassword, updatePassword } =
     useAuth();
   const navigate = useNavigate();
@@ -57,19 +62,19 @@ export default function AuthPage() {
     // ── SETEAZĂ PAROLĂ NOUĂ (venit din link de resetare) ──
     if (recovery) {
       if (password.length < 6) {
-        setError("Parola trebuie să aibă minim 6 caractere.");
+        setError(t("auth.errPasswordMin"));
         setLoading(false);
         return;
       }
       if (password !== confirmPassword) {
-        setError("Parolele nu coincid.");
+        setError(t("auth.errPasswordMismatch"));
         setLoading(false);
         return;
       }
       const { error } = await updatePassword(password);
       if (error) setError(error.message);
       else {
-        setSuccess("Parolă schimbată! Te ducem în aplicație…");
+        setSuccess(t("auth.successPasswordChanged"));
         setTimeout(() => navigate("/app"), 1200);
       }
       setLoading(false);
@@ -79,16 +84,13 @@ export default function AuthPage() {
     // ── AM UITAT PAROLA ──
     if (mode === "forgot") {
       if (!email.trim()) {
-        setError("Introdu adresa de email.");
+        setError(t("auth.errEmailRequired"));
         setLoading(false);
         return;
       }
       const { error } = await resetPassword(email);
       if (error) setError(error.message);
-      else
-        setSuccess(
-          "Ți-am trimit un email cu un link de resetare. Verifică inbox-ul (și folderul Spam).",
-        );
+      else setSuccess(t("auth.successResetSent"));
       setLoading(false);
       return;
     }
@@ -96,49 +98,49 @@ export default function AuthPage() {
     // ── LOGIN ──
     if (mode === "login") {
       const { error } = await signIn(email, password);
-      if (error) setError("Email sau parolă incorectă.");
+      if (error) setError(t("auth.errLoginInvalid"));
       setLoading(false);
       return;
     }
 
     // ── REGISTER ──
     if (!fullName.trim()) {
-      setError("Introdu numele tău.");
+      setError(t("auth.errNameRequired"));
       setLoading(false);
       return;
     }
     if (password.length < 6) {
-      setError("Parola trebuie să aibă minim 6 caractere.");
+      setError(t("auth.errPasswordMin"));
       setLoading(false);
       return;
     }
     if (password !== confirmPassword) {
-      setError("Parolele nu coincid.");
+      setError(t("auth.errPasswordMismatch"));
       setLoading(false);
       return;
     }
     const { error } = await signUp(email, password, fullName);
     if (error) setError(error.message);
-    else setSuccess("Cont creat! Verifică emailul pentru confirmare.");
+    else setRegisteredEmail(email.trim());
     setLoading(false);
   };
 
   // Titlu + buton în funcție de context.
   const heading = recovery
-    ? "Setează o parolă nouă"
+    ? t("auth.headingRecovery")
     : mode === "login"
-      ? "Bun venit înapoi"
+      ? t("auth.headingLogin")
       : mode === "register"
-        ? "Creează-ți contul"
-        : "Resetează parola";
+        ? t("auth.headingRegister")
+        : t("auth.headingForgot");
 
   const submitLabel = recovery
-    ? "Salvează parola"
+    ? t("auth.submitRecovery")
     : mode === "login"
-      ? "Intră în cont →"
+      ? t("auth.submitLogin")
       : mode === "register"
-        ? "Creează cont →"
-        : "Trimite linkul →";
+        ? t("auth.submitRegister")
+        : t("auth.submitForgot");
 
   return (
     <div
@@ -238,7 +240,7 @@ export default function AuthPage() {
               letterSpacing: "2px",
             }}
           >
-            crafted for your team
+            {t("auth.tagline")}
           </div>
         </div>
 
@@ -252,6 +254,61 @@ export default function AuthPage() {
             border: `1px solid ${T.border}`,
           }}
         >
+          {/* După register: panou „verifică-ți emailul" în loc de formular. */}
+          {registeredEmail && !recovery ? (
+            <div style={{ textAlign: "center", padding: "8px 0" }}>
+              <div style={{ fontSize: "42px", marginBottom: "12px" }}>📬</div>
+              <div
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 600,
+                  color: T.espresso,
+                  marginBottom: "10px",
+                }}
+              >
+                {t("auth.confirmHeading")}
+              </div>
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: T.warm,
+                  lineHeight: 1.6,
+                  marginBottom: "16px",
+                }}
+              >
+                {t("auth.confirmBody", { email: registeredEmail })}
+              </p>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: T.muted,
+                  lineHeight: 1.6,
+                  marginBottom: "22px",
+                }}
+              >
+                {t("auth.confirmSpamHint")}
+              </p>
+              <button
+                onClick={() => {
+                  setRegisteredEmail("");
+                  setMode("login");
+                  resetFields();
+                }}
+                style={{
+                  fontSize: "14px",
+                  color: T.sage,
+                  fontWeight: 600,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                {t("auth.confirmBackToLogin")}
+              </button>
+            </div>
+          ) : (
+          <>
           {/* Tabs — ascunse în modurile forgot/recovery */}
           {!recovery && mode !== "forgot" && (
             <div
@@ -286,7 +343,7 @@ export default function AuthPage() {
                       mode === m ? "0 1px 8px rgba(92,122,92,0.15)" : "none",
                   }}
                 >
-                  {m === "login" ? "Intră în cont" : "Cont nou"}
+                  {m === "login" ? t("auth.tabLogin") : t("auth.tabRegister")}
                 </button>
               ))}
             </div>
@@ -314,7 +371,7 @@ export default function AuthPage() {
                 marginBottom: "22px",
               }}
             >
-              Îți trimitem pe email un link ca să-ți alegi o parolă nouă.
+              {t("auth.forgotIntro")}
             </div>
           )}
           {recovery && (
@@ -327,7 +384,7 @@ export default function AuthPage() {
                 marginBottom: "22px",
               }}
             >
-              Alege o parolă nouă pentru contul tău.
+              {t("auth.recoveryIntro")}
             </div>
           )}
 
@@ -335,12 +392,12 @@ export default function AuthPage() {
             {/* Nume — doar la register */}
             {mode === "register" && !recovery && (
               <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>NUMELE TĂU</label>
+                <label style={labelStyle}>{t("auth.labelFullName")}</label>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Cum te cheamă?"
+                  placeholder={t("auth.placeholderFullName")}
                   required
                   style={inputStyle}
                   onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
@@ -356,12 +413,12 @@ export default function AuthPage() {
                   marginBottom: mode === "forgot" ? "24px" : "16px",
                 }}
               >
-                <label style={labelStyle}>EMAIL</label>
+                <label style={labelStyle}>{t("auth.labelEmail")}</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@tau.com"
+                  placeholder={t("auth.placeholderEmail")}
                   required
                   style={inputStyle}
                   onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
@@ -379,7 +436,7 @@ export default function AuthPage() {
                 }}
               >
                 <label style={labelStyle}>
-                  {recovery ? "PAROLĂ NOUĂ" : "PAROLĂ"}
+                  {recovery ? t("auth.labelPasswordNew") : t("auth.labelPassword")}
                 </label>
                 <input
                   type="password"
@@ -387,8 +444,8 @@ export default function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={
                     mode === "register" || recovery
-                      ? "Minim 6 caractere"
-                      : "••••••••"
+                      ? t("auth.placeholderPasswordMin")
+                      : t("auth.placeholderPasswordDots")
                   }
                   required
                   style={inputStyle}
@@ -401,12 +458,12 @@ export default function AuthPage() {
             {/* Confirmă parola — la register/recovery */}
             {(mode === "register" || recovery) && (
               <div style={{ marginBottom: "24px" }}>
-                <label style={labelStyle}>CONFIRMĂ PAROLA</label>
+                <label style={labelStyle}>{t("auth.labelConfirmPassword")}</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repetă parola"
+                  placeholder={t("auth.placeholderConfirmPassword")}
                   required
                   style={inputStyle}
                   onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
@@ -434,7 +491,7 @@ export default function AuthPage() {
                     padding: 0,
                   }}
                 >
-                  Ai uitat parola?
+                  {t("auth.forgotPassword")}
                 </button>
               </div>
             )}
@@ -513,7 +570,7 @@ export default function AuthPage() {
                   padding: 0,
                 }}
               >
-                ← Înapoi la autentificare
+                {t("auth.backToLogin")}
               </button>
             </div>
           )}
@@ -521,7 +578,7 @@ export default function AuthPage() {
           {mode === "login" && !recovery && (
             <div style={{ textAlign: "center", marginTop: "20px" }}>
               <span style={{ fontSize: "13px", color: T.muted }}>
-                Nu ai cont?{" "}
+                {t("auth.noAccount")}
               </span>
               <button
                 onClick={() => {
@@ -538,13 +595,15 @@ export default function AuthPage() {
                   padding: 0,
                 }}
               >
-                Înregistrează-te gratuit
+                {t("auth.registerFree")}
               </button>
             </div>
           )}
+          </>
+          )}
         </div>
 
-        {!recovery && mode !== "forgot" && (
+        {!recovery && mode !== "forgot" && registeredEmail === "" && (
           <div
             style={{
               textAlign: "center",
@@ -553,7 +612,7 @@ export default function AuthPage() {
               color: T.muted,
             }}
           >
-            14 zile trial gratuit · Fără card de credit
+            {t("auth.trialNote")}
           </div>
         )}
 
@@ -570,13 +629,13 @@ export default function AuthPage() {
           }}
         >
           <Link to="/legal/terms" style={{ color: T.muted }}>
-            Termeni
+            {t("auth.legalTerms")}
           </Link>
           <Link to="/legal/privacy" style={{ color: T.muted }}>
-            Confidențialitate
+            {t("auth.legalPrivacy")}
           </Link>
           <Link to="/legal/cookies" style={{ color: T.muted }}>
-            Cookie-uri
+            {t("auth.legalCookies")}
           </Link>
         </div>
       </div>

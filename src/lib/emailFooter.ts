@@ -7,12 +7,14 @@
 // ============================================================
 
 import { EMAIL_ASSET } from './emailAssets'
+import i18n from '../i18n'
 
 interface FooterOpts {
   userName?: string
   userPhone?: string
   userEmail?: string
   userSignature?: string
+  lang?: string   // limba emailului (implicit 'ro')
 }
 
 // +40 normalizat pentru wa.me (RO: 07xx → 407xx).
@@ -35,9 +37,10 @@ function iconLink(href: string, src: string, label: string): string {
 const PHONE_IMG = `<img src="${EMAIL_ASSET.phone}" width="15" height="15" alt="" style="display:inline-block;width:15px;height:15px;border:0;vertical-align:middle;margin-right:6px" />`
 
 export function buildEmailFooter(opts: FooterOpts): string {
-  const { userName = '', userPhone, userEmail, userSignature } = opts
+  const { userName = '', userPhone, userEmail, userSignature, lang = 'ro' } = opts
   const digits = waDigits(userPhone)
   const sig = sigToHtml(userSignature)
+  const closing = i18n.t('email.closing', { lng: lang })
 
   // Celule de contact, toate aliniate vertical la mijloc printr-un tabel.
   const cells: string[] = []
@@ -63,7 +66,7 @@ export function buildEmailFooter(opts: FooterOpts): string {
 
   const sigBlock = sig
     ? `<p style="font-size:13px;color:#6A5A50;margin:0 0 12px;line-height:1.7;font-family:'Helvetica Neue',Arial,sans-serif">${sig}</p>`
-    : `<p style="font-size:13px;color:#6A5A50;margin:0 0 12px;line-height:1.6;font-family:'Helvetica Neue',Arial,sans-serif">Cu drag${userName ? `, <strong style="color:#4A6A4A">${userName}</strong>` : ''}</p>`
+    : `<p style="font-size:13px;color:#6A5A50;margin:0 0 12px;line-height:1.6;font-family:'Helvetica Neue',Arial,sans-serif">${closing}${userName ? `, <strong style="color:#4A6A4A">${userName}</strong>` : ''}</p>`
 
   return `<div style="border-top:1px solid #EDE8E0;padding:20px 28px;text-align:center;">
     ${sigBlock}

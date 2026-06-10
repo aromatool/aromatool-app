@@ -6,6 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "./auth";
 import { supabase } from "./supabase";
 import { useUpgrade } from "../hooks/useUpgrade";
@@ -45,6 +46,7 @@ interface SubscriptionState {
   isPastDue: boolean; // plată eșuată
   isAdmin: boolean; // admin — acces total, fără gating
   freeAccess: boolean; // acces gratuit acordat de admin (non-admin)
+  countryCode: string; // țara liderului (catalog implicit pentru oferte)
   hasAccess: boolean; // isAdmin || freeAccess || isActive || isTrialing
   loading: boolean;
   refresh: () => Promise<void>;
@@ -71,6 +73,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [freeAccess, setFreeAccess] = useState(false);
+  const [countryCode, setCountryCode] = useState("RO");
   const [loading, setLoading] = useState(true);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
@@ -81,13 +84,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setTrialEndsAt(null);
       setIsAdmin(false);
       setFreeAccess(false);
+      setCountryCode("RO");
       setLoading(false);
       return;
     }
     const { data } = await supabase
       .from("profiles")
       .select(
-        "subscription_plan, subscription_status, trial_ends_at, is_admin, free_access",
+        "subscription_plan, subscription_status, trial_ends_at, is_admin, free_access, country_code",
       )
       .eq("id", user.id)
       .single();
@@ -96,6 +100,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     setTrialEndsAt(data?.trial_ends_at ? new Date(data.trial_ends_at) : null);
     setIsAdmin(data?.is_admin ?? false);
     setFreeAccess(data?.free_access ?? false);
+    setCountryCode(data?.country_code ?? "RO");
     setLoading(false);
   }, [user?.id]);
 
@@ -130,6 +135,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     isPastDue,
     isAdmin,
     freeAccess,
+    countryCode,
     hasAccess,
     loading,
     refresh,
@@ -168,7 +174,10 @@ const C = {
 };
 
 function Paywall({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const { upgrade, loading, error } = useUpgrade();
+  const planName = t("paywall.planName");
+  const features = t("paywall.features", { returnObjects: true }) as string[];
 
   return (
     <div
@@ -199,7 +208,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
       >
         <button
           onClick={onClose}
-          aria-label="Închide"
+          aria-label={t("common.close")}
           style={{
             position: "absolute",
             top: "16px",
@@ -224,7 +233,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
             margin: "0 0 6px",
           }}
         >
-          Continuă cu {PLAN.name}
+          {t("paywall.continueWith", { plan: planName })}
         </h2>
         <p
           style={{
@@ -234,8 +243,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
             margin: "0 0 20px",
           }}
         >
-          Perioada ta gratuită s-a încheiat. Abonează-te ca să continui să
-          adaugi contacte, să trimiți mesaje și să construiești oferte.
+          {t("paywall.trialEndedBody")}
         </p>
 
         <div
@@ -258,7 +266,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
             <span
               style={{ fontSize: "22px", fontWeight: 600, color: C.espresso }}
             >
-              {PLAN.priceText}
+              {t("paywall.priceText")}
             </span>
           </div>
           <ul
@@ -271,7 +279,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
               gap: "8px",
             }}
           >
-            {PLAN.features.map((f) => (
+            {features.map((f) => (
               <li
                 key={f}
                 style={{
@@ -324,7 +332,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
             opacity: loading ? 0.7 : 1,
           }}
         >
-          {loading ? "Se deschide..." : "Abonează-te"}
+          {loading ? t("paywall.opening") : t("paywall.subscribe")}
         </button>
         <p
           style={{
@@ -334,7 +342,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
             margin: "10px 0 0",
           }}
         >
-          Ai un cod de lansare? Îl introduci la pasul de plată.
+          {t("paywall.launchCodeHint")}
         </p>
       </div>
     </div>

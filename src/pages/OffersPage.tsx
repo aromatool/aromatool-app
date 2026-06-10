@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
+import i18n from "../i18n";
+import { uiLocale } from "../lib/locale";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 
@@ -33,6 +36,7 @@ interface Offer {
   total_display: number;
   total_eur: number;
   currency: string;
+  base_currency?: string;
   exchange_rate: number;
   notes: string | null;
   transport: number;
@@ -82,7 +86,7 @@ function fmtCurrency(amount: number, currency: string) {
 }
 
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("ro-RO", {
+  return new Date(d).toLocaleDateString(uiLocale(i18n.language), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -92,13 +96,13 @@ function formatDate(d: string) {
 
 const STATUS_STYLE: Record<
   string,
-  { bg: string; color: string; label: string }
+  { bg: string; color: string; labelKey: string }
 > = {
-  prospect: { bg: T.amberLight, color: T.amber, label: "Prospect" },
-  client_nou: { bg: T.greenLight, color: T.green, label: "Client nou" },
-  client_fidel: { bg: T.sageLight, color: T.sage, label: "Client fidel" },
-  in_followup: { bg: T.lavenderLight, color: T.lavender, label: "Follow-up" },
-  inactiv: { bg: T.border, color: T.muted, label: "Inactiv" },
+  prospect: { bg: T.amberLight, color: T.amber, labelKey: "offers.statusProspect" },
+  client_nou: { bg: T.greenLight, color: T.green, labelKey: "offers.statusClientNou" },
+  client_fidel: { bg: T.sageLight, color: T.sage, labelKey: "offers.statusClientFidel" },
+  in_followup: { bg: T.lavenderLight, color: T.lavender, labelKey: "offers.statusInFollowup" },
+  inactiv: { bg: T.border, color: T.muted, labelKey: "offers.statusInactiv" },
 };
 
 // Cheia de grupare per client (același calcul ca la grupare).
@@ -107,6 +111,7 @@ function offerClientKey(offer: Offer): string {
 }
 
 export default function OffersPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const focusOfferId = searchParams.get("offer");
@@ -148,7 +153,7 @@ export default function OffersPage() {
     const { data, error } = await supabase
       .from("offers")
       .select(
-        `id, sent_at, total_display, total_eur, exchange_rate, currency, notes, transport, products_json, contacts(id, email, name, status)`,
+        `id, sent_at, total_display, total_eur, exchange_rate, currency, base_currency, notes, transport, products_json, contacts(id, email, name, status)`,
       )
       .eq("user_id", user!.id)
       .order("sent_at", { ascending: false });
@@ -262,22 +267,22 @@ export default function OffersPage() {
         }}
       >
         <div style={{ fontSize: "22px", fontWeight: 500, color: T.espresso }}>
-          Oferte trimise
+          {t("offers.title")}
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           {[
             {
-              label: "Total oferte",
+              label: t("offers.statTotalOffers"),
               value: String(offers.length),
               color: T.espresso,
             },
             {
-              label: "Clienți unici",
+              label: t("offers.statUniqueClients"),
               value: String(grouped.length),
               color: T.sage,
             },
             {
-              label: "Valoare totală",
+              label: t("offers.statTotalValue"),
               value: `€ ${totalEurAll.toFixed(0)}`,
               color: T.green,
             },
@@ -344,7 +349,7 @@ export default function OffersPage() {
                 whiteSpace: "nowrap",
               }}
             >
-              Afișezi ofertele lui{" "}
+              {t("offers.showingOffersOf")}{" "}
               <strong>{focusGroup.clientName}</strong>
             </span>
           </div>
@@ -366,7 +371,7 @@ export default function OffersPage() {
             }}
           >
             <i className="ti ti-x" style={{ fontSize: "13px" }} />
-            Vezi toate ofertele
+            {t("offers.viewAllOffers")}
           </button>
         </div>
       )}
@@ -387,7 +392,7 @@ export default function OffersPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Caută după client sau produs..."
+          placeholder={t("offers.searchPlaceholder")}
           style={{
             width: "100%",
             padding: "10px 12px 10px 38px",
@@ -431,12 +436,12 @@ export default function OffersPage() {
               marginBottom: "6px",
             }}
           >
-            {search ? "Niciun rezultat" : "Nu ai trimis oferte încă"}
+            {search ? t("offers.emptyNoResults") : t("offers.emptyNoOffers")}
           </div>
           <div style={{ fontSize: "13px", color: T.muted }}>
             {search
-              ? "Încearcă alte cuvinte"
-              : "Adaugă produse în coș și trimite prima ofertă"}
+              ? t("offers.emptyNoResultsHint")
+              : t("offers.emptyNoOffersHint")}
           </div>
         </div>
       ) : (
@@ -521,7 +526,7 @@ export default function OffersPage() {
                         fontWeight: 500,
                       }}
                     >
-                      {statusStyle.label}
+                      {t(statusStyle.labelKey)}
                     </span>
                   </div>
                   <div
@@ -531,9 +536,12 @@ export default function OffersPage() {
                       marginTop: "2px",
                     }}
                   >
-                    {group.offers.length}{" "}
-                    {group.offers.length === 1 ? "ofertă" : "oferte"} ·{" "}
-                    {formatDate(latestOffer.sent_at)}
+                    {group.offers.length === 1
+                      ? t("offers.offerCount_one", { count: group.offers.length })
+                      : t("offers.offerCount_other", {
+                          count: group.offers.length,
+                        })}{" "}
+                    · {formatDate(latestOffer.sent_at)}
                   </div>
                 </div>
 
@@ -547,7 +555,9 @@ export default function OffersPage() {
                   >
                     € {group.totalEur.toFixed(2)}
                   </div>
-                  <div style={{ fontSize: "11px", color: T.muted }}>total</div>
+                  <div style={{ fontSize: "11px", color: T.muted }}>
+                    {t("offers.total")}
+                  </div>
                 </div>
 
                 <i
@@ -599,7 +609,9 @@ export default function OffersPage() {
                   }}
                 >
                   <span style={{ fontSize: "12px", color: T.muted }}>
-                    + {group.offers.length - 1} oferte anterioare
+                    {t("offers.previousOffers", {
+                      count: group.offers.length - 1,
+                    })}
                   </span>
                   <i
                     className="ti ti-chevron-down"
@@ -633,6 +645,8 @@ function OfferRow({
   highlight?: boolean;
 }) {
   const currency = offer.currency || "RON";
+  // Moneda de bază a ofertei (prețurile din products_json sunt în ea).
+  const base = offer.base_currency || "EUR";
   const productsPreview = offer.products_json
     ?.slice(0, 2)
     .map((p) => `${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}`)
@@ -705,7 +719,7 @@ function OfferRow({
             {moreCount > 0 ? ` +${moreCount}` : ""}
           </div>
           <div style={{ fontSize: "11px", color: T.muted, marginTop: "1px" }}>
-            {new Date(offer.sent_at).toLocaleDateString("ro-RO", {
+            {new Date(offer.sent_at).toLocaleDateString(uiLocale(i18n.language), {
               day: "2-digit",
               month: "short",
               hour: "2-digit",
@@ -717,9 +731,9 @@ function OfferRow({
           <div style={{ fontSize: "14px", fontWeight: 500, color: T.espresso }}>
             {fmtCurrency(offer.total_display, currency)}
           </div>
-          {currency !== "EUR" && (
+          {currency !== base && (
             <div style={{ fontSize: "10px", color: T.muted }}>
-              € {(offer.total_eur || 0).toFixed(2)}
+              {fmtCurrency(offer.total_eur || 0, base)}
             </div>
           )}
         </div>
@@ -784,9 +798,9 @@ function OfferRow({
                     <div style={{ fontWeight: 500, color: T.espresso }}>
                       {fmtCurrency(lineTotalDisplay, currency)}
                     </div>
-                    {currency !== "EUR" && (
+                    {currency !== base && (
                       <div style={{ fontSize: "10px", color: T.muted }}>
-                        € {lineTotalEur.toFixed(2)}
+                        {fmtCurrency(lineTotalEur, base)}
                       </div>
                     )}
                   </div>
@@ -830,7 +844,7 @@ function OfferRow({
                 borderRadius: "999px",
               }}
             >
-              1€ = {(offer.exchange_rate || 0).toFixed(4)} {currency}
+              1 {base} = {(offer.exchange_rate || 0).toFixed(4)} {currency}
             </span>
           </div>
 

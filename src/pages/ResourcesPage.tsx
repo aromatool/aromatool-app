@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useResources,
   MAX_FILE_BYTES,
@@ -8,6 +9,8 @@ import {
 import type { Resource } from "../hooks/useResources";
 import { useUpgrade } from "../hooks/useUpgrade";
 import { useSubscription } from "../lib/subscription";
+import i18n from "../i18n";
+import { uiLocale } from "../lib/locale";
 
 // Ordinea planurilor pentru a sugera următorul upgrade
 const PLAN_ORDER = ["trial", "starter", "growth", "team", "business"];
@@ -53,7 +56,7 @@ function fileIcon(fileType: string): string {
 
 function fmtDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString("ro-RO", {
+    return new Date(iso).toLocaleDateString(uiLocale(i18n.language), {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -64,6 +67,7 @@ function fmtDate(iso: string): string {
 }
 
 export default function ResourcesPage() {
+  const { t } = useTranslation();
   const { resources, loading, usedBytes, quotaBytes, plan, upload, rename, remove } =
     useResources();
   const { upgrade, loading: upgrading } = useUpgrade();
@@ -84,30 +88,36 @@ export default function ResourcesPage() {
     if (!files || files.length === 0) return;
     if (!requireAccess()) return;
     setError("");
+    // Acumulăm erorile pe fișier ca să nu se piardă (un singur setError ar
+    // arăta doar ultima problemă dintr-un batch). Fișierele valide se încarcă
+    // în continuare; la final raportăm toate eșecurile odată.
+    const errors: string[] = [];
     for (const file of Array.from(files)) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setError(`„${file.name}" nu e acceptat. Doar PDF, JPG sau PNG.`);
+        errors.push(t("resources.fileNotAccepted", { name: file.name }));
         continue;
       }
       if (file.size > MAX_FILE_BYTES) {
-        setError(`„${file.name}" depășește 10 MB.`);
+        errors.push(t("resources.fileTooLarge", { name: file.name }));
         continue;
       }
       try {
         await upload.mutateAsync({ file, title: file.name });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Eroare la upload.");
+        const msg = e instanceof Error ? e.message : t("resources.uploadError");
+        errors.push(`${file.name}: ${msg}`);
       }
     }
+    if (errors.length > 0) setError(errors.join("\n"));
     if (fileRef.current) fileRef.current.value = "";
   }
 
   async function handleDelete(r: Resource) {
-    if (!confirm(`Ștergi „${r.title}"? Acțiunea nu poate fi anulată.`)) return;
+    if (!confirm(t("resources.deleteConfirm", { title: r.title }))) return;
     try {
       await remove.mutateAsync(r);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Eroare la ștergere.");
+      setError(e instanceof Error ? e.message : t("resources.deleteError"));
     }
   }
 
@@ -122,7 +132,7 @@ export default function ResourcesPage() {
       try {
         await rename.mutateAsync({ id, title: v });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Eroare la redenumire.");
+        setError(e instanceof Error ? e.message : t("resources.renameError"));
       }
     }
     setRenamingId(null);
@@ -150,10 +160,10 @@ export default function ResourcesPage() {
             margin: 0,
           }}
         >
-          Resurse
+          {t("resources.title")}
         </h1>
         <p style={{ fontSize: "13px", color: C.muted, marginTop: "4px" }}>
-          Materialele tale (PDF, poze) pe care le atașezi în oferte ca linkuri.
+          {t("resources.subtitle")}
         </p>
       </div>
 
@@ -170,8 +180,7 @@ export default function ResourcesPage() {
             marginBottom: "12px",
           }}
         >
-          Mulțumim! Plata a fost inițiată — planul se actualizează în câteva
-          momente.
+          {t("resources.upgradeSuccess")}
         </div>
       )}
       {upgradeParam === "cancel" && (
@@ -186,7 +195,7 @@ export default function ResourcesPage() {
             marginBottom: "12px",
           }}
         >
-          Upgrade-ul a fost anulat. Poți reîncerca oricând.
+          {t("resources.upgradeCancel")}
         </div>
       )}
 
@@ -210,7 +219,7 @@ export default function ResourcesPage() {
           }}
         >
           <span>
-            Stocare folosită · plan{" "}
+            {t("resources.storageUsed")}{" "}
             <strong style={{ color: C.dark }}>{PLAN_LABEL[plan] ?? plan}</strong>
           </span>
           <span>
@@ -246,8 +255,10 @@ export default function ResourcesPage() {
             }}
           >
             <span style={{ fontSize: "12px", color: C.red, flex: 1, minWidth: "160px" }}>
-              Aproape ai umplut spațiul. Treci pe {PLAN_LABEL[nextPlan]} (
-              {fmtSize(QUOTA_BY_PLAN[nextPlan])}) pentru mai mult.
+              {t("resources.nearLimit", {
+                plan: PLAN_LABEL[nextPlan],
+                quota: fmtSize(QUOTA_BY_PLAN[nextPlan]),
+              })}
             </span>
             <button
               onClick={() => upgrade(nextPlan)}
@@ -265,7 +276,9 @@ export default function ResourcesPage() {
                 whiteSpace: "nowrap",
               }}
             >
-              {upgrading ? "Se deschide..." : `Upgrade la ${PLAN_LABEL[nextPlan]}`}
+              {upgrading
+                ? t("resources.opening")
+                : t("resources.upgradeTo", { plan: PLAN_LABEL[nextPlan] })}
             </button>
           </div>
         )}
@@ -276,7 +289,7 @@ export default function ResourcesPage() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Caută după titlu..."
+          placeholder={t("resources.searchPlaceholder")}
           style={{
             flex: 1,
             padding: "10px 12px",
@@ -310,12 +323,13 @@ export default function ResourcesPage() {
         >
           {upload.isPending ? (
             <>
-              <i className="ti ti-loader-2" style={{ fontSize: "14px" }} /> Se
-              încarcă...
+              <i className="ti ti-loader-2" style={{ fontSize: "14px" }} />{" "}
+              {t("resources.uploading")}
             </>
           ) : (
             <>
-              <i className="ti ti-upload" style={{ fontSize: "14px" }} /> Încarcă
+              <i className="ti ti-upload" style={{ fontSize: "14px" }} />{" "}
+              {t("resources.upload")}
             </>
           )}
         </button>
@@ -331,7 +345,7 @@ export default function ResourcesPage() {
 
       <div style={{ fontSize: "11px", color: C.muted, marginBottom: "12px" }}>
         <i className="ti ti-info-circle" style={{ fontSize: "12px", marginRight: "4px" }} />
-        Tipuri acceptate: PDF, JPG, PNG · maxim 10 MB / fișier
+        {t("resources.acceptedTypes")}
       </div>
 
       {error && (
@@ -344,6 +358,7 @@ export default function ResourcesPage() {
             padding: "10px 12px",
             fontSize: "12px",
             marginBottom: "12px",
+            whiteSpace: "pre-line",
           }}
         >
           {error}
@@ -353,7 +368,7 @@ export default function ResourcesPage() {
       {/* List */}
       {loading ? (
         <div style={{ textAlign: "center", padding: "40px", color: C.muted }}>
-          Se încarcă...
+          {t("resources.loading")}
         </div>
       ) : filtered.length === 0 ? (
         <div
@@ -370,9 +385,7 @@ export default function ResourcesPage() {
             className="ti ti-folder-open"
             style={{ fontSize: "32px", display: "block", marginBottom: "8px" }}
           />
-          {query
-            ? "Nicio resursă găsită."
-            : "Încă nu ai resurse. Încarcă primul material."}
+          {query ? t("resources.noResults") : t("resources.emptyState")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -430,21 +443,25 @@ export default function ResourcesPage() {
                   </div>
                 )}
                 <div style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}>
-                  {typeLabel(r.file_type)} · {fmtSize(r.file_size)} · folosit în{" "}
-                  {r.usage_count} {r.usage_count === 1 ? "email" : "emailuri"} ·
-                  adăugat {fmtDate(r.created_at)}
+                  {t("resources.usageInfo", {
+                    type: typeLabel(r.file_type),
+                    size: fmtSize(r.file_size),
+                    count: r.usage_count,
+                    label: t("resources.usageEmail", { count: r.usage_count }),
+                    date: fmtDate(r.created_at),
+                  })}
                 </div>
               </div>
               <button
                 onClick={() => startRename(r)}
-                title="Redenumește"
+                title={t("resources.rename")}
                 style={iconBtn}
               >
                 <i className="ti ti-pencil" style={{ fontSize: "16px" }} />
               </button>
               <button
                 onClick={() => handleDelete(r)}
-                title="Șterge"
+                title={t("resources.delete")}
                 style={{ ...iconBtn, color: C.red }}
               >
                 <i className="ti ti-trash" style={{ fontSize: "16px" }} />

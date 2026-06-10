@@ -1,0 +1,17 @@
+{
+  "planName": "AromaTool Pro",
+  "priceText": "99 RON / lună",
+  "tagline": "Tot ce ai nevoie ca să-ți crești echipa.",
+  "features": [
+    "Contacte și CRM nelimitate",
+    "Calculator de oferte și oferte personalizate",
+    "Mesaje și follow-up automat",
+    "Bibliotecă de resurse",
+    "Suport prioritar"
+  ],
+  "continueWith": "Continuă cu {{plan}}",
+  "trialEndedBody": "Perioada ta gratuită s-a încheiat. Abonează-te ca să continui să adaugi contacte, să trimiți mesaje și să construiești oferte.",
+  "opening": "Se deschide...",
+  "subscribe": "Abonează-te",
+  "launchCodeHint": "Ai un cod de lansare? Îl introduci la pasul de plată."
+}

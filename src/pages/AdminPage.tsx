@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import i18n from "../i18n";
+import { uiLocale } from "../lib/locale";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 
@@ -98,15 +102,13 @@ interface ErrorEvent {
 
 type Tab = "users" | "feedback" | "focus" | "catalog" | "errors";
 
-// Statusuri feedback (operare: triaj simplu).
-const FEEDBACK_STATUS: Record<
-  string,
-  { label: string; bg: string; color: string }
-> = {
-  new: { label: "Nou", bg: "#FFF0F4", color: "#C94F6A" },
-  reviewed: { label: "Văzut", bg: "#E8F0E8", color: "#4A6A4A" },
-  planned: { label: "Planificat", bg: "#F0EEF8", color: "#9888B8" },
-  done: { label: "Rezolvat", bg: "#E8F8F0", color: "#2E8A58" },
+// Statusuri feedback (operare: triaj simplu). Eticheta vine din i18n
+// (admin.feedbackStatus.<key>); aici păstrăm doar culorile.
+const FEEDBACK_STATUS: Record<string, { bg: string; color: string }> = {
+  new: { bg: "#FFF0F4", color: "#C94F6A" },
+  reviewed: { bg: "#E8F0E8", color: "#4A6A4A" },
+  planned: { bg: "#F0EEF8", color: "#9888B8" },
+  done: { bg: "#E8F8F0", color: "#2E8A58" },
 };
 const STATUS_ORDER = ["new", "reviewed", "planned", "done"];
 
@@ -118,15 +120,16 @@ const PLAN_LABEL: Record<string, string> = {
   business: "Business",
 };
 
-const FEEDBACK_TYPE: Record<string, { label: string; icon: string }> = {
-  sugestie: { label: "Sugestie", icon: "ti-bulb" },
-  problema: { label: "Problemă", icon: "ti-alert-triangle" },
-  altele: { label: "Altele", icon: "ti-message" },
+// Eticheta vine din i18n (admin.feedbackType.<key>); aici doar iconul.
+const FEEDBACK_TYPE: Record<string, { icon: string }> = {
+  sugestie: { icon: "ti-bulb" },
+  problema: { icon: "ti-alert-triangle" },
+  altele: { icon: "ti-message" },
 };
 
 function fmtDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString("ro-RO", {
+    return new Date(iso).toLocaleDateString(uiLocale(i18n.language), {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -138,7 +141,7 @@ function fmtDate(iso: string): string {
 
 function fmtDateTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("ro-RO", {
+    return new Date(iso).toLocaleString(uiLocale(i18n.language), {
       day: "numeric",
       month: "short",
       hour: "2-digit",
@@ -150,31 +153,35 @@ function fmtDateTime(iso: string): string {
 }
 
 // „Ultim login" relativ, scurt (azi / acum 3 zile / dd mmm).
-function fmtLastSeen(iso: string | null): string {
-  if (!iso) return "niciodată";
+function fmtLastSeen(iso: string | null, t: TFunction): string {
+  if (!iso) return t("admin.neverLoggedIn");
   const d = new Date(iso).getTime();
   if (Number.isNaN(d)) return "—";
   const days = Math.floor((Date.now() - d) / 86_400_000);
-  if (days <= 0) return "azi";
-  if (days === 1) return "ieri";
-  if (days < 7) return `acum ${days} zile`;
+  if (days <= 0) return t("admin.today");
+  if (days === 1) return t("admin.yesterday");
+  if (days < 7) return t("admin.daysAgo", { n: days });
   return fmtDate(iso);
 }
 
 // Stare trial scurtă pentru tabelul de utilizatori.
-function trialLabel(iso: string | null): { text: string; expired: boolean } {
+function trialLabel(
+  iso: string | null,
+  t: TFunction,
+): { text: string; expired: boolean } {
   if (!iso) return { text: "—", expired: false };
   const end = new Date(iso).getTime();
   if (Number.isNaN(end)) return { text: "—", expired: false };
   const days = Math.ceil((end - Date.now()) / 86_400_000);
-  if (days <= 0) return { text: "expirat", expired: true };
-  if (days === 1) return { text: "1 zi", expired: false };
-  return { text: `${days} zile`, expired: false };
+  if (days <= 0) return { text: t("admin.trialExpired"), expired: true };
+  if (days === 1) return { text: t("admin.trialOneDay"), expired: false };
+  return { text: t("admin.trialDays", { n: days }), expired: false };
 }
 
 export default function AdminPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab>("users");
@@ -197,6 +204,7 @@ export default function AdminPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState("");
   const [syncError, setSyncError] = useState("");
+  const [importCountry, setImportCountry] = useState("RO");
 
   // ── Daily Focus ──────────────────────────────────────────
   const [focusJobs, setFocusJobs] = useState<FocusJob[]>([]);
@@ -266,7 +274,7 @@ export default function AdminPage() {
       ]);
       if (!active) return;
       if (ov.error || us.error || fb.error) {
-        setError("Nu am putut încărca datele de admin.");
+        setError(t("admin.loadError"));
       } else {
         setOverview(ov.data as Overview);
         setUsers((us.data as AdminUser[]) ?? []);
@@ -304,17 +312,23 @@ export default function AdminPage() {
     setSyncResult("");
     try {
       const { data, error: fnError } =
-        await supabase.functions.invoke("import-products");
+        await supabase.functions.invoke("import-products", {
+          body: { country: importCountry },
+        });
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
       setSyncResult(
-        `${data.imported} produse importate / actualizate` +
-          (data.deactivated ? `, ${data.deactivated} dezactivate` : "") +
-          (data.skipped ? `, ${data.skipped} ignorate (NFR / fără preț)` : "")
+        t("admin.syncResult", { n: data.imported }) +
+          (data.deactivated
+            ? t("admin.syncResultDeactivated", { n: data.deactivated })
+            : "") +
+          (data.skipped
+            ? t("admin.syncResultSkipped", { n: data.skipped })
+            : "")
       );
       await loadLastJob();
     } catch (e) {
-      setSyncError(e instanceof Error ? e.message : "Sincronizarea a eșuat.");
+      setSyncError(e instanceof Error ? e.message : t("admin.syncFailed"));
     } finally {
       setSyncing(false);
     }
@@ -330,8 +344,8 @@ export default function AdminPage() {
       if (data?.error) throw new Error(data.error);
       setFocusTestMsg(
         data.sent > 0
-          ? `Trimis! ${data.sent} email(uri), ${data.processed} procesat(e).`
-          : "Rulare ok — Focus Today gol acum, deci nu s-a trimis niciun email."
+          ? t("admin.focusSent", { sent: data.sent, processed: data.processed })
+          : t("admin.focusEmptyRun")
       );
       // Reîncarcă jobs ca să apară rularea de test.
       const { data: fresh } = await supabase
@@ -341,7 +355,7 @@ export default function AdminPage() {
         .limit(20);
       setFocusJobs((fresh as FocusJob[]) ?? []);
     } catch (e) {
-      setFocusTestErr(e instanceof Error ? e.message : "Rularea a eșuat.");
+      setFocusTestErr(e instanceof Error ? e.message : t("admin.focusRunFailed"));
     } finally {
       setFocusTesting(false);
     }
@@ -353,8 +367,8 @@ export default function AdminPage() {
     const makeAdmin = !target.is_admin;
     const name = target.full_name || target.email;
     const msg = makeAdmin
-      ? `Acorzi drepturi de admin lui ${name}?`
-      : `Retragi drepturile de admin lui ${name}?`;
+      ? t("admin.confirmGrantAdmin", { name })
+      : t("admin.confirmRevokeAdmin", { name });
     if (!confirm(msg)) return;
     setBusyUser(target.id);
     const { error: rpcErr } = await supabase.rpc("admin_set_user_admin", {
@@ -363,7 +377,7 @@ export default function AdminPage() {
     });
     setBusyUser(null);
     if (rpcErr) {
-      alert(rpcErr.message || "Nu am putut actualiza rolul.");
+      alert(rpcErr.message || t("admin.roleUpdateError"));
       return;
     }
     setUsers((prev) =>
@@ -375,7 +389,7 @@ export default function AdminPage() {
   async function saveTrialDays() {
     const n = parseInt(trialInput, 10);
     if (Number.isNaN(n) || n < 0 || n > 365) {
-      setTrialMsg("Introdu un număr între 0 și 365.");
+      setTrialMsg(t("admin.trialInputRange"));
       return;
     }
     setTrialSaving(true);
@@ -385,27 +399,24 @@ export default function AdminPage() {
     });
     setTrialSaving(false);
     if (rpcErr) {
-      setTrialMsg(rpcErr.message || "Nu am putut salva.");
+      setTrialMsg(rpcErr.message || t("admin.trialSaveError"));
       return;
     }
     const saved = typeof data === "number" ? data : n;
     setTrialDays(saved);
     setTrialInput(String(saved));
-    setTrialMsg(`Salvat: ${saved} zile pentru conturile noi.`);
+    setTrialMsg(t("admin.trialSaved", { n: saved }));
     setTimeout(() => setTrialMsg(""), 3000);
   }
 
   // Setează trialul unui utilizator la „azi + X zile".
   async function setUserTrial(target: AdminUser) {
     const name = target.full_name || target.email;
-    const input = prompt(
-      `Câte zile de trial primește ${name}? (de azi înainte)`,
-      "14",
-    );
+    const input = prompt(t("admin.promptUserTrial", { name }), "14");
     if (input === null) return;
     const n = parseInt(input, 10);
     if (Number.isNaN(n) || n < 0 || n > 3650) {
-      alert("Număr de zile invalid (0–3650).");
+      alert(t("admin.invalidDays"));
       return;
     }
     setBusyUser(target.id);
@@ -415,7 +426,7 @@ export default function AdminPage() {
     });
     setBusyUser(null);
     if (rpcErr) {
-      alert(rpcErr.message || "Nu am putut actualiza trialul.");
+      alert(rpcErr.message || t("admin.trialUpdateError"));
       return;
     }
     const newEnd = typeof data === "string" ? data : null;
@@ -431,8 +442,8 @@ export default function AdminPage() {
     const makeFree = !target.free_access;
     const name = target.full_name || target.email;
     const msg = makeFree
-      ? `Acorzi acces gratuit (fără plată) lui ${name}?`
-      : `Retragi accesul gratuit lui ${name}?`;
+      ? t("admin.confirmGrantFree", { name })
+      : t("admin.confirmRevokeFree", { name });
     if (!confirm(msg)) return;
     setBusyUser(target.id);
     const { data, error: rpcErr } = await supabase.rpc(
@@ -441,7 +452,7 @@ export default function AdminPage() {
     );
     setBusyUser(null);
     if (rpcErr) {
-      alert(rpcErr.message || "Nu am putut actualiza accesul gratuit.");
+      alert(rpcErr.message || t("admin.freeAccessError"));
       return;
     }
     const saved = typeof data === "boolean" ? data : makeFree;
@@ -494,7 +505,7 @@ export default function AdminPage() {
       for (const [i, er] of (j.errors ?? []).entries()) {
         out.push({
           id: `focus-${j.id}-${i}`,
-          service: "Daily Focus",
+          service: t("admin.serviceDailyFocus"),
           icon: "ti-sun",
           message: er.error,
           at: j.run_at,
@@ -503,7 +514,9 @@ export default function AdminPage() {
     }
     // Import catalog — joburi eșuate.
     for (const imp of failedImports) {
-      let msg = `Import eșuat${imp.records_failed ? ` · ${imp.records_failed} produse` : ""}`;
+      let msg = imp.records_failed
+        ? t("admin.errorImportFailedProducts", { n: imp.records_failed })
+        : t("admin.errorImportFailed");
       if (imp.error_log) {
         const raw =
           typeof imp.error_log === "string"
@@ -515,20 +528,20 @@ export default function AdminPage() {
       }
       out.push({
         id: `import-${imp.id}`,
-        service: "Catalog produse",
+        service: t("admin.serviceCatalog"),
         icon: "ti-package",
         message: msg,
         at: imp.created_at,
       });
     }
     return out.sort((a, b) => +new Date(b.at) - +new Date(a.at)).slice(0, 30);
-  }, [focusJobs, failedImports]);
+  }, [focusJobs, failedImports, t]);
 
   // ── Stări de acces ───────────────────────────────────────
   if (authorized === null) {
     return (
       <div style={{ padding: "60px 20px", textAlign: "center", color: T.muted }}>
-        Se verifică accesul…
+        {t("admin.checkingAccess")}
       </div>
     );
   }
@@ -540,10 +553,10 @@ export default function AdminPage() {
           style={{ fontSize: "40px", color: T.muted }}
         />
         <div style={{ marginTop: "12px", fontSize: "16px", color: T.espresso }}>
-          Nu ai acces la această pagină.
+          {t("admin.noAccess")}
         </div>
         <div style={{ marginTop: "6px", fontSize: "13px", color: T.muted }}>
-          Te redirecționăm…
+          {t("admin.redirecting")}
         </div>
       </div>
     );
@@ -552,42 +565,42 @@ export default function AdminPage() {
   const STATS = overview
     ? [
         {
-          label: "Utilizatori",
+          label: t("admin.stats.users"),
           value: overview.total_users,
           icon: "ti-users",
           bg: T.sageLight,
           color: T.sage,
         },
         {
-          label: "Activi (7z)",
+          label: t("admin.stats.active7d"),
           value: overview.active_7d,
           icon: "ti-user-check",
           bg: T.greenLight,
           color: T.green,
         },
         {
-          label: "Contacte",
+          label: t("admin.stats.contacts"),
           value: overview.total_contacts,
           icon: "ti-address-book",
           bg: T.lavenderLight,
           color: T.lavender,
         },
         {
-          label: "Oferte",
+          label: t("admin.stats.offers"),
           value: overview.total_offers,
           icon: "ti-file-text",
           bg: T.linen,
           color: T.warm,
         },
         {
-          label: "Emailuri azi",
+          label: t("admin.stats.emailsToday"),
           value: overview.emails_today,
           icon: "ti-mail-fast",
           bg: T.sageLight,
           color: T.sage,
         },
         {
-          label: "Feedback nou",
+          label: t("admin.stats.newFeedback"),
           value: overview.new_feedback,
           icon: "ti-message-2-heart",
           bg: T.redLight,
@@ -611,10 +624,10 @@ export default function AdminPage() {
           }}
         >
           <i className="ti ti-shield-lock" style={{ color: T.sage }} />
-          Panou admin
+          {t("admin.title")}
         </div>
         <div style={{ fontSize: "13px", color: T.muted, marginTop: "4px" }}>
-          Privire de ansamblu asupra platformei AromaTool.
+          {t("admin.subtitle")}
         </div>
       </div>
 
@@ -695,18 +708,30 @@ export default function AdminPage() {
       >
         {(
           [
-            { key: "users", label: "Utilizatori", icon: "ti-users" },
-            { key: "feedback", label: "Feedback", icon: "ti-message-2-heart" },
-            { key: "focus", label: "Daily Focus", icon: "ti-sun" },
-            { key: "catalog", label: "Catalog produse", icon: "ti-package" },
-            { key: "errors", label: "Erori", icon: "ti-alert-triangle" },
+            { key: "users", label: t("admin.tabs.users"), icon: "ti-users" },
+            {
+              key: "feedback",
+              label: t("admin.tabs.feedback"),
+              icon: "ti-message-2-heart",
+            },
+            { key: "focus", label: t("admin.tabs.focus"), icon: "ti-sun" },
+            {
+              key: "catalog",
+              label: t("admin.tabs.catalog"),
+              icon: "ti-package",
+            },
+            {
+              key: "errors",
+              label: t("admin.tabs.errors"),
+              icon: "ti-alert-triangle",
+            },
           ] as { key: Tab; label: string; icon: string }[]
-        ).map((t) => {
-          const active = tab === t.key;
+        ).map((tabItem) => {
+          const active = tab === tabItem.key;
           return (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -723,9 +748,11 @@ export default function AdminPage() {
                 marginBottom: "-1px",
               }}
             >
-              <i className={`ti ${t.icon}`} style={{ fontSize: "16px" }} />
-              {t.label}
-              {t.key === "feedback" && overview && overview.new_feedback > 0 && (
+              <i className={`ti ${tabItem.icon}`} style={{ fontSize: "16px" }} />
+              {tabItem.label}
+              {tabItem.key === "feedback" &&
+                overview &&
+                overview.new_feedback > 0 && (
                 <span
                   style={{
                     background: T.red,
@@ -739,7 +766,7 @@ export default function AdminPage() {
                   {overview.new_feedback}
                 </span>
               )}
-              {t.key === "errors" && errorEvents.length > 0 && (
+              {tabItem.key === "errors" && errorEvents.length > 0 && (
                 <span
                   style={{
                     background: T.red,
@@ -783,10 +810,10 @@ export default function AdminPage() {
               <div
                 style={{ fontSize: "13px", fontWeight: 600, color: T.espresso }}
               >
-                Perioadă de trial pentru conturi noi
+                {t("admin.trialConfigTitle")}
               </div>
               <div style={{ fontSize: "12px", color: T.muted }}>
-                Se aplică instant la conturile create de acum înainte.
+                {t("admin.trialConfigDesc")}
               </div>
             </div>
             <input
@@ -807,7 +834,9 @@ export default function AdminPage() {
                 outline: "none",
               }}
             />
-            <span style={{ fontSize: "13px", color: T.warm }}>zile</span>
+            <span style={{ fontSize: "13px", color: T.warm }}>
+              {t("admin.daysLabel")}
+            </span>
             <button
               onClick={saveTrialDays}
               disabled={trialSaving || trialInput === String(trialDays ?? "")}
@@ -829,7 +858,7 @@ export default function AdminPage() {
                     : "pointer",
               }}
             >
-              {trialSaving ? "Se salvează…" : "Salvează"}
+              {trialSaving ? t("common.saving") : t("common.save")}
             </button>
             {trialMsg && (
               <span
@@ -843,7 +872,7 @@ export default function AdminPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Caută după nume sau email…"
+            placeholder={t("admin.searchPlaceholder")}
             style={{
               width: "100%",
               maxWidth: "320px",
@@ -862,11 +891,11 @@ export default function AdminPage() {
 
           {loading ? (
             <div style={{ padding: "40px", textAlign: "center", color: T.muted }}>
-              Se încarcă…
+              {t("admin.loading")}
             </div>
           ) : filteredUsers.length === 0 ? (
             <div style={{ padding: "40px", textAlign: "center", color: T.muted }}>
-              Niciun utilizator găsit.
+              {t("admin.noUsersFound")}
             </div>
           ) : (
             <div
@@ -887,14 +916,20 @@ export default function AdminPage() {
                 >
                   <thead>
                     <tr style={{ background: T.cream }}>
-                      <th style={thStyle}>Utilizator</th>
-                      <th style={thStyle}>Plan</th>
-                      <th style={thStyle}>Trial</th>
-                      <th style={{ ...thStyle, textAlign: "center" }}>Contacte</th>
-                      <th style={{ ...thStyle, textAlign: "center" }}>Oferte</th>
-                      <th style={thStyle}>Înscris</th>
-                      <th style={thStyle}>Ultim login</th>
-                      <th style={{ ...thStyle, textAlign: "right" }}>Acțiuni</th>
+                      <th style={thStyle}>{t("admin.thUser")}</th>
+                      <th style={thStyle}>{t("admin.thPlan")}</th>
+                      <th style={thStyle}>{t("admin.thTrial")}</th>
+                      <th style={{ ...thStyle, textAlign: "center" }}>
+                        {t("admin.thContacts")}
+                      </th>
+                      <th style={{ ...thStyle, textAlign: "center" }}>
+                        {t("admin.thOffers")}
+                      </th>
+                      <th style={thStyle}>{t("admin.thSignedUp")}</th>
+                      <th style={thStyle}>{t("admin.thLastLogin")}</th>
+                      <th style={{ ...thStyle, textAlign: "right" }}>
+                        {t("admin.thActions")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -927,7 +962,7 @@ export default function AdminPage() {
                                   padding: "1px 6px",
                                 }}
                               >
-                                admin
+                                {t("admin.badgeAdmin")}
                               </span>
                             )}
                             {!u.is_admin && u.free_access && (
@@ -941,7 +976,7 @@ export default function AdminPage() {
                                   padding: "1px 6px",
                                 }}
                               >
-                                gratuit
+                                {t("admin.badgeFree")}
                               </span>
                             )}
                           </div>
@@ -967,7 +1002,7 @@ export default function AdminPage() {
                         </td>
                         <td style={tdStyle}>
                           {(() => {
-                            const t = trialLabel(u.trial_ends_at);
+                            const tl = trialLabel(u.trial_ends_at, t);
                             const isSubActive =
                               u.subscription_status === "active";
                             if (isSubActive)
@@ -977,11 +1012,11 @@ export default function AdminPage() {
                             return (
                               <span
                                 style={{
-                                  color: t.expired ? T.red : T.warm,
-                                  fontWeight: t.expired ? 600 : 400,
+                                  color: tl.expired ? T.red : T.warm,
+                                  fontWeight: tl.expired ? 600 : 400,
                                 }}
                               >
-                                {t.text}
+                                {tl.text}
                               </span>
                             );
                           })()}
@@ -1001,7 +1036,7 @@ export default function AdminPage() {
                             color: u.last_sign_in_at ? T.warm : T.muted,
                           }}
                         >
-                          {fmtLastSeen(u.last_sign_in_at)}
+                          {fmtLastSeen(u.last_sign_in_at, t)}
                         </td>
                         <td style={{ ...tdStyle, textAlign: "right" }}>
                           <div
@@ -1015,7 +1050,7 @@ export default function AdminPage() {
                             <button
                               onClick={() => setUserTrial(u)}
                               disabled={busyUser === u.id}
-                              title="Setează zile de trial (de azi)"
+                              title={t("admin.setTrialTitle")}
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
@@ -1035,7 +1070,7 @@ export default function AdminPage() {
                               }}
                             >
                               <i className="ti ti-clock-plus" />
-                              Trial
+                              {t("admin.btnTrial")}
                             </button>
                             {!u.is_admin && (
                               <button
@@ -1043,8 +1078,8 @@ export default function AdminPage() {
                                 disabled={busyUser === u.id}
                                 title={
                                   u.free_access
-                                    ? "Retrage accesul gratuit"
-                                    : "Acordă acces gratuit (fără plată)"
+                                    ? t("admin.revokeFreeTitle")
+                                    : t("admin.grantFreeTitle")
                                 }
                                 style={{
                                   display: "inline-flex",
@@ -1073,21 +1108,25 @@ export default function AdminPage() {
                                       : "ti ti-gift"
                                   }
                                 />
-                                {u.free_access ? "Retrage gratuit" : "Gratuit"}
+                                {u.free_access
+                                  ? t("admin.btnRevokeFree")
+                                  : t("admin.btnFree")}
                               </button>
                             )}
                             {u.id === user?.id ? (
                               <span
                                 style={{ fontSize: "12px", color: T.muted }}
                               >
-                                tu
+                                {t("admin.you")}
                               </span>
                             ) : (
                               <button
                                 onClick={() => toggleAdmin(u)}
                                 disabled={busyUser === u.id}
                                 title={
-                                  u.is_admin ? "Retrage admin" : "Acordă admin"
+                                  u.is_admin
+                                    ? t("admin.revokeAdminTitle")
+                                    : t("admin.grantAdminTitle")
                                 }
                                 style={{
                                   display: "inline-flex",
@@ -1116,7 +1155,9 @@ export default function AdminPage() {
                                       : "ti ti-shield-plus"
                                   }
                                 />
-                                {u.is_admin ? "Retrage admin" : "Fă admin"}
+                                {u.is_admin
+                                  ? t("admin.btnRevokeAdmin")
+                                  : t("admin.btnMakeAdmin")}
                               </button>
                             )}
                           </div>
@@ -1136,16 +1177,18 @@ export default function AdminPage() {
         <div>
           {loading ? (
             <div style={{ padding: "40px", textAlign: "center", color: T.muted }}>
-              Se încarcă…
+              {t("admin.loading")}
             </div>
           ) : feedback.length === 0 ? (
             <div style={{ padding: "40px", textAlign: "center", color: T.muted }}>
-              Niciun feedback încă.
+              {t("admin.noFeedback")}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {feedback.map((f) => {
-                const meta = FEEDBACK_TYPE[f.type] || FEEDBACK_TYPE.altele;
+                const typeKey = FEEDBACK_TYPE[f.type] ? f.type : "altele";
+                const meta = FEEDBACK_TYPE[typeKey];
+                const typeLabel = t(`admin.feedbackType.${typeKey}`);
                 const isNew = f.status === "new";
                 return (
                   <div
@@ -1187,11 +1230,13 @@ export default function AdminPage() {
                           }}
                         >
                           <i className={`ti ${meta.icon}`} />
-                          {meta.label}
+                          {typeLabel}
                         </span>
                         {(() => {
-                          const st =
-                            FEEDBACK_STATUS[f.status] || FEEDBACK_STATUS.new;
+                          const statusKey = FEEDBACK_STATUS[f.status]
+                            ? f.status
+                            : "new";
+                          const st = FEEDBACK_STATUS[statusKey];
                           return (
                             <span
                               style={{
@@ -1203,7 +1248,7 @@ export default function AdminPage() {
                                 padding: "2px 7px",
                               }}
                             >
-                              {st.label}
+                              {t(`admin.feedbackStatus.${statusKey}`)}
                             </span>
                           );
                         })()}
@@ -1235,7 +1280,7 @@ export default function AdminPage() {
                       }}
                     >
                       <div style={{ fontSize: "12px", color: T.muted }}>
-                        {f.user_email || "anonim"}
+                        {f.user_email || t("admin.anonymous")}
                         {f.page && (
                           <span style={{ marginLeft: "8px" }}>· {f.page}</span>
                         )}
@@ -1246,9 +1291,12 @@ export default function AdminPage() {
                       {f.user_email && (
                         <a
                           href={`mailto:${f.user_email}?subject=${encodeURIComponent(
-                            "Răspuns la feedback-ul tău · AromaTool"
+                            t("admin.replySubject")
                           )}&body=${encodeURIComponent(
-                            `\n\n———\nLa feedback-ul tău (${meta.label}):\n"${f.message}"`
+                            t("admin.replyBody", {
+                              type: typeLabel,
+                              message: f.message,
+                            })
                           )}`}
                           style={{
                             display: "inline-flex",
@@ -1265,7 +1313,7 @@ export default function AdminPage() {
                           }}
                         >
                           <i className="ti ti-mail" />
-                          Răspunde
+                          {t("admin.btnReply")}
                         </a>
                       )}
                       <select
@@ -1288,7 +1336,7 @@ export default function AdminPage() {
                       >
                         {STATUS_ORDER.map((s) => (
                           <option key={s} value={s}>
-                            {FEEDBACK_STATUS[s].label}
+                            {t(`admin.feedbackStatus.${s}`)}
                           </option>
                         ))}
                       </select>
@@ -1322,7 +1370,7 @@ export default function AdminPage() {
                 marginBottom: "4px",
               }}
             >
-              Daily Focus Email
+              {t("admin.focusTitle")}
             </div>
             <div
               style={{
@@ -1332,10 +1380,7 @@ export default function AdminPage() {
                 marginBottom: "16px",
               }}
             >
-              Cron-ul rulează din oră în oră și trimite fiecărui user, la ora
-              lui locală, contactele care merită atenție azi. Nu trimite nimic
-              dacă Focus Today e gol. Butonul de mai jos rulează manual o probă
-              pentru contul tău (ignoră ora aleasă).
+              {t("admin.focusDesc")}
             </div>
             <button
               onClick={testDailyFocus}
@@ -1359,7 +1404,9 @@ export default function AdminPage() {
                 className={focusTesting ? "ti ti-loader-2" : "ti ti-send"}
                 style={{ fontSize: "15px" }}
               />
-              {focusTesting ? "Se rulează…" : "Trimite-mi o probă acum"}
+              {focusTesting
+                ? t("admin.focusRunning")
+                : t("admin.focusSendProbe")}
             </button>
 
             {focusTestMsg && (
@@ -1402,16 +1449,16 @@ export default function AdminPage() {
               margin: "0 4px 10px",
             }}
           >
-            Ultimele rulări
+            {t("admin.lastRuns")}
           </div>
 
           {loading ? (
             <div style={{ padding: "30px", textAlign: "center", color: T.muted }}>
-              Se încarcă…
+              {t("admin.loading")}
             </div>
           ) : focusJobs.length === 0 ? (
             <div style={{ padding: "30px", textAlign: "center", color: T.muted }}>
-              Nicio rulare încă.
+              {t("admin.noRuns")}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1446,7 +1493,7 @@ export default function AdminPage() {
                       }}
                     >
                       <span style={{ color: T.muted }}>
-                        {new Date(j.run_at).toLocaleString("ro-RO")}
+                        {new Date(j.run_at).toLocaleString(uiLocale(i18n.language))}
                       </span>
                       {j.trigger === "manual" && (
                         <span
@@ -1459,7 +1506,7 @@ export default function AdminPage() {
                             padding: "1px 7px",
                           }}
                         >
-                          test
+                          {t("admin.focusTestBadge")}
                         </span>
                       )}
                     </div>
@@ -1471,14 +1518,14 @@ export default function AdminPage() {
                       }}
                     >
                       <span style={{ color: T.muted }}>
-                        {j.users_processed} procesați
+                        {t("admin.usersProcessed", { n: j.users_processed })}
                       </span>
                       <span style={{ color: T.green, fontWeight: 600 }}>
-                        {j.emails_sent} trimise
+                        {t("admin.emailsSent", { n: j.emails_sent })}
                       </span>
                       {j.emails_failed > 0 && (
                         <span style={{ color: T.red, fontWeight: 600 }}>
-                          {j.emails_failed} eșuate
+                          {t("admin.emailsFailed", { n: j.emails_failed })}
                         </span>
                       )}
                     </div>
@@ -1527,7 +1574,7 @@ export default function AdminPage() {
             }}
           >
             <i className="ti ti-package" style={{ color: T.sage }} />
-            Catalog Young Living
+            {t("admin.catalogTitle")}
           </div>
           <div
             style={{
@@ -1537,9 +1584,7 @@ export default function AdminPage() {
               marginBottom: "18px",
             }}
           >
-            Sincronizează produsele din catalogul Young Living. Importă /
-            actualizează produsele și dezactivează automat ce nu mai apare în
-            catalog.
+            {t("admin.catalogDesc")}
           </div>
 
           {lastJob && (
@@ -1561,10 +1606,10 @@ export default function AdminPage() {
                   marginBottom: "2px",
                 }}
               >
-                Ultima sincronizare
+                {t("admin.lastSync")}
               </div>
               <div style={{ color: T.muted }}>
-                {new Date(lastJob.created_at).toLocaleString("ro-RO")} —{" "}
+                {new Date(lastJob.created_at).toLocaleString(uiLocale(i18n.language))} —{" "}
                 <span
                   style={{
                     fontWeight: 600,
@@ -1577,16 +1622,61 @@ export default function AdminPage() {
                   }}
                 >
                   {lastJob.status === "done"
-                    ? "reușită"
+                    ? t("admin.statusDone")
                     : lastJob.status === "failed"
-                      ? "eșuată"
+                      ? t("admin.statusFailed")
                       : lastJob.status}
                 </span>
                 {lastJob.records_imported != null &&
-                  ` · ${lastJob.records_imported} produse`}
+                  t("admin.syncProducts", { n: lastJob.records_imported })}
               </div>
             </div>
           )}
+
+          <div style={{ marginBottom: "12px" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: T.espresso,
+                marginBottom: "6px",
+              }}
+            >
+              {t("admin.countryLabel")}
+            </label>
+            <select
+              value={importCountry}
+              onChange={(e) => setImportCountry(e.target.value)}
+              disabled={syncing}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                background: T.cream,
+                border: `1px solid ${T.border}`,
+                borderRadius: "10px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: T.espresso,
+                fontFamily: "inherit",
+                cursor: syncing ? "not-allowed" : "pointer",
+                outline: "none",
+              }}
+            >
+              <option value="RO">{t("admin.countryRO")}</option>
+              <option value="DE">{t("admin.countryDE")}</option>
+              <option value="FR">{t("admin.countryFR")}</option>
+              <option value="IT">{t("admin.countryIT")}</option>
+              <option value="ES">{t("admin.countryES")}</option>
+              <option value="NL">{t("admin.countryNL")}</option>
+              <option value="BE">{t("admin.countryBE")}</option>
+              <option value="AT">{t("admin.countryAT")}</option>
+              <option value="IE">{t("admin.countryIE")}</option>
+              <option value="PT">{t("admin.countryPT")}</option>
+              <option value="FI">{t("admin.countryFI")}</option>
+              <option value="GB">{t("admin.countryGB")}</option>
+            </select>
+          </div>
 
           <button
             onClick={syncProducts}
@@ -1613,8 +1703,8 @@ export default function AdminPage() {
               style={{ fontSize: "15px" }}
             />
             {syncing
-              ? "Se sincronizează…"
-              : "Sincronizează produse din Young Living"}
+              ? t("admin.syncing")
+              : t("admin.syncCatalog", { country: importCountry })}
           </button>
 
           {syncResult && (
@@ -1676,13 +1766,12 @@ export default function AdminPage() {
               margin: "0 4px 14px",
             }}
           >
-            Ultimele erori din sistemele automate (Daily Focus și import
-            catalog). Dacă lista e goală, totul a rulat curat.
+            {t("admin.errorsDesc")}
           </div>
 
           {loading ? (
             <div style={{ padding: "40px", textAlign: "center", color: T.muted }}>
-              Se încarcă…
+              {t("admin.loading")}
             </div>
           ) : errorEvents.length === 0 ? (
             <div
@@ -1699,7 +1788,7 @@ export default function AdminPage() {
                 className="ti ti-circle-check"
                 style={{ fontSize: "32px", display: "block", marginBottom: "8px" }}
               />
-              Nicio eroare recentă. 🌿
+              {t("admin.noErrors")}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>

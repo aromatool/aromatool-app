@@ -1,0 +1,62 @@
+{
+  "localeCode": "ro-RO",
+  "displayStatus": {
+    "prospect": "Prospect",
+    "client": "Client",
+    "team_member": "Membru echipă",
+    "inactiv": "Inactiv",
+    "contact": "Contact"
+  },
+  "title": {
+    "reactivate": "Reactivează {{name}}",
+    "contact": "Contactează {{name}}",
+    "needsOffer": "Trimite prima ofertă",
+    "needsFollowup": "Trimite follow-up",
+    "discussBusiness": "Discută despre business",
+    "awaitingReply": "Așteaptă răspuns",
+    "none": "Nicio acțiune necesară"
+  },
+  "reason": {
+    "inactiveDays": "Inactiv de {{days}} zile. Un mesaj cald poate readuce relația.",
+    "inactiveMarked": "Marcat inactiv. Încearcă o reconectare.",
+    "clientNotContacted": "Nu a mai fost contactat de {{days}} zile.",
+    "noOfferYet": "{{name}} nu a primit încă nicio ofertă. E în CRM de {{days}} zile.",
+    "followupNever": "{{name}} a primit ofertă, dar n-a fost contactat de atunci.",
+    "followupLast": "Ultimul follow-up acum {{days}} zile.",
+    "discussBusiness": "Client activ și implicat de peste 4 luni. Poate fi interesat de oportunitate.",
+    "awaitingReply": "Follow-up trimis acum {{days}} zile. Lasă-i timp sau trimite un mesaj scurt.",
+    "noneTeam": "Activ și implicat.",
+    "noneUpToDate": "Totul e la zi cu acest contact."
+  },
+  "shortReason": {
+    "daysNoContact": "{{days}} zile fără contact",
+    "inactive": "inactiv",
+    "addedRecently": "adăugat recent",
+    "inCrmNoOffer": "în CRM de {{days}} zile, fără ofertă",
+    "notContactedAfterOffer": "Nu a fost contactat după ofertă",
+    "lastFollowupDays": "ultimul acum {{days}} zile",
+    "followupToResume": "follow-up de reluat",
+    "followupDaysAgo": "follow-up acum {{days}} zile",
+    "waiting": "în așteptare",
+    "engagedClient": "client implicat",
+    "upToDate": "la zi"
+  },
+  "crmCategory": {
+    "offer": "Necesită ofertă",
+    "followup": "Necesită follow-up",
+    "reactivate": "Necesită reactivare",
+    "none": "Fără acțiuni"
+  },
+  "nextAction": {
+    "offer_followup": "Întreabă dacă a analizat oferta",
+    "first_order_followup": "Verifică experiența după prima comandă",
+    "reactivation": "Încearcă reactivarea",
+    "business_opportunity": "Discută despre oportunitatea de business",
+    "contact_prospect": "Ia legătura cu prospectul"
+  },
+  "group": {
+    "tomorrow": "Mâine",
+    "nextWeek": "Săptămâna viitoare",
+    "later": "Mai târziu"
+  }
+}

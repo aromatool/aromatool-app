@@ -7,7 +7,12 @@ export interface Product {
   name: string;
   sku: string;
   points: number;
+  // Preț în moneda NATIVĂ a catalogului (vezi `currency`). Numele coloanei
+  // e istoric „price_eur”, dar valoarea e EUR doar pentru zona euro; pentru
+  // UK e GBP etc. Interpretarea corectă se face mereu prin `currency`.
   price_eur: number;
+  // Moneda în care e exprimat `price_eur` (EUR, GBP, ...).
+  currency: string;
 }
 
 export interface ExchangeRate {
@@ -26,7 +31,7 @@ export function useProducts(countryCode = "RO") {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, sku, points, price_eur")
+        .select("id, name, sku, points, price_eur, currency")
         .eq("company_id", companyId!)
         .eq("country_code", countryCode)
         .eq("active", true)
@@ -35,6 +40,27 @@ export function useProducts(countryCode = "RO") {
       return data as Product[];
     },
     staleTime: 1000 * 60 * 10,
+  });
+}
+
+// Țările care AU produse importate pentru compania curentă.
+// Folosit pentru a popula selectorul de catalog (fără opțiuni goale).
+// Folosește RPC-ul `list_product_countries` (DISTINCT în DB) ca să nu
+// dependem de limita de 1000 de rânduri a unui select pe `products`.
+export function useProductCountries() {
+  const { data: company } = useCompany();
+  const companyId = company?.id;
+  return useQuery({
+    queryKey: ["product-countries", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_product_countries");
+      if (error) throw error;
+      return ((data ?? []) as { country_code: string }[])
+        .map((r) => r.country_code)
+        .filter(Boolean);
+    },
+    staleTime: 1000 * 60 * 30,
   });
 }
 

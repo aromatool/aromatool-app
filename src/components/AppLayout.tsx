@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
 import { supabase } from "../lib/supabase";
@@ -31,23 +32,24 @@ interface AppLayoutProps {
 
 // Bottom nav items — 4 items + FAB central
 const NAV_LEFT = [
-  { path: "/app/dashboard", icon: "ti-layout-dashboard", label: "Home" },
-  { path: "/app/contacts", icon: "ti-users", label: "CRM" },
+  { path: "/app/dashboard", icon: "ti-layout-dashboard", labelKey: "nav.home" },
+  { path: "/app/contacts", icon: "ti-users", labelKey: "nav.crm" },
 ];
 const NAV_RIGHT = [
-  { path: "/app/offers", icon: "ti-file-text", label: "Oferte" },
-  { path: "/app/templates", icon: "ti-template", label: "Mai mult" },
+  { path: "/app/offers", icon: "ti-file-text", labelKey: "nav.offers" },
+  { path: "/app/templates", icon: "ti-template", labelKey: "nav.more" },
 ];
 const ALL_NAV = [
-  { path: "/app/dashboard", icon: "ti-layout-dashboard", label: "Home" },
-  { path: "/app/contacts", icon: "ti-users", label: "CRM" },
-  { path: "/app/calculator", icon: "ti-calculator", label: "Construiește oferta" },
-  { path: "/app/offers", icon: "ti-file-text", label: "Oferte" },
-  { path: "/app/resources", icon: "ti-folder", label: "Resurse" },
-  { path: "/app/templates", icon: "ti-template", label: "Mesaje" },
+  { path: "/app/dashboard", icon: "ti-layout-dashboard", labelKey: "nav.home" },
+  { path: "/app/contacts", icon: "ti-users", labelKey: "nav.crm" },
+  { path: "/app/calculator", icon: "ti-calculator", labelKey: "nav.buildOffer" },
+  { path: "/app/offers", icon: "ti-file-text", labelKey: "nav.offers" },
+  { path: "/app/resources", icon: "ti-folder", labelKey: "nav.resources" },
+  { path: "/app/templates", icon: "ti-template", labelKey: "nav.messages" },
 ];
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const sub = useSubscription();
   const navigate = useNavigate();
@@ -211,7 +213,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 }}
               >
                 <i className={`ti ${item.icon}`} style={{ fontSize: "15px" }} />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
               </button>
             );
           })}
@@ -308,7 +310,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   className="ti ti-settings"
                   style={{ fontSize: "15px", color: T.muted }}
                 />
-                Setări cont
+                {t("nav.accountSettings")}
               </button>
               <button
                 onClick={() => {
@@ -321,7 +323,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   className="ti ti-help-circle"
                   style={{ fontSize: "15px", color: T.muted }}
                 />
-                Ghid & ajutor
+                {t("nav.helpGuide")}
               </button>
               {isAdmin && (
                 <button
@@ -335,7 +337,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     className="ti ti-shield-lock"
                     style={{ fontSize: "15px", color: T.muted }}
                   />
-                  Admin
+                  {t("nav.admin")}
                 </button>
               )}
               <button
@@ -346,7 +348,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 style={{ ...menuItemStyle, color: "#C94F6A" }}
               >
                 <i className="ti ti-logout" style={{ fontSize: "15px" }} />
-                Ieși din cont
+                {t("nav.signOut")}
               </button>
             </div>
           )}
@@ -476,7 +478,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  + Contact nou
+                  {t("nav.newContact")}
                 </span>
               </button>
               <button
@@ -498,7 +500,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Ofertă nouă
+                  {t("nav.newOffer")}
                 </span>
               </button>
             </div>
@@ -534,12 +536,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Right items */}
         {NAV_RIGHT.map((item) => {
           // "Mai mult" deschide settings
-          const handleClick =
-            item.label === "Mai mult"
-              ? () => navigate("/app/settings")
-              : () => navigate(item.path);
-          const effectivePath =
-            item.label === "Mai mult" ? "/app/settings" : item.path;
+          const isMore = item.labelKey === "nav.more";
+          const handleClick = isMore
+            ? () => navigate("/app/settings")
+            : () => navigate(item.path);
+          const effectivePath = isMore ? "/app/settings" : item.path;
           const effectiveActive = isActive(effectivePath);
 
           return (
@@ -639,6 +640,7 @@ function SubscriptionBanner({
   sub: BannerSub;
   onAction: () => void;
 }) {
+  const { t } = useTranslation();
   // Adminii și utilizatorii cu acces gratuit nu văd niciun banner.
   if (sub.loading || sub.isActive || sub.isAdmin || sub.freeAccess) return null;
 
@@ -650,8 +652,8 @@ function SubscriptionBanner({
         border="#F3C9D3"
         color="#A23A52"
         icon="ti-alert-triangle"
-        text="Plata abonamentului a eșuat. Actualizează metoda de plată ca să nu pierzi accesul."
-        cta="Gestionează"
+        text={t("nav.bannerPastDue")}
+        cta={t("nav.bannerManage")}
         onClick={onAction}
       />
     );
@@ -668,10 +670,10 @@ function SubscriptionBanner({
         icon="ti-clock"
         text={
           sub.daysLeft === 1
-            ? "Perioada gratuită expiră mâine."
-            : `Perioada gratuită: ${sub.daysLeft} zile rămase.`
+            ? t("nav.bannerTrialExpiresTomorrow")
+            : t("nav.bannerTrialDaysLeft", { days: sub.daysLeft })
         }
-        cta="Vezi planul"
+        cta={t("nav.bannerSeePlan")}
         onClick={onAction}
       />
     );
@@ -685,8 +687,8 @@ function SubscriptionBanner({
         border="#E8D5B5"
         color="#9A6A2A"
         icon="ti-lock"
-        text="Perioada gratuită s-a încheiat. Abonează-te ca să continui să adaugi contacte și să trimiți mesaje."
-        cta="Abonează-te"
+        text={t("nav.bannerTrialEnded")}
+        cta={t("nav.bannerSubscribe")}
         onClick={sub.openPaywall}
       />
     );

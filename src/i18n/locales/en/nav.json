@@ -1,0 +1,23 @@
+{
+  "home": "Home",
+  "crm": "CRM",
+  "buildOffer": "Build offer",
+  "offers": "Offers",
+  "resources": "Resources",
+  "messages": "Messages",
+  "more": "More",
+  "tagline": "crafted for your team",
+  "accountSettings": "Account settings",
+  "helpGuide": "Guide & help",
+  "admin": "Admin",
+  "signOut": "Sign out",
+  "newContact": "+ New contact",
+  "newOffer": "New offer",
+  "bannerPastDue": "Your subscription payment failed. Update your payment method so you don't lose access.",
+  "bannerManage": "Manage",
+  "bannerTrialExpiresTomorrow": "Your free trial expires tomorrow.",
+  "bannerTrialDaysLeft": "Free trial: {{days}} days left.",
+  "bannerSeePlan": "See plan",
+  "bannerTrialEnded": "Your free trial has ended. Subscribe to keep adding contacts and sending messages.",
+  "bannerSubscribe": "Subscribe"
+}

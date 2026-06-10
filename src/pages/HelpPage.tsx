@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 // ── BLOSSOM SAGE ───────────────────────────────────────────
 const T = {
@@ -14,7 +15,33 @@ const T = {
   muted: "#A89888",
   border: "#EDE8E0",
   white: "#FFFFFF",
+  amber: "#C4906A",
+  amberLight: "#FDF5EE",
+  lavender: "#9888B8",
+  lavenderLight: "#F0EEF8",
+  green: "#2E8A58",
+  greenLight: "#E8F8F0",
+  red: "#C94F6A",
+  redLight: "#FFF0F4",
 };
+
+// ── STATUS + ACȚIUNI: culori/iconițe identice cu Dashboard & CRM ──
+// (statusGroup → pill în ContactsPage; actionVisual → idem)
+const STATUS_VISUAL: { key: string; color: string; bg: string }[] = [
+  { key: "prospect", color: T.amber, bg: T.amberLight },
+  { key: "client", color: T.green, bg: T.greenLight },
+  { key: "team", color: T.lavender, bg: T.lavenderLight },
+  { key: "inactive", color: T.muted, bg: T.linen },
+];
+
+const ACTION_VISUAL: { key: string; icon: string; color: string; bg: string }[] = [
+  { key: "reactivate", icon: "ti-refresh", color: T.red, bg: T.redLight },
+  { key: "needs_offer", icon: "ti-send", color: T.amber, bg: T.amberLight },
+  { key: "needs_followup", icon: "ti-mail", color: T.amber, bg: T.amberLight },
+  { key: "discuss_business", icon: "ti-users-group", color: T.green, bg: T.greenLight },
+  { key: "awaiting_reply", icon: "ti-clock", color: T.lavender, bg: T.lavenderLight },
+  { key: "none", icon: "ti-circle-check", color: T.green, bg: T.greenLight },
+];
 
 interface HelpItem {
   q: string;
@@ -28,167 +55,196 @@ interface HelpCategory {
 }
 
 // ── CONȚINUT AJUTOR ────────────────────────────────────────
-// Întrebări reale despre fluxurile aplicației. Ușor de extins:
-// adaugi un obiect în array, fără alte modificări.
-const HELP: HelpCategory[] = [
-  {
-    icon: "ti-sparkles",
-    title: "Început rapid",
-    items: [
-      {
-        q: "Cu ce încep prima dată?",
-        a: "Începe din Setări: completează-ți numele, telefonul, emailul de contact și semnătura de email. Acestea apar automat în ofertele și mesajele pe care le trimiți.\nApoi adaugă primele contacte în CRM și construiește prima ofertă din „Construiește oferta”.",
-      },
-      {
-        q: "Cum funcționează aplicația, pe scurt?",
-        a: "AromaTool te ajută să gestionezi clienții (CRM), să construiești oferte de produse cu prețuri corecte, să le trimiți pe email și să revii la momentul potrivit cu mesaje de follow-up. Aplicația îți sugerează ce ai de făcut — tu decizi când trimiți.",
-      },
-    ],
-  },
-  {
-    icon: "ti-calculator",
-    title: "Construiește oferta",
-    items: [
-      {
-        q: "Cum construiesc o ofertă?",
-        a: "Intră în „Construiește oferta”, adaugă produsele în coș, setează cantitatea și, dacă vrei, un discount per produs. Alege moneda și cursul de schimb, adaugă transportul și o notă dacă e cazul. La final previzualizezi și trimiți oferta pe email contactului ales.",
-      },
-      {
-        q: "Cum sunt calculate prețurile și cursul valutar?",
-        a: "Prețurile de bază sunt în EUR. Când alegi altă monedă, totul se convertește la cursul de schimb pe care îl setezi tu, ca să-i arăți clientului suma în moneda lui. Cursul folosit rămâne salvat pe ofertă, ca să poți reconstrui mai târziu calculul exact.",
-      },
-      {
-        q: "Pot atașa materiale (PDF-uri, imagini) la ofertă?",
-        a: "Da. Materialele nu se trimit ca atașamente grele, ci ca linkuri securizate către fișierele tale din Resurse. Astfel emailul rămâne ușor, iar tu poți vedea dacă au fost accesate.",
-      },
-    ],
-  },
-  {
-    icon: "ti-file-text",
-    title: "Oferte trimise",
-    items: [
-      {
-        q: "Unde văd ofertele trimise?",
-        a: "În pagina „Oferte”. Ofertele sunt grupate pe client — apeși pe un client ca să vezi toate ofertele lui, iar pe fiecare ofertă ca să vezi produsele și detaliile.",
-      },
-      {
-        q: "Am dat click pe o ofertă din Dashboard/CRM. De ce apare filtrată?",
-        a: "Când deschizi o ofertă dintr-un alt loc, pagina „Oferte” o aduce sus, filtrată pe clientul respectiv, cu oferta deschisă și evidențiată. Ca să revii la lista completă, apeși „Vezi toate ofertele” din bannerul de sus.",
-      },
-      {
-        q: "Cum caut o ofertă anume?",
-        a: "Folosește bara de căutare din pagina „Oferte”: poți căuta după numele clientului, email sau după numele unui produs din ofertă.",
-      },
-    ],
-  },
-  {
-    icon: "ti-users",
-    title: "CRM & contacte",
-    items: [
-      {
-        q: "Ce înseamnă statusurile contactelor?",
-        a: "Prospect = persoană interesată, fără ofertă încă. Client nou / Client fidel = a cumpărat. Follow-up = i-ai trimis ofertă și aștepți răspuns. Inactiv = nu a mai fost activitate de mult. Statusul ajută aplicația să-ți sugereze următoarea acțiune potrivită.",
-      },
-      {
-        q: "Ce sunt acțiunile recomandate?",
-        a: "Pentru fiecare contact, aplicația îți sugerează ce are sens să faci acum: trimite prima ofertă, revino cu un follow-up, reactivează un contact adormit etc. Sunt sugestii — tu alegi dacă și când acționezi.",
-      },
-      {
-        q: "Cum contactez rapid un client?",
-        a: "Din CRM sau Dashboard ai acțiuni rapide: WhatsApp, email și ofertă nouă. Mesajul de WhatsApp e pregătit automat în funcție de starea contactului și se deschide în WhatsApp ca să îl poți ajusta înainte de trimitere.",
-      },
-    ],
-  },
-  {
-    icon: "ti-template",
-    title: "Mesaje & follow-up",
-    items: [
-      {
-        q: "Cum trimit un mesaj de follow-up?",
-        a: "Din CRM/Dashboard alegi contactul și deschizi fereastra de mesaj. Aplicația îți arată mesajele recomandate pentru situația lui; poți apăsa „Vezi toate” ca să alegi orice alt mesaj. Editezi dacă vrei și trimiți.",
-      },
-      {
-        q: "Care e diferența dintre mesajele de sistem și cele personale?",
-        a: "Mesajele de sistem sunt șabloane gata făcute, oferite de aplicație. Le poți „Personaliza” ca să-ți creezi propria variantă, pe care apoi o poți edita liber în pagina „Mesaje”.",
-      },
-      {
-        q: "Pot atașa materiale implicite la un mesaj?",
-        a: "Da. La un mesaj personal poți seta materiale implicite (din Resurse). Ele apar bifate automat când trimiți acel mesaj, iar tu le poți ajusta la momentul trimiterii.",
-      },
-      {
-        q: "Ce conține semnătura din emailuri?",
-        a: "La finalul emailurilor apare o secțiune discretă de contact: numărul tău de telefon, un buton de WhatsApp și unul de email, plus semnătura ta. Toate sunt luate din Setări.",
-      },
-      {
-        q: "Ce se întâmplă cu mesajele de WhatsApp?",
-        a: "Sunt sugestii generate automat în funcție de starea contactului, personalizate cu prenumele lui și semnătura ta. Se deschid pre-completate în WhatsApp — le poți edita oricât înainte să le trimiți.",
-      },
-    ],
-  },
-  {
-    icon: "ti-folder",
-    title: "Resurse",
-    items: [
-      {
-        q: "Ce pot încărca în Resurse?",
-        a: "Fișiere utile pentru clienți: PDF-uri (broșuri, protocoale) și imagini (JPG, PNG). Le folosești apoi în oferte și în mesaje.",
-      },
-      {
-        q: "Cum sunt trimise fișierele către clienți?",
-        a: "Nu ca atașamente, ci ca linkuri securizate, unice per trimitere. Astfel emailul rămâne ușor și poți urmări dacă linkul a fost accesat.",
-      },
-    ],
-  },
-  {
-    icon: "ti-credit-card",
-    title: "Abonament & perioadă gratuită",
-    items: [
-      {
-        q: "Cât durează perioada gratuită (trial)?",
-        a: "La crearea contului primești o perioadă gratuită în care ai acces la toate funcțiile, fără să introduci un card. Numărul exact de zile rămase îl vezi oricând în Setări, în cardul „Abonament”.",
-      },
-      {
-        q: "Am nevoie de card ca să încep?",
-        a: "Nu. Perioada gratuită pornește automat, fără card de credit. Introduci o metodă de plată doar atunci când decizi să te abonezi.",
-      },
-      {
-        q: "Ce se întâmplă când expiră perioada gratuită?",
-        a: "Poți în continuare să te autentifici, să-ți vezi datele și să le exporți. Acțiunile de scriere (adăugare contacte, trimitere mesaje și oferte, încărcare resurse) se deblochează după ce te abonezi.",
-      },
-      {
-        q: "Cum mă abonez?",
-        a: "Din Setări → cardul „Abonament” apeși „Abonează-te”. Te ducem la pagina de plată securizată, unde alegi metoda de plată și, dacă ai, introduci codul de lansare. După confirmare, contul tău se deblochează automat.",
-      },
-      {
-        q: "Am un cod de lansare / reducere. Unde îl introduc?",
-        a: "La pasul de plată, după ce apeși „Abonează-te”, există un câmp pentru codul promoțional. Îl introduci acolo și reducerea se aplică automat.",
-      },
-      {
-        q: "Cum îmi gestionez abonamentul sau factura?",
-        a: "Din Setări → cardul „Abonament” → „Gestionează abonamentul”. Acolo poți schimba metoda de plată, vedea facturile sau anula abonamentul, oricând.",
-      },
-    ],
-  },
-  {
-    icon: "ti-settings",
-    title: "Setări & cont",
-    items: [
-      {
-        q: "Unde îmi setez semnătura de email?",
-        a: "În Setări, la câmpul „Semnătură email”. Textul de acolo apare automat în footerul tuturor emailurilor (ofertă, follow-up, mesaj personalizat).",
-      },
-      {
-        q: "Cum apar datele mele de contact în emailuri?",
-        a: "Telefonul și emailul de contact din Setări alimentează butoanele de WhatsApp și email din footerul mesajelor. Actualizezi într-un singur loc și se reflectă peste tot.",
-      },
-    ],
-  },
+// Conținutul (titluri + întrebări/răspunsuri) vine din i18n
+// (help.json). Aici păstrăm doar maparea cheie→icon și ordinea
+// categoriilor. Adaugi o categorie nouă: o cheie aici + în JSON.
+const CATEGORY_ICONS: { key: string; icon: string }[] = [
+  { key: "quickStart", icon: "ti-sparkles" },
+  { key: "buildOffer", icon: "ti-calculator" },
+  { key: "sentOffers", icon: "ti-file-text" },
+  { key: "crm", icon: "ti-users" },
+  { key: "messages", icon: "ti-template" },
+  { key: "resources", icon: "ti-folder" },
+  { key: "subscription", icon: "ti-credit-card" },
+  { key: "settings", icon: "ti-settings" },
 ];
+
+// ── GHID VIZUAL: statusuri + acțiuni ───────────────────────
+// Explică non-tehnic de ce un contact e într-un status și de ce
+// are acțiunea aceea. Culorile = aceleași ca în Dashboard/CRM.
+function StatusGuide() {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        background: T.white,
+        border: `0.5px solid ${T.border}`,
+        borderRadius: "16px",
+        padding: "22px",
+        marginBottom: "24px",
+      }}
+    >
+      {/* Titlu */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+        <div
+          style={{
+            width: "32px",
+            height: "32px",
+            borderRadius: "9px",
+            background: T.sageLight,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <i className="ti ti-route" style={{ fontSize: "17px", color: T.sage }} />
+        </div>
+        <div style={{ fontSize: "16px", fontWeight: 600, color: T.espresso }}>
+          {t("help.guide.title")}
+        </div>
+      </div>
+      <div style={{ fontSize: "13px", color: T.muted, lineHeight: 1.6, marginBottom: "20px", paddingLeft: "42px" }}>
+        {t("help.guide.subtitle")}
+      </div>
+
+      {/* ── STATUSURI ── */}
+      <div style={{ fontSize: "13px", fontWeight: 600, color: T.sageDark, marginBottom: "4px" }}>
+        {t("help.guide.statusHeading")}
+      </div>
+      <div style={{ fontSize: "12.5px", color: T.muted, lineHeight: 1.6, marginBottom: "14px" }}>
+        {t("help.guide.statusIntro")}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "10px",
+          marginBottom: "24px",
+        }}
+      >
+        {STATUS_VISUAL.map((s) => (
+          <div
+            key={s.key}
+            style={{
+              border: `0.5px solid ${T.border}`,
+              borderLeft: `3px solid ${s.color}`,
+              borderRadius: "12px",
+              padding: "13px 14px",
+              background: T.cream,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                fontSize: "11.5px",
+                fontWeight: 600,
+                color: s.color,
+                background: s.bg,
+                padding: "3px 10px",
+                borderRadius: "999px",
+                marginBottom: "8px",
+              }}
+            >
+              {t(`help.guide.statuses.${s.key}.label`)}
+            </span>
+            <div style={{ fontSize: "13px", fontWeight: 500, color: T.espresso, lineHeight: 1.5, marginBottom: "4px" }}>
+              {t(`help.guide.statuses.${s.key}.meaning`)}
+            </div>
+            <div style={{ fontSize: "12px", color: T.warm, lineHeight: 1.55 }}>
+              {t(`help.guide.statuses.${s.key}.how`)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── ACȚIUNI ── */}
+      <div style={{ fontSize: "13px", fontWeight: 600, color: T.sageDark, marginBottom: "4px" }}>
+        {t("help.guide.actionHeading")}
+      </div>
+      <div style={{ fontSize: "12.5px", color: T.muted, lineHeight: 1.6, marginBottom: "14px" }}>
+        {t("help.guide.actionIntro")}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {ACTION_VISUAL.map((a) => (
+          <div
+            key={a.key}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "12px",
+              border: `0.5px solid ${T.border}`,
+              borderRadius: "12px",
+              padding: "12px 14px",
+              background: T.cream,
+            }}
+          >
+            <div
+              style={{
+                width: "30px",
+                height: "30px",
+                borderRadius: "9px",
+                background: a.bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                marginTop: "1px",
+              }}
+            >
+              <i className={`ti ${a.icon}`} style={{ fontSize: "15px", color: a.color }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: "13.5px", fontWeight: 600, color: a.color, marginBottom: "2px" }}>
+                {t(`help.guide.actions.${a.key}.label`)}
+              </div>
+              <div style={{ fontSize: "12.5px", color: T.warm, lineHeight: 1.55 }}>
+                {t(`help.guide.actions.${a.key}.when`)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Notă agendă ── */}
+      <div
+        style={{
+          marginTop: "16px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "9px",
+          background: T.sageLight,
+          border: `0.5px solid ${T.sageMid}`,
+          borderRadius: "12px",
+          padding: "12px 14px",
+        }}
+      >
+        <i className="ti ti-calendar-event" style={{ fontSize: "16px", color: T.sage, flexShrink: 0, marginTop: "1px" }} />
+        <div style={{ fontSize: "12.5px", color: T.sageDark, lineHeight: 1.6 }}>
+          {t("help.guide.agendaNote")}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HelpPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState<Set<string>>(new Set());
+
+  const HELP: HelpCategory[] = useMemo(
+    () =>
+      CATEGORY_ICONS.map(({ key, icon }) => ({
+        icon,
+        title: t(`help.categories.${key}.title`),
+        items: t(`help.categories.${key}.items`, {
+          returnObjects: true,
+        }) as HelpItem[],
+      })),
+    [t],
+  );
 
   const q = search.trim().toLowerCase();
 
@@ -202,7 +258,7 @@ export default function HelpPage() {
           it.q.toLowerCase().includes(q) || it.a.toLowerCase().includes(q),
       ),
     })).filter((cat) => cat.items.length > 0);
-  }, [q]);
+  }, [q, HELP]);
 
   const toggle = (id: string) =>
     setOpen((prev) => {
@@ -219,11 +275,10 @@ export default function HelpPage() {
       {/* Header */}
       <div style={{ marginBottom: "20px" }}>
         <div style={{ fontSize: "22px", fontWeight: 500, color: T.espresso }}>
-          Ghid & ajutor
+          {t("help.pageTitle")}
         </div>
         <div style={{ fontSize: "13px", color: T.muted, marginTop: "4px" }}>
-          Caută răspunsuri sau răsfoiește pe categorii. Nu găsești ce cauți?
-          Întreabă-ne oricând.
+          {t("help.pageSubtitle")}
         </div>
       </div>
 
@@ -243,7 +298,7 @@ export default function HelpPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Caută în ghid... (ex: ofertă, follow-up, semnătură)"
+          placeholder={t("help.searchPlaceholder")}
           style={{
             width: "100%",
             padding: "11px 12px 11px 38px",
@@ -258,6 +313,9 @@ export default function HelpPage() {
           }}
         />
       </div>
+
+      {/* Ghid vizual statusuri + acțiuni (ascuns în timpul căutării) */}
+      {!q && <StatusGuide />}
 
       {/* Rezultate goale */}
       {q && totalMatches === 0 ? (
@@ -287,10 +345,10 @@ export default function HelpPage() {
               marginBottom: "6px",
             }}
           >
-            Niciun rezultat pentru „{search}”
+            {t("help.noResultsTitle", { search })}
           </div>
           <div style={{ fontSize: "13px", color: T.muted }}>
-            Încearcă alte cuvinte, sau răsfoiește categoriile.
+            {t("help.noResultsSub")}
           </div>
         </div>
       ) : (
@@ -429,7 +487,7 @@ export default function HelpPage() {
             marginBottom: "4px",
           }}
         >
-          Tot nu ai găsit răspunsul?
+          {t("help.footerTitle")}
         </div>
         <div
           style={{
@@ -438,7 +496,7 @@ export default function HelpPage() {
             marginBottom: "14px",
           }}
         >
-          Verifică-ți setările contului sau scrie-ne — îți răspundem cu drag.
+          {t("help.footerSub")}
         </div>
         <button
           onClick={() => navigate("/app/settings")}
@@ -458,7 +516,7 @@ export default function HelpPage() {
           }}
         >
           <i className="ti ti-settings" style={{ fontSize: "15px" }} />
-          Deschide Setări
+          {t("help.footerButton")}
         </button>
       </div>
     </div>

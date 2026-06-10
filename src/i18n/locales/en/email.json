@@ -1,0 +1,19 @@
+{
+  "subjectWithName": "{{name}}, here is your offer — {{user}}",
+  "subject": "Your offer — {{user}}",
+  "greeting": "Hello",
+  "intro": "The offer below was prepared especially for you<br>by <strong style=\"color:#5C7A5C\">{{user}}</strong>.",
+  "colProduct": "Product",
+  "colQty": "Qty",
+  "colTotal": "Total",
+  "transport": "🚚 Shipping",
+  "totalToPay": "Total to pay",
+  "notesLabel": "Personal notes",
+  "materialsLabel": "Attached materials",
+  "enrollTitle": "Start your journey with us!",
+  "enrollBody": "Be part of a team that supports you, inspires you and grows together with you. Just one step separates you from this wonderful community.",
+  "enrollButton": "Join the team →",
+  "enrollFooter": "🌿 Young Living · Official enrollment",
+  "sentVia": "Sent via AromaTool",
+  "closing": "Warm regards"
+}

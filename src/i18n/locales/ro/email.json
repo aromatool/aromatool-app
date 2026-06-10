@@ -1,0 +1,19 @@
+{
+  "subjectWithName": "{{name}}, iată oferta ta — {{user}}",
+  "subject": "Oferta ta — {{user}}",
+  "greeting": "Bună ziua",
+  "intro": "Oferta de mai jos a fost pregătită special pentru dumneavoastră<br>de către <strong style=\"color:#5C7A5C\">{{user}}</strong>.",
+  "colProduct": "Produs",
+  "colQty": "Cant.",
+  "colTotal": "Total",
+  "transport": "🚚 Transport",
+  "totalToPay": "Total de plată",
+  "notesLabel": "Notițe personalizate",
+  "materialsLabel": "Materiale atașate",
+  "enrollTitle": "Începe călătoria ta alături de noi!",
+  "enrollBody": "Fii parte dintr-o echipă care te susține, te inspiră și crește împreună cu tine. Un singur pas te separă de această comunitate minunată.",
+  "enrollButton": "Înscrie-te în echipă →",
+  "enrollFooter": "🌿 Young Living · Înregistrare oficială",
+  "sentVia": "Trimis prin AromaTool",
+  "closing": "Cu drag"
+}

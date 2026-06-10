@@ -1,0 +1,74 @@
+{
+  "greetingMorning": "Good morning",
+  "greetingAfternoon": "Good afternoon",
+  "greetingEvening": "Good evening",
+  "status": {
+    "prospect": "Prospect",
+    "in_followup": "In follow-up",
+    "inactiv": "Inactive",
+    "client_nou": "New client",
+    "client_fidel": "Loyal client",
+    "team_member": "Team member"
+  },
+  "urgentLabel": "Client at risk",
+  "urgency": {
+    "daysInactive": "days inactive",
+    "daysInCrm": "days in CRM",
+    "daysSinceOffer": "days since offer",
+    "daysSinceLastActivity": "days since last activity"
+  },
+  "action": {
+    "reactivate": "Reactivate",
+    "sendOffer": "Send offer",
+    "followup": "Follow-up",
+    "contact": "Contact"
+  },
+  "badge": {
+    "urgent": "Urgent",
+    "attention": "Attention"
+  },
+  "period": {
+    "today": "today",
+    "week": "this week",
+    "month": "this month",
+    "todayFull": "Today",
+    "weekFull": "This week",
+    "monthFull": "This month"
+  },
+  "defaultName": "you",
+  "activity": {
+    "offerSent": "Offer sent",
+    "whatsappSent": "WhatsApp sent",
+    "emailSent": "Email sent",
+    "followupSent": "Follow-up sent",
+    "offerSentNumbered": "Offer sent #{{number}}",
+    "contactCreated": "Contact created"
+  },
+  "loading": "Loading...",
+  "greetingLine": "{{greeting}}, {{name}}! 🌿",
+  "focusCount_one": "You have {{count}} action worth your attention today.",
+  "focusCount_other": "You have {{count}} actions worth your attention today.",
+  "allUpToDate": "Everything is up to date. Have a productive day!",
+  "newContact": "New contact",
+  "seeAll": "See all",
+  "focusToday": "Focus today",
+  "focusEmpty": "Everything is up to date! No urgent actions. 🌿",
+  "weeklyAgenda": "Weekly agenda",
+  "agendaEmpty": "Nothing scheduled right now. 🌿",
+  "sendBtn": "Send",
+  "waBtn": "WhatsApp",
+  "quickStats": "Quick stats",
+  "stats": {
+    "contactsAdded": "Contacts added",
+    "activeClients": "Active clients",
+    "activeClientsDelta": "of {{total}} total",
+    "offersSent": "Offers sent",
+    "offersValue": "Offers value sent"
+  },
+  "recentActivity": "Recent activity",
+  "seeAllFem": "See all",
+  "noActivity": "No activity yet.",
+  "deletedContact": "Deleted contact",
+  "today": "Today",
+  "daysAgo": "{{count}} days ago"
+}

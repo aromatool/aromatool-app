@@ -1,0 +1,62 @@
+{
+  "localeCode": "en-GB",
+  "displayStatus": {
+    "prospect": "Prospect",
+    "client": "Client",
+    "team_member": "Team member",
+    "inactiv": "Inactive",
+    "contact": "Contact"
+  },
+  "title": {
+    "reactivate": "Reactivate {{name}}",
+    "contact": "Reach out to {{name}}",
+    "needsOffer": "Send the first offer",
+    "needsFollowup": "Send a follow-up",
+    "discussBusiness": "Talk about the business",
+    "awaitingReply": "Awaiting reply",
+    "none": "No action needed"
+  },
+  "reason": {
+    "inactiveDays": "Inactive for {{days}} days. A warm message can rekindle the relationship.",
+    "inactiveMarked": "Marked inactive. Try reconnecting.",
+    "clientNotContacted": "Hasn't been contacted in {{days}} days.",
+    "noOfferYet": "{{name}} hasn't received any offer yet. In the CRM for {{days}} days.",
+    "followupNever": "{{name}} received an offer but hasn't been contacted since.",
+    "followupLast": "Last follow-up {{days}} days ago.",
+    "discussBusiness": "Active, engaged client for over 4 months. May be interested in the opportunity.",
+    "awaitingReply": "Follow-up sent {{days}} days ago. Give them time or send a short message.",
+    "noneTeam": "Active and engaged.",
+    "noneUpToDate": "Everything is up to date with this contact."
+  },
+  "shortReason": {
+    "daysNoContact": "{{days}} days without contact",
+    "inactive": "inactive",
+    "addedRecently": "added recently",
+    "inCrmNoOffer": "in CRM for {{days}} days, no offer",
+    "notContactedAfterOffer": "Not contacted after the offer",
+    "lastFollowupDays": "last one {{days}} days ago",
+    "followupToResume": "follow-up to resume",
+    "followupDaysAgo": "follow-up {{days}} days ago",
+    "waiting": "waiting",
+    "engagedClient": "engaged client",
+    "upToDate": "up to date"
+  },
+  "crmCategory": {
+    "offer": "Needs an offer",
+    "followup": "Needs follow-up",
+    "reactivate": "Needs reactivation",
+    "none": "No actions"
+  },
+  "nextAction": {
+    "offer_followup": "Ask if they reviewed the offer",
+    "first_order_followup": "Check in after the first order",
+    "reactivation": "Try reactivating",
+    "business_opportunity": "Talk about the business opportunity",
+    "contact_prospect": "Reach out to the prospect"
+  },
+  "group": {
+    "tomorrow": "Tomorrow",
+    "nextWeek": "Next week",
+    "later": "Later"
+  }
+}

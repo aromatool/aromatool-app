@@ -1,5 +1,6 @@
+import type { TFunction } from "i18next";
 import type { Contact } from "./contactTypes.ts";
-import { getRecommendedAction, ACTIONABLE_TYPES } from "./recommendedAction.ts";
+import { getRecommendedAction, getActionType, ACTIONABLE_TYPES } from "./recommendedAction.ts";
 import type { ActionType, RecommendedAction } from "./recommendedAction.ts";
 
 // ============================================================
@@ -83,12 +84,24 @@ export function aggregateContacts(
 }
 
 // Ordinea de prioritate pentru sortarea Focus Today.
+// NOTĂ: trebuie să conțină TOATE tipurile din ACTIONABLE_TYPES, altfel un tip
+// neacoperit ar primi indexOf === -1 și ar fi sortat GREȘIT în față, putând
+// împinge un contact cu adevărat urgent peste `limit` (= contact „pierdut").
+// Sortarea de mai jos e oricum robustă (necunoscut → la coadă), dar păstrăm
+// lista completă ca rețea de siguranță explicită.
 export const FOCUS_ACTION_PRIORITY: ActionType[] = [
   "reactivate",
   "needs_offer",
   "needs_followup",
   "discuss_business",
 ];
+
+// Rang de prioritate robust: tipurile necunoscute (neincluse în listă) merg la
+// COADĂ (Infinity), nu în față. Previne „pierderea" de contacte la slice(limit).
+function focusRank(type: ActionType): number {
+  const i = FOCUS_ACTION_PRIORITY.indexOf(type);
+  return i === -1 ? Number.POSITIVE_INFINITY : i;
+}
 
 export interface FocusItem {
   contact: Contact;
@@ -102,17 +115,17 @@ export interface FocusItem {
  *  - sortează după prioritate;
  *  - limitează la `limit` (default 5).
  */
-export function selectFocusToday(contacts: Contact[], limit = 5): FocusItem[] {
+export function selectFocusToday(
+  contacts: Contact[],
+  t: TFunction,
+  limit = 5
+): FocusItem[] {
   return contacts
     .filter((c) => !c.communication_blocked)
-    .map((c) => ({ contact: c, action: getRecommendedAction(c) }))
-    .filter((x) => ACTIONABLE_TYPES.includes(x.action.type))
-    .sort(
-      (a, b) =>
-        FOCUS_ACTION_PRIORITY.indexOf(a.action.type) -
-        FOCUS_ACTION_PRIORITY.indexOf(b.action.type)
-    )
-    .slice(0, limit);
+    .filter((c) => ACTIONABLE_TYPES.includes(getActionType(c)))
+    .sort((a, b) => focusRank(getActionType(a)) - focusRank(getActionType(b)))
+    .slice(0, limit)
+    .map((c) => ({ contact: c, action: getRecommendedAction(c, t) }));
 }
 
 /**
@@ -123,7 +136,8 @@ export function getFocusToday(
   contacts: Contact[],
   offers: RawOffer[],
   followupLog: RawFollowup[],
+  t: TFunction,
   limit = 5
 ): FocusItem[] {
-  return selectFocusToday(aggregateContacts(contacts, offers, followupLog), limit);
+  return selectFocusToday(aggregateContacts(contacts, offers, followupLog), t, limit);
 }

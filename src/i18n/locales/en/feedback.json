@@ -1,0 +1,19 @@
+{
+  "types": {
+    "sugestie": "Suggestion",
+    "problema": "Problem",
+    "altele": "Other"
+  },
+  "sendError": "We couldn't send it. Please try again.",
+  "fabTitle": "Send feedback",
+  "fabLabel": "Feedback",
+  "thanks": "Thank you! 🌿",
+  "thanksBody": "Your feedback helps us make AromaTool better.",
+  "close": "Close",
+  "title": "Tell us what you think",
+  "subtitle": "Suggestions, problems or ideas — we're listening.",
+  "placeholder": "Write here what you'd like to tell us...",
+  "cancel": "Cancel",
+  "sending": "Sending...",
+  "send": "Send"
+}

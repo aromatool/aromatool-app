@@ -7,14 +7,20 @@ import FollowupModal from "../components/FollowupModal";
 import ContactModal from "../components/ContactModal";
 import {
   getRecommendedAction,
+  getActionType,
   displayStatus,
   shortReason,
   crmCategory,
+  crmCategoryLabels,
+  statusGroup,
 } from "../lib/recommendedAction";
 import type { CrmCategory } from "../lib/recommendedAction";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import type { Contact } from "./DashboardPage";
 import type { ContactStatus } from "../lib/relationshipScore";
 import PhoneInput from "../components/PhoneInput";
+import { openWhatsApp } from "../lib/contactActions";
 
 const T = {
   sage: "#5C7A5C",
@@ -41,23 +47,23 @@ const T = {
 };
 
 // Status afișat → stil pin (cele 4 categorii curate)
-function statusPill(status: string): {
+function statusPill(status: string, t: TFunction): {
   label: string;
   bg: string;
   color: string;
 } {
-  const shown = displayStatus(status as ContactStatus);
-  switch (shown) {
-    case "Prospect":
-      return { label: "Prospect", bg: T.amberLight, color: T.amber };
-    case "Client":
-      return { label: "Client", bg: T.greenLight, color: T.green };
-    case "Membru echipă":
-      return { label: "Membru echipă", bg: T.lavenderLight, color: T.lavender };
-    case "Inactiv":
-      return { label: "Inactiv", bg: T.linen, color: T.muted };
+  const label = displayStatus(status as ContactStatus, t);
+  switch (statusGroup(status as ContactStatus)) {
+    case "prospect":
+      return { label, bg: T.amberLight, color: T.amber };
+    case "client":
+      return { label, bg: T.greenLight, color: T.green };
+    case "team":
+      return { label, bg: T.lavenderLight, color: T.lavender };
+    case "inactive":
+      return { label, bg: T.linen, color: T.muted };
     default:
-      return { label: shown, bg: T.linen, color: T.muted };
+      return { label, bg: T.linen, color: T.muted };
   }
 }
 
@@ -66,22 +72,21 @@ function daysSince(d?: string | null): number | null {
   return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
 }
 
-function relativeDays(d?: string | null): string {
+function relativeDays(d: string | null | undefined, t: TFunction): string {
   const n = daysSince(d);
   if (n === null) return "—";
-  if (n === 0) return "Azi";
-  if (n === 1) return "Acum 1 zi";
-  return `Acum ${n} zile`;
+  if (n === 0) return t("contacts.list.today");
+  return t("contacts.list.daysAgo", { count: n });
 }
 
 // Eticheta scurtă a ultimei activități (ce s-a întâmplat ultima dată)
-function lastActivityLabel(c: Contact): string {
-  const t = getRecommendedAction(c).type;
+function lastActivityLabel(c: Contact, t: TFunction): string {
+  const type = getActionType(c);
   // aproximare simplă bazată pe stare; panoul are istoricul complet
-  if ((c.followup_count ?? 0) > 0 && t !== "needs_offer")
-    return "Follow-up trimis";
-  if ((c.offers_count ?? 0) > 0) return "Ofertă trimisă";
-  return "Contact adăugat";
+  if ((c.followup_count ?? 0) > 0 && type !== "needs_offer")
+    return t("contacts.list.lastFollowupSent");
+  if ((c.offers_count ?? 0) > 0) return t("contacts.list.lastOfferSent");
+  return t("contacts.list.lastContactAdded");
 }
 
 function initials(name?: string | null, email?: string): string {
@@ -95,8 +100,8 @@ function initials(name?: string | null, email?: string): string {
 
 // Iconiță + culoare per acțiune recomandată (consistent cu Dashboard)
 function actionVisual(c: Contact): { icon: string; color: string; bg: string } {
-  const t = getRecommendedAction(c).type;
-  switch (t) {
+  const type = getActionType(c);
+  switch (type) {
     case "needs_offer":
       return { icon: "ti-send", color: T.amber, bg: T.amberLight };
     case "needs_followup":
@@ -114,44 +119,28 @@ function actionVisual(c: Contact): { icon: string; color: string; bg: string } {
 
 const BUSINESS_FILTERS: {
   key: string;
-  label: string;
   match: (c: Contact) => boolean;
 }[] = [
-  { key: "all", label: "Toate", match: () => true },
-  {
-    key: "prospect",
-    label: "Prospecți",
-    match: (c) => displayStatus(c.status) === "Prospect",
-  },
-  {
-    key: "client",
-    label: "Clienți",
-    match: (c) => displayStatus(c.status) === "Client",
-  },
-  {
-    key: "team",
-    label: "Membri echipă",
-    match: (c) => displayStatus(c.status) === "Membru echipă",
-  },
-  {
-    key: "inactive",
-    label: "Inactivi",
-    match: (c) => displayStatus(c.status) === "Inactiv",
-  },
-];
-
-const ACTION_OPTIONS: { key: "all" | CrmCategory; label: string }[] = [
-  { key: "all", label: "Toate" },
-  { key: "offer", label: "Necesită ofertă" },
-  { key: "followup", label: "Necesită follow-up" },
-  { key: "reactivate", label: "Necesită reactivare" },
-  { key: "none", label: "Fără acțiuni" },
+  { key: "all", match: () => true },
+  { key: "prospect", match: (c) => statusGroup(c.status) === "prospect" },
+  { key: "client", match: (c) => statusGroup(c.status) === "client" },
+  { key: "team", match: (c) => statusGroup(c.status) === "team" },
+  { key: "inactive", match: (c) => statusGroup(c.status) === "inactive" },
 ];
 
 export default function ContactsPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const { requireAccess } = useSubscription();
   const navigate = useNavigate();
+
+  const ACTION_OPTIONS: { key: "all" | CrmCategory; label: string }[] = [
+    { key: "all", label: t("contacts.list.allLabel") },
+    { key: "offer", label: crmCategoryLabels(t).offer },
+    { key: "followup", label: crmCategoryLabels(t).followup },
+    { key: "reactivate", label: crmCategoryLabels(t).reactivate },
+    { key: "none", label: crmCategoryLabels(t).none },
+  ];
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -175,6 +164,7 @@ export default function ContactsPage() {
     phone: "",
     source: "WhatsApp",
     reason: "",
+    language: "ro",
   });
   const [addSaving, setAddSaving] = useState(false);
 
@@ -285,6 +275,7 @@ export default function ContactsPage() {
         status: "prospect",
         source: addData.source || null,
         notes: addData.reason || null,
+        language_code: addData.language || "ro",
       })
       .select("*")
       .single();
@@ -305,6 +296,7 @@ export default function ContactsPage() {
       phone: "",
       source: "WhatsApp",
       reason: "",
+      language: "ro",
     });
     setShowAddForm(false);
     setAddSaving(false);
@@ -339,6 +331,66 @@ export default function ContactsPage() {
   const handleContactDelete = (contactId: string) => {
     setContacts((prev) => prev.filter((c) => c.id !== contactId));
     setSelectedContact(null);
+  };
+
+  // WhatsApp — precompletăm mesajul (în limba contactului) ȘI logăm evenimentul,
+  // exact ca pe Dashboard. Contează ca follow-up (alt canal de contact).
+  const handleWhatsApp = async (c: Contact) => {
+    const senderName = (user?.user_metadata as any)?.full_name as
+      | string
+      | undefined;
+    // Deschidem WhatsApp cu mesajul precompletat (mic delay = pop-up permis după click).
+    setTimeout(() => openWhatsApp(c, senderName), 50);
+
+    const now = new Date().toISOString();
+    const newCount = (c.followup_count ?? 0) + 1;
+    const newStatus: ContactStatus =
+      c.status === "prospect" ? "in_followup" : c.status;
+
+    // Actualizare optimistă (followup_count/last_followup_at se derivă din followup_log
+    // la următoarea încărcare — aici doar reflectăm imediat în UI).
+    setContacts((prev) =>
+      prev.map((x) =>
+        x.id === c.id
+          ? {
+              ...x,
+              last_activity_at: now,
+              last_followup_at: now,
+              followup_count: newCount,
+              status: newStatus,
+            }
+          : x,
+      ),
+    );
+    setSelectedContact((prev) =>
+      prev && prev.id === c.id
+        ? {
+            ...prev,
+            last_activity_at: now,
+            last_followup_at: now,
+            followup_count: newCount,
+            status: newStatus,
+          }
+        : prev,
+    );
+
+    try {
+      const { error: logErr } = await supabase.from("followup_log").insert({
+        user_id: user!.id,
+        contact_id: c.id,
+        sent_at: now,
+        status: "whatsapp_initiated",
+      });
+      if (logErr) console.error("Eroare followup_log:", logErr.message);
+
+      const { error: ctErr } = await supabase
+        .from("contacts")
+        .update({ followup_count: newCount, status: newStatus })
+        .eq("id", c.id);
+      if (ctErr) console.error("Eroare contacts:", ctErr.message);
+    } catch (e) {
+      console.error("Eroare log WhatsApp:", e);
+    }
   };
 
   // Filtrare + search + sortare
@@ -423,13 +475,13 @@ export default function ContactsPage() {
   }, [contacts]);
 
   const activeActionLabel =
-    ACTION_OPTIONS.find((o) => o.key === actionFilter)?.label ?? "Toate";
+    ACTION_OPTIONS.find((o) => o.key === actionFilter)?.label ?? t("contacts.list.allLabel");
   const sortLabel =
     sortBy === "activity"
-      ? "Ultima activitate"
+      ? t("contacts.list.sort.activity")
       : sortBy === "name"
-        ? "Nume"
-        : "Valoare";
+        ? t("contacts.list.sort.name")
+        : t("contacts.list.sort.value");
 
   const openContact = (c: Contact) => setSelectedContact(c);
 
@@ -476,10 +528,10 @@ export default function ContactsPage() {
       >
         <div>
           <div style={{ fontSize: 22, fontWeight: 500, color: T.espresso }}>
-            Contacte
+            {t("contacts.list.title")}
           </div>
           <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>
-            {contacts.length} contacte în total
+            {t("contacts.list.totalCount", { count: contacts.length })}
           </div>
         </div>
         <button
@@ -500,7 +552,7 @@ export default function ContactsPage() {
           }}
         >
           <i className="ti ti-plus" style={{ fontSize: 15 }} />
-          Contact nou
+          {t("contacts.list.newContact")}
         </button>
       </div>
 
@@ -520,7 +572,7 @@ export default function ContactsPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Caută după nume, telefon, email, notițe, produse, interese..."
+          placeholder={t("contacts.list.searchPlaceholder")}
           style={{
             width: "100%",
             padding: "11px 14px 11px 40px",
@@ -552,7 +604,7 @@ export default function ContactsPage() {
             onClick={() => setBusinessFilter(f.key)}
             style={chipStyle(businessFilter === f.key, T.sage)}
           >
-            {f.label}{" "}
+            {t(`contacts.list.filters.${f.key}`)}{" "}
             <span style={chipCount(businessFilter === f.key)}>
               {businessCounts[f.key] ?? 0}
             </span>
@@ -580,7 +632,7 @@ export default function ContactsPage() {
               style={dropdownBtn(actionFilter !== "all")}
             >
               <i className="ti ti-filter" style={{ fontSize: 14 }} />
-              Acțiuni: {activeActionLabel}
+              {t("contacts.list.actionsLabel", { value: activeActionLabel })}
               <i
                 className={`ti ti-chevron-${actionMenuOpen ? "up" : "down"}`}
                 style={{ fontSize: 14 }}
@@ -621,7 +673,7 @@ export default function ContactsPage() {
               style={dropdownBtn(false)}
             >
               <i className="ti ti-arrows-sort" style={{ fontSize: 14 }} />
-              Sortare: {sortLabel}
+              {t("contacts.list.sortLabel", { value: sortLabel })}
               <i
                 className={`ti ti-chevron-${sortMenuOpen ? "up" : "down"}`}
                 style={{ fontSize: 14 }}
@@ -631,9 +683,9 @@ export default function ContactsPage() {
               <div style={dropdownMenu}>
                 {(
                   [
-                    ["activity", "Ultima activitate"],
-                    ["name", "Nume"],
-                    ["value", "Valoare"],
+                    ["activity", t("contacts.list.sort.activity")],
+                    ["name", t("contacts.list.sort.name")],
+                    ["value", t("contacts.list.sort.value")],
                   ] as const
                 ).map(([k, l]) => (
                   <button
@@ -683,11 +735,11 @@ export default function ContactsPage() {
             }}
           >
             {search || businessFilter !== "all" || actionFilter !== "all"
-              ? "Niciun rezultat"
-              : "Nu ai contacte încă"}
+              ? t("contacts.list.noResults")
+              : t("contacts.list.noContacts")}
           </div>
           <div style={{ fontSize: 13, color: T.muted }}>
-            Încearcă alt filtru sau adaugă un contact nou.
+            {t("contacts.list.emptyHint")}
           </div>
         </div>
       ) : (
@@ -711,12 +763,12 @@ export default function ContactsPage() {
             }}
           >
             {[
-              "Contact",
-              "Acțiune recomandată",
-              "Status",
-              "Ultima activitate",
-              "Oferte",
-              "Valoare totală",
+              t("contacts.list.colContact"),
+              t("contacts.list.colAction"),
+              t("contacts.list.colStatus"),
+              t("contacts.list.colLastActivity"),
+              t("contacts.list.colOffers"),
+              t("contacts.list.colValue"),
             ].map((h) => (
               <div
                 key={h}
@@ -735,10 +787,10 @@ export default function ContactsPage() {
 
           {/* Rânduri */}
           {visible.map((c, i) => {
-            const action = getRecommendedAction(c);
-            const reason = shortReason(c);
+            const action = getRecommendedAction(c, t);
+            const reason = shortReason(c, t);
             const av = actionVisual(c);
-            const pill = statusPill(c.status);
+            const pill = statusPill(c.status, t);
             return (
               <div
                 key={c.id}
@@ -878,10 +930,10 @@ export default function ContactsPage() {
                 {/* Ultima activitate */}
                 <div>
                   <div style={{ fontSize: 13, color: T.espresso }}>
-                    {relativeDays(c.last_activity_at)}
+                    {relativeDays(c.last_activity_at, t)}
                   </div>
                   <div style={{ fontSize: 11, color: T.muted }}>
-                    {lastActivityLabel(c)}
+                    {lastActivityLabel(c, t)}
                   </div>
                 </div>
 
@@ -901,22 +953,16 @@ export default function ContactsPage() {
       )}
 
       <div style={{ fontSize: 12, color: T.muted, marginTop: 12 }}>
-        {visible.length}{" "}
-        {visible.length === 1 ? "contact afișat" : "contacte afișate"}
+        {t("contacts.list.shownCount", { count: visible.length })}
         {(search || businessFilter !== "all" || actionFilter !== "all") &&
-          ` din ${contacts.length} total`}
+          ` ${t("contacts.list.ofTotal", { count: contacts.length })}`}
       </div>
 
       {/* Modal profil contact */}
       <ContactModal
         contact={selectedContact}
         onClose={() => setSelectedContact(null)}
-        onWhatsApp={(c) => {
-          window.open(
-            `https://wa.me/${(c.phone || "").replace(/[^0-9]/g, "").replace(/^0/, "40")}`,
-            "_blank",
-          );
-        }}
+        onWhatsApp={handleWhatsApp}
         onEmail={(c) => {
           setSelectedContact(null);
           setFollowupContact(c);
@@ -929,6 +975,7 @@ export default function ContactsPage() {
               name: c.name,
               email: c.email,
               phone: c.phone,
+              language: c.language_code ?? "ro",
             }),
           );
           navigate("/app/calculator");
@@ -953,7 +1000,7 @@ export default function ContactsPage() {
       {followupContact && (
         <FollowupModal
           contact={followupContact}
-          action={getRecommendedAction(followupContact).type}
+          action={getActionType(followupContact)}
           onClose={() => setFollowupContact(null)}
           onSent={(contactId: string) => {
             setContacts((prev) =>
@@ -1009,7 +1056,7 @@ export default function ContactsPage() {
               }}
             >
               <div style={{ fontSize: 20, fontWeight: 500, color: T.espresso }}>
-                Contact nou
+                {t("contacts.list.addForm.title")}
               </div>
               <button
                 onClick={() => setShowAddForm(false)}
@@ -1026,19 +1073,19 @@ export default function ContactsPage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
-                <label style={labelStyle}>Nume *</label>
+                <label style={labelStyle}>{t("contacts.list.addForm.nameLabel")}</label>
                 <input
                   value={addData.name}
                   onChange={(e) =>
                     setAddData((p) => ({ ...p, name: e.target.value }))
                   }
-                  placeholder="Nume Prenume"
+                  placeholder={t("contacts.list.addForm.namePlaceholder")}
                   style={inputStyle}
                   autoFocus
                 />
               </div>
               <div>
-                <label style={labelStyle}>Telefon (WhatsApp)</label>
+                <label style={labelStyle}>{t("contacts.list.addForm.phoneLabel")}</label>
                 <PhoneInput
                   value={addData.phone}
                   onChange={(v) => setAddData((p) => ({ ...p, phone: v }))}
@@ -1051,18 +1098,18 @@ export default function ContactsPage() {
                 />
               </div>
               <div>
-                <label style={labelStyle}>Email (opțional)</label>
+                <label style={labelStyle}>{t("contacts.list.addForm.emailLabel")}</label>
                 <input
                   value={addData.email}
                   onChange={(e) =>
                     setAddData((p) => ({ ...p, email: e.target.value }))
                   }
-                  placeholder="email@exemplu.com"
+                  placeholder={t("contacts.list.addForm.emailPlaceholder")}
                   style={inputStyle}
                 />
               </div>
               <div>
-                <label style={labelStyle}>De unde vine?</label>
+                <label style={labelStyle}>{t("contacts.list.addForm.sourceLabel")}</label>
                 <select
                   value={addData.source}
                   onChange={(e) =>
@@ -1073,19 +1120,32 @@ export default function ContactsPage() {
                   <option value="WhatsApp">WhatsApp</option>
                   <option value="Facebook">Facebook</option>
                   <option value="Instagram">Instagram</option>
-                  <option value="Recomandare">Recomandare</option>
-                  <option value="Altul">Altul</option>
+                  <option value="Recomandare">{t("contacts.list.addForm.sourceRecomandare")}</option>
+                  <option value="Altul">{t("contacts.list.addForm.sourceOther")}</option>
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Ce vrea? / De ce a venit?</label>
+                <label style={labelStyle}>{t("contacts.list.addForm.languageLabel")}</label>
+                <select
+                  value={addData.language}
+                  onChange={(e) =>
+                    setAddData((p) => ({ ...p, language: e.target.value }))
+                  }
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                >
+                  <option value="ro">{t("common.romanian")}</option>
+                  <option value="en">{t("common.english")}</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>{t("contacts.list.addForm.reasonLabel")}</label>
                 <textarea
                   value={addData.reason}
                   rows={3}
                   onChange={(e) =>
                     setAddData((p) => ({ ...p, reason: e.target.value }))
                   }
-                  placeholder="ex: Vrea ulei de lavandă pentru somn..."
+                  placeholder={t("contacts.list.addForm.reasonPlaceholder")}
                   style={{ ...inputStyle, resize: "vertical" }}
                 />
               </div>
@@ -1105,7 +1165,7 @@ export default function ContactsPage() {
                   cursor: "pointer",
                 }}
               >
-                Anulează
+                {t("contacts.common.cancel")}
               </button>
               <button
                 onClick={addContact}
@@ -1126,7 +1186,7 @@ export default function ContactsPage() {
                   cursor: "pointer",
                 }}
               >
-                {addSaving ? "Se salvează..." : "Adaugă contact"}
+                {addSaving ? t("contacts.common.saving") : t("contacts.list.addForm.submit")}
               </button>
             </div>
           </div>

@@ -1,0 +1,213 @@
+{
+  "pageTitle": "Ghid & ajutor",
+  "pageSubtitle": "Caută răspunsuri sau răsfoiește pe categorii. Nu găsești ce cauți? Întreabă-ne oricând.",
+  "searchPlaceholder": "Caută în ghid... (ex: ofertă, follow-up, semnătură)",
+  "noResultsTitle": "Niciun rezultat pentru „{{search}}”",
+  "noResultsSub": "Încearcă alte cuvinte, sau răsfoiește categoriile.",
+  "footerTitle": "Tot nu ai găsit răspunsul?",
+  "footerSub": "Verifică-ți setările contului sau scrie-ne — îți răspundem cu drag.",
+  "footerButton": "Deschide Setări",
+  "guide": {
+    "title": "Cum funcționează statusurile și acțiunile",
+    "subtitle": "Statusul îl alegi tu. Acțiunea ți-o sugerează aplicația automat. Iată ce înseamnă fiecare culoare.",
+    "statusHeading": "Statusurile contactelor",
+    "statusIntro": "Statusul e eticheta pe care o pui tu unui contact, ca să știi în ce relație ești cu el. Îl poți schimba oricând din fișa contactului.",
+    "statuses": {
+      "prospect": {
+        "label": "Prospect",
+        "meaning": "Persoană interesată, care încă nu a cumpărat.",
+        "how": "Așa începe orice contact nou. Rămâne prospect până cumpără și îl marchezi client."
+      },
+      "client": {
+        "label": "Client",
+        "meaning": "A cumpărat cel puțin o dată de la tine.",
+        "how": "Îl marchezi „client” după prima comandă. Clienții fideli sunt cei care revin des."
+      },
+      "team": {
+        "label": "Echipă",
+        "meaning": "S-a alăturat echipei tale ca distribuitor.",
+        "how": "Îl muți în „echipă” când se înscrie sub tine. Nu mai primește oferte, ci sprijin."
+      },
+      "inactive": {
+        "label": "Inactiv",
+        "meaning": "Nu a mai răspuns sau cumpărat de mult timp.",
+        "how": "Îl marchezi inactiv ca să nu mai apară în acțiunile zilnice. Îl poți reactiva oricând."
+      }
+    },
+    "actionHeading": "Acțiunile recomandate",
+    "actionIntro": "Acțiunea o calculează aplicația singură, pe baza statusului și a activității (oferte trimise, follow-up-uri, câte zile au trecut). Tu doar o vezi și decizi când trimiți.",
+    "actions": {
+      "reactivate": {
+        "label": "Reactivează",
+        "when": "Contactul e inactiv, sau e client pe care nu l-ai mai contactat de peste 60 de zile."
+      },
+      "needs_offer": {
+        "label": "Trimite prima ofertă",
+        "when": "E prospect și nu i-ai trimis încă nicio ofertă."
+      },
+      "needs_followup": {
+        "label": "Trimite follow-up",
+        "when": "I-ai trimis o ofertă, dar n-ai mai revenit — sau au trecut peste 7 zile de la ultimul mesaj."
+      },
+      "discuss_business": {
+        "label": "Discută business",
+        "when": "E un client implicat (multe oferte, valoare mare, vechime) — bun candidat pentru echipă."
+      },
+      "awaiting_reply": {
+        "label": "Așteaptă răspuns",
+        "when": "Tocmai i-ai trimis un follow-up. E normal să aștepți câteva zile un răspuns."
+      },
+      "none": {
+        "label": "Totul e la zi",
+        "when": "Nu e nimic urgent de făcut acum cu acest contact."
+      }
+    },
+    "agendaNote": "Acțiunile care nu sunt urgente azi apar în „Agenda săptămânii”, programate la câteva zile distanță, ca să știi exact când să revii."
+  },
+  "categories": {
+    "quickStart": {
+      "title": "Început rapid",
+      "items": [
+        {
+          "q": "Cu ce încep prima dată?",
+          "a": "Începe din Setări: completează-ți numele, telefonul, emailul de contact și semnătura de email. Acestea apar automat în ofertele și mesajele pe care le trimiți.\nApoi adaugă primele contacte în CRM și construiește prima ofertă din „Construiește oferta”."
+        },
+        {
+          "q": "Cum funcționează aplicația, pe scurt?",
+          "a": "AromaTool te ajută să gestionezi clienții (CRM), să construiești oferte de produse cu prețuri corecte, să le trimiți pe email și să revii la momentul potrivit cu mesaje de follow-up. Aplicația îți sugerează ce ai de făcut — tu decizi când trimiți."
+        }
+      ]
+    },
+    "buildOffer": {
+      "title": "Construiește oferta",
+      "items": [
+        {
+          "q": "Cum construiesc o ofertă?",
+          "a": "Intră în „Construiește oferta”, adaugă produsele în coș, setează cantitatea și, dacă vrei, un discount per produs. Alege moneda și cursul de schimb, adaugă transportul și o notă dacă e cazul. La final previzualizezi și trimiți oferta pe email contactului ales."
+        },
+        {
+          "q": "Cum sunt calculate prețurile și cursul valutar?",
+          "a": "Prețurile de bază sunt în EUR. Când alegi altă monedă, totul se convertește la cursul de schimb pe care îl setezi tu, ca să-i arăți clientului suma în moneda lui. Cursul folosit rămâne salvat pe ofertă, ca să poți reconstrui mai târziu calculul exact."
+        },
+        {
+          "q": "Pot atașa materiale (PDF-uri, imagini) la ofertă?",
+          "a": "Da. Materialele nu se trimit ca atașamente grele, ci ca linkuri securizate către fișierele tale din Resurse. Astfel emailul rămâne ușor, iar tu poți vedea dacă au fost accesate."
+        }
+      ]
+    },
+    "sentOffers": {
+      "title": "Oferte trimise",
+      "items": [
+        {
+          "q": "Unde văd ofertele trimise?",
+          "a": "În pagina „Oferte”. Ofertele sunt grupate pe client — apeși pe un client ca să vezi toate ofertele lui, iar pe fiecare ofertă ca să vezi produsele și detaliile."
+        },
+        {
+          "q": "Am dat click pe o ofertă din Dashboard/CRM. De ce apare filtrată?",
+          "a": "Când deschizi o ofertă dintr-un alt loc, pagina „Oferte” o aduce sus, filtrată pe clientul respectiv, cu oferta deschisă și evidențiată. Ca să revii la lista completă, apeși „Vezi toate ofertele” din bannerul de sus."
+        },
+        {
+          "q": "Cum caut o ofertă anume?",
+          "a": "Folosește bara de căutare din pagina „Oferte”: poți căuta după numele clientului, email sau după numele unui produs din ofertă."
+        }
+      ]
+    },
+    "crm": {
+      "title": "CRM & contacte",
+      "items": [
+        {
+          "q": "Ce înseamnă statusurile contactelor?",
+          "a": "Prospect = persoană interesată, fără ofertă încă. Client nou / Client fidel = a cumpărat. Follow-up = i-ai trimis ofertă și aștepți răspuns. Inactiv = nu a mai fost activitate de mult. Statusul ajută aplicația să-ți sugereze următoarea acțiune potrivită."
+        },
+        {
+          "q": "Ce sunt acțiunile recomandate?",
+          "a": "Pentru fiecare contact, aplicația îți sugerează ce are sens să faci acum: trimite prima ofertă, revino cu un follow-up, reactivează un contact adormit etc. Sunt sugestii — tu alegi dacă și când acționezi."
+        },
+        {
+          "q": "Cum contactez rapid un client?",
+          "a": "Din CRM sau Dashboard ai acțiuni rapide: WhatsApp, email și ofertă nouă. Mesajul de WhatsApp e pregătit automat în funcție de starea contactului și se deschide în WhatsApp ca să îl poți ajusta înainte de trimitere."
+        }
+      ]
+    },
+    "messages": {
+      "title": "Mesaje & follow-up",
+      "items": [
+        {
+          "q": "Cum trimit un mesaj de follow-up?",
+          "a": "Din CRM/Dashboard alegi contactul și deschizi fereastra de mesaj. Aplicația îți arată mesajele recomandate pentru situația lui; poți apăsa „Vezi toate” ca să alegi orice alt mesaj. Editezi dacă vrei și trimiți."
+        },
+        {
+          "q": "Care e diferența dintre mesajele de sistem și cele personale?",
+          "a": "Mesajele de sistem sunt șabloane gata făcute, oferite de aplicație. Le poți „Personaliza” ca să-ți creezi propria variantă, pe care apoi o poți edita liber în pagina „Mesaje”."
+        },
+        {
+          "q": "Pot atașa materiale implicite la un mesaj?",
+          "a": "Da. La un mesaj personal poți seta materiale implicite (din Resurse). Ele apar bifate automat când trimiți acel mesaj, iar tu le poți ajusta la momentul trimiterii."
+        },
+        {
+          "q": "Ce conține semnătura din emailuri?",
+          "a": "La finalul emailurilor apare o secțiune discretă de contact: numărul tău de telefon, un buton de WhatsApp și unul de email, plus semnătura ta. Toate sunt luate din Setări."
+        },
+        {
+          "q": "Ce se întâmplă cu mesajele de WhatsApp?",
+          "a": "Sunt sugestii generate automat în funcție de starea contactului, personalizate cu prenumele lui și semnătura ta. Se deschid pre-completate în WhatsApp — le poți edita oricât înainte să le trimiți."
+        }
+      ]
+    },
+    "resources": {
+      "title": "Resurse",
+      "items": [
+        {
+          "q": "Ce pot încărca în Resurse?",
+          "a": "Fișiere utile pentru clienți: PDF-uri (broșuri, protocoale) și imagini (JPG, PNG). Le folosești apoi în oferte și în mesaje."
+        },
+        {
+          "q": "Cum sunt trimise fișierele către clienți?",
+          "a": "Nu ca atașamente, ci ca linkuri securizate, unice per trimitere. Astfel emailul rămâne ușor și poți urmări dacă linkul a fost accesat."
+        }
+      ]
+    },
+    "subscription": {
+      "title": "Abonament & perioadă gratuită",
+      "items": [
+        {
+          "q": "Cât durează perioada gratuită (trial)?",
+          "a": "La crearea contului primești o perioadă gratuită în care ai acces la toate funcțiile, fără să introduci un card. Numărul exact de zile rămase îl vezi oricând în Setări, în cardul „Abonament”."
+        },
+        {
+          "q": "Am nevoie de card ca să încep?",
+          "a": "Nu. Perioada gratuită pornește automat, fără card de credit. Introduci o metodă de plată doar atunci când decizi să te abonezi."
+        },
+        {
+          "q": "Ce se întâmplă când expiră perioada gratuită?",
+          "a": "Poți în continuare să te autentifici, să-ți vezi datele și să le exporți. Acțiunile de scriere (adăugare contacte, trimitere mesaje și oferte, încărcare resurse) se deblochează după ce te abonezi."
+        },
+        {
+          "q": "Cum mă abonez?",
+          "a": "Din Setări → cardul „Abonament” apeși „Abonează-te”. Te ducem la pagina de plată securizată, unde alegi metoda de plată și, dacă ai, introduci codul de lansare. După confirmare, contul tău se deblochează automat."
+        },
+        {
+          "q": "Am un cod de lansare / reducere. Unde îl introduc?",
+          "a": "La pasul de plată, după ce apeși „Abonează-te”, există un câmp pentru codul promoțional. Îl introduci acolo și reducerea se aplică automat."
+        },
+        {
+          "q": "Cum îmi gestionez abonamentul sau factura?",
+          "a": "Din Setări → cardul „Abonament” → „Gestionează abonamentul”. Acolo poți schimba metoda de plată, vedea facturile sau anula abonamentul, oricând."
+        }
+      ]
+    },
+    "settings": {
+      "title": "Setări & cont",
+      "items": [
+        {
+          "q": "Unde îmi setez semnătura de email?",
+          "a": "În Setări, la câmpul „Semnătură email”. Textul de acolo apare automat în footerul tuturor emailurilor (ofertă, follow-up, mesaj personalizat)."
+        },
+        {
+          "q": "Cum apar datele mele de contact în emailuri?",
+          "a": "Telefonul și emailul de contact din Setări alimentează butoanele de WhatsApp și email din footerul mesajelor. Actualizezi într-un singur loc și se reflectă peste tot."
+        }
+      ]
+    }
+  }
+}

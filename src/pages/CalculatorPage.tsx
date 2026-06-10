@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useProducts, useExchangeRate } from "../hooks/useProducts";
+import { useProducts, useExchangeRate, useProductCountries } from "../hooks/useProducts";
 import { useCartStore } from "../hooks/useCartStore";
 import { useSendEmail, buildEmailHtml } from "../hooks/useSendEmail";
 import { useResources } from "../hooks/useResources";
@@ -8,6 +8,7 @@ import CurrencyPanel from "../components/CurrencyPanel";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
+import { normalizePhone } from "../lib/contactActions";
 import type { Product } from "../hooks/useProducts";
 
 // ── BLOSSOM SAGE COLORS ───────────────────────────────────
@@ -32,10 +33,11 @@ const C = {
 // ── SEARCH SECTION ────────────────────────────────────────
 function SearchSection() {
   const [query, setQuery] = useState("");
-  const { data: products, isLoading, error } = useProducts();
+  const catalogCountry = useCartStore((s) => s.catalogCountry);
+  const { data: products, isLoading, error } = useProducts(catalogCountry);
   const { data: rateData } = useExchangeRate();
   const { addItem, items, setExchangeRate, currency } = useCartStore();
-  const { convertFromEur, formatAmount } = useExchangeRates();
+  const { convertFromBase, formatAmount } = useExchangeRates();
   const activeCurrency = currency || "RON";
 
   // Sync EUR/RON rate from Supabase to store
@@ -204,7 +206,9 @@ function SearchSection() {
           </div>
         ) : (
           results.map((p: Product) => {
-            const priceDisplay = convertFromEur(p.price_eur, activeCurrency);
+            // Moneda de bază = moneda nativă a produsului (EUR, GBP, ...).
+            const base = p.currency || "EUR";
+            const priceDisplay = convertFromBase(p.price_eur, base, activeCurrency);
             const added = inCart(p.id);
             return (
               <div
@@ -254,7 +258,7 @@ function SearchSection() {
                   }}
                 >
                   {formatAmount(priceDisplay, activeCurrency)}
-                  {activeCurrency !== "EUR" && (
+                  {activeCurrency !== base && (
                     <div
                       style={{
                         fontSize: "10px",
@@ -262,7 +266,7 @@ function SearchSection() {
                         fontWeight: 400,
                       }}
                     >
-                      € {p.price_eur.toFixed(2)}
+                      {formatAmount(p.price_eur, base)}
                     </div>
                   )}
                 </div>
@@ -307,7 +311,11 @@ function CartSection() {
     clientPhone,
     notes,
     currency,
+    catalogCountry,
+    catalogCurrency,
     prefillContactId,
+    offerLang: storeOfferLang,
+    setOfferLang,
     removeItem,
     updateQty,
     updateDisc,
@@ -324,7 +332,9 @@ function CartSection() {
     getTotalPoints,
     getCount,
   } = useCartStore();
-  const { convertFromEur, formatAmount, getRate } = useExchangeRates();
+  const { convertFromBase, formatAmount, getRate } = useExchangeRates();
+  // Moneda de bază a ofertei (în care sunt stocate prețurile `price_eur`).
+  const baseCurrency = catalogCurrency || "EUR";
 
   const [showCustom, setShowCustom] = useState(false);
   const [enrollLink, setEnrollLink] = useState("");
@@ -359,6 +369,14 @@ function CartSection() {
   }, [sendSuccess, setSendSuccess]);
 
   const activeCurrency = currency || "RON";
+  // Factor de conversie bază → afișare (NErotunjit — cursurile sunt „per EUR”,
+  // deci base→display = rate(display)/rate(base)). Pentru baza EUR e identic
+  // cu vechiul getRate(display), deci compatibil înapoi.
+  const displayRate = getRate(activeCurrency) / (getRate(baseCurrency) || 1);
+  // Limba emailului către client. Implicit = limba contactului (din prefill)
+  // sau, în lipsa ei, limba pieței catalogului (RO → română; restul → engleză).
+  // Liderul o poate schimba din selectorul de mai jos.
+  const offerLang = storeOfferLang || (catalogCountry === "RO" ? "ro" : "en");
 
   // Prefill-ul e gestionat în CalculatorPage (mai sus) — nu mai e nevoie aici
 
@@ -374,7 +392,7 @@ function CartSection() {
     const produse = items
       .map((i) => {
         const lineTotalEur = i.price_eur * i.qty * (1 - i.disc / 100);
-        const lineTotalDisplay = convertFromEur(lineTotalEur, activeCurrency);
+        const lineTotalDisplay = convertFromBase(lineTotalEur, baseCurrency, activeCurrency);
         const disc = i.disc > 0 ? ` (-${i.disc}%)` : "";
         const qty = i.qty > 1 ? ` x${i.qty}` : "";
         return `• ${i.name}${qty}${disc} — ${formatAmount(lineTotalDisplay, activeCurrency)}`;
@@ -383,7 +401,7 @@ function CartSection() {
     const salut = clientName ? `Bună ${clientName}! 🌿` : "Bună! 🌿";
     let msg = `${salut}\n\nOferta ta personalizată:\n\n${produse}`;
     if (transport > 0)
-      msg += `\n\n🚚 Transport: ${formatAmount(convertFromEur(transport, activeCurrency), activeCurrency)}`;
+      msg += `\n\n🚚 Transport: ${formatAmount(convertFromBase(transport, baseCurrency, activeCurrency), activeCurrency)}`;
     msg += `\n${"─".repeat(25)}\n💚 Total: ${formatAmount(total, activeCurrency)}`;
     if (notes) msg += `\n\n📝 ${notes}`;
     if (enrollLink)
@@ -402,9 +420,7 @@ function CartSection() {
   function sendOfferWhatsApp() {
     if (!requireAccess()) return;
     const text = encodeURIComponent(offerText || buildOfferText());
-    const digits = clientPhone
-      ? clientPhone.replace(/[^0-9]/g, "").replace(/^0/, "40")
-      : "";
+    const digits = clientPhone ? normalizePhone(clientPhone) : "";
     const url = digits
       ? `https://wa.me/${digits}?text=${text}`
       : `https://wa.me/?text=${text}`;
@@ -428,10 +444,10 @@ function CartSection() {
     }
   }
 
-  // Converted to display currency
-  const subtotal = convertFromEur(subtotalEur, activeCurrency);
-  const discount = convertFromEur(discountEur, activeCurrency);
-  const total = convertFromEur(totalEur, activeCurrency);
+  // Converted to display currency (din moneda de bază a ofertei)
+  const subtotal = convertFromBase(subtotalEur, baseCurrency, activeCurrency);
+  const discount = convertFromBase(discountEur, baseCurrency, activeCurrency);
+  const total = convertFromBase(totalEur, baseCurrency, activeCurrency);
 
   if (items.length === 0)
     return (
@@ -496,10 +512,11 @@ function CartSection() {
       {/* Cart items */}
       {items.map((item) => {
         const priceEur = item.price_eur;
+        const itemBase = item.currency || baseCurrency;
         const lineTotalEur = priceEur * item.qty * (1 - item.disc / 100);
-        const priceInCurrency = convertFromEur(priceEur, activeCurrency);
-        const lineTotalInCurrency = convertFromEur(lineTotalEur, activeCurrency);
-        const showEurSecondary = activeCurrency !== "EUR";
+        const priceInCurrency = convertFromBase(priceEur, itemBase, activeCurrency);
+        const lineTotalInCurrency = convertFromBase(lineTotalEur, itemBase, activeCurrency);
+        const showEurSecondary = activeCurrency !== itemBase;
         return (
           <div
             key={item.id}
@@ -640,7 +657,7 @@ function CartSection() {
                 </span>
                 {showEurSecondary && (
                   <div style={{ fontSize: "10px", color: C.muted }}>
-                    € {priceEur.toFixed(2)}/buc
+                    {formatAmount(priceEur, itemBase)}/buc
                   </div>
                 )}
               </div>
@@ -656,7 +673,7 @@ function CartSection() {
                 </div>
                 {showEurSecondary && (
                   <div style={{ fontSize: "10px", color: C.muted }}>
-                    € {lineTotalEur.toFixed(2)}
+                    {formatAmount(lineTotalEur, itemBase)}
                   </div>
                 )}
               </div>
@@ -688,17 +705,15 @@ function CartSection() {
           step={0.01}
           value={
             transport > 0
-              ? parseFloat(convertFromEur(transport, activeCurrency).toFixed(2))
+              ? parseFloat(convertFromBase(transport, baseCurrency, activeCurrency).toFixed(2))
               : ""
           }
           placeholder="0"
           onChange={(e) => {
             const valueInCurrency = parseFloat(e.target.value) || 0;
-            const valueInEur =
-              activeCurrency === "EUR"
-                ? valueInCurrency
-                : valueInCurrency / (getRate(activeCurrency) || 1);
-            setTransport(valueInEur);
+            // Stocăm transportul în moneda de bază a ofertei.
+            const valueInBase = convertFromBase(valueInCurrency, activeCurrency, baseCurrency);
+            setTransport(valueInBase);
           }}
           style={{
             width: "80px",
@@ -716,9 +731,9 @@ function CartSection() {
         <span style={{ fontSize: "12px", color: C.muted }}>
           {activeCurrency}
         </span>
-        {activeCurrency !== "EUR" && transport > 0 && (
+        {activeCurrency !== baseCurrency && transport > 0 && (
           <span style={{ fontSize: "11px", color: C.muted }}>
-            € {transport.toFixed(2)}
+            {formatAmount(transport, baseCurrency)}
           </span>
         )}
       </div>
@@ -838,14 +853,17 @@ function CartSection() {
           </div>
           <button
             onClick={() => {
-              if (!customName || !customPrice) return;
+              if (!customName.trim() || !customPrice) return;
               const priceInCurrency = parseFloat(customPrice);
-              const priceEur =
-                activeCurrency === "EUR"
-                  ? priceInCurrency
-                  : priceInCurrency / (getRate(activeCurrency) || 1);
+              // Validare preț: trebuie să fie un număr finit ≥ 0 (C3).
+              if (!Number.isFinite(priceInCurrency) || priceInCurrency < 0) {
+                alert("Introduceți un preț valid (număr ≥ 0).");
+                return;
+              }
+              // Stocăm prețul în moneda de bază a ofertei (catalogul curent).
+              const priceEur = convertFromBase(priceInCurrency, activeCurrency, baseCurrency);
               addCustomItem(
-                customName,
+                customName.trim(),
                 priceEur,
                 parseInt(customQty) || 1,
                 parseFloat(customDisc) || 0,
@@ -900,8 +918,8 @@ function CartSection() {
                 },
               ]
             : []),
-          ...(activeCurrency !== "EUR"
-            ? [{ label: "Total Euro", value: `€ ${totalEur.toFixed(2)}` }]
+          ...(activeCurrency !== baseCurrency
+            ? [{ label: `Total ${baseCurrency}`, value: formatAmount(totalEur, baseCurrency) }]
             : []),
           { label: "Puncte ER", value: `${Math.round(totalPoints)} pct` },
           { label: "Produse", value: `${count}` },
@@ -910,9 +928,9 @@ function CartSection() {
                 {
                   label: "Transport",
                   value:
-                    activeCurrency !== "EUR"
-                      ? `${formatAmount(convertFromEur(transport, activeCurrency), activeCurrency)} · € ${transport.toFixed(2)}`
-                      : formatAmount(transport, "EUR"),
+                    activeCurrency !== baseCurrency
+                      ? `${formatAmount(convertFromBase(transport, baseCurrency, activeCurrency), activeCurrency)} · ${formatAmount(transport, baseCurrency)}`
+                      : formatAmount(transport, baseCurrency),
                 },
               ]
             : []),
@@ -964,9 +982,9 @@ function CartSection() {
             >
               {formatAmount(total, activeCurrency)}
             </div>
-            {activeCurrency !== "EUR" && (
+            {activeCurrency !== baseCurrency && (
               <div style={{ fontSize: "11px", color: C.muted }}>
-                € {totalEur.toFixed(2)}
+                {formatAmount(totalEur, baseCurrency)}
               </div>
             )}
           </div>
@@ -1220,6 +1238,37 @@ function CartSection() {
           )}
         </div>
 
+        <div style={{ marginBottom: "8px" }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: "12px",
+              color: C.muted,
+              marginBottom: "4px",
+            }}
+          >
+            Limba emailului
+          </label>
+          <select
+            value={offerLang}
+            onChange={(e) => setOfferLang(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              background: C.bg2,
+              border: `1.5px solid ${C.border2}`,
+              borderRadius: "8px",
+              fontSize: "14px",
+              color: C.dark,
+              fontFamily: "'DM Sans', sans-serif",
+              outline: "none",
+              cursor: "pointer",
+            }}
+          >
+            <option value="ro">Română</option>
+            <option value="en">Engleză</option>
+          </select>
+        </div>
+
         <div style={{ display: "flex", gap: "8px" }}>
           <input
             type="email"
@@ -1251,8 +1300,10 @@ function CartSection() {
                 transport,
                 totalDisplay: total,
                 totalEur,
-                exchangeRate: getRate(activeCurrency),
+                exchangeRate: displayRate,
                 currency: activeCurrency,
+                baseCurrency,
+                lang: offerLang,
                 contactId: prefillContactId || undefined,
                 enrollLink: enrollLink || undefined,
                 resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
@@ -1414,6 +1465,7 @@ function CartSection() {
             clientName={clientName}
             clientPhone={clientPhone}
             compact={true}
+            country={catalogCountry}
             onLinkGenerated={setEnrollLink}
           />
         </div>
@@ -1630,8 +1682,10 @@ function CartSection() {
             transport,
             totalDisplay: total,
             totalEur,
-            exchangeRate: getRate(activeCurrency),
+            exchangeRate: displayRate,
             currency: activeCurrency,
+            baseCurrency,
+            lang: offerLang,
             enrollLink: enrollLink || undefined,
           },
           userName,
@@ -1704,11 +1758,100 @@ function CartSection() {
   );
 }
 
+// ── CATALOG SELECTOR ──────────────────────────────────────
+// Alege catalogul de produse (țara) folosit pentru această ofertă.
+// Implicit = țara liderului; opțiunile = doar țările cu produse importate.
+const COUNTRY_LABELS: Record<string, string> = {
+  RO: "🇷🇴 România",
+  DE: "🇩🇪 Germania",
+  FR: "🇫🇷 Franța",
+  IT: "🇮🇹 Italia",
+  ES: "🇪🇸 Spania",
+  NL: "🇳🇱 Olanda",
+  BE: "🇧🇪 Belgia",
+  AT: "🇦🇹 Austria",
+  IE: "🇮🇪 Irlanda",
+  PT: "🇵🇹 Portugalia",
+  FI: "🇫🇮 Finlanda",
+  GB: "🇬🇧 UK",
+  US: "🇺🇸 SUA",
+};
+
+function CatalogSelector() {
+  const catalogCountry = useCartStore((s) => s.catalogCountry);
+  const setCatalogCountry = useCartStore((s) => s.setCatalogCountry);
+  const itemCount = useCartStore((s) => s.items.length);
+  const { countryCode } = useSubscription();
+  const { data: countries } = useProductCountries();
+
+  // Lista finală de opțiuni: țările cu produse importate; dacă încă nu s-a
+  // încărcat nimic, măcar țara curentă din coș, ca să nu fie selector gol.
+  const options = countries && countries.length > 0 ? countries : [catalogCountry];
+
+  // Ofertă nouă (coș gol) → catalogul implicit = țara liderului, dacă există
+  // produse pentru ea. Ofertă în curs → păstrăm catalogul ales.
+  useEffect(() => {
+    if (itemCount > 0) return;
+    if (!countries || countries.length === 0) return;
+    if (countries.includes(countryCode) && catalogCountry !== countryCode) {
+      setCatalogCountry(countryCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countries, countryCode, itemCount]);
+
+  // Cu un singur catalog disponibil nu are rost selectorul.
+  if (options.length <= 1) return null;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        background: C.card,
+        border: `1px solid ${C.border2}`,
+        borderRadius: 12,
+        padding: "10px 14px",
+        marginBottom: 20,
+        flexWrap: "wrap",
+      }}
+    >
+      <i className="ti ti-map-pin" style={{ fontSize: 17, color: C.primary }} />
+      <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+        Catalog produse
+      </div>
+      <select
+        value={catalogCountry}
+        onChange={(e) => setCatalogCountry(e.target.value)}
+        style={{
+          marginLeft: "auto",
+          padding: "8px 12px",
+          background: "#F8FAF8",
+          border: `1.5px solid ${C.border2}`,
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 600,
+          color: C.dark,
+          fontFamily: "'DM Sans', sans-serif",
+          cursor: "pointer",
+          outline: "none",
+        }}
+      >
+        {options.map((code) => (
+          <option key={code} value={code}>
+            {COUNTRY_LABELS[code] || code}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 // ── MAIN PAGE ─────────────────────────────────────────────
 export default function CalculatorPage() {
   const {
     getCount, items, clientName, clearCart,
-    setClientName, setClientEmail, setClientPhone, setPrefillContactId,
+    setClientName, setClientEmail, setClientPhone, setPrefillContactId, setOfferLang,
   } = useCartStore();
   const count = getCount();
   const [activeTab, setActiveTab] = useState<"search" | "cart">("search");
@@ -1725,12 +1868,13 @@ export default function CalculatorPage() {
     const raw = sessionStorage.getItem("prefill_contact");
     if (!raw) return;
     try {
-      const { id, name, email, phone } = JSON.parse(raw);
+      const { id, name, email, phone, language } = JSON.parse(raw);
       clearCart();
       if (name) setClientName(name);
       if (email && !email.includes("@noemail.local")) setClientEmail(email);
       if (phone) setClientPhone(phone);
       if (id) setPrefillContactId(id);
+      if (language) setOfferLang(language);
       sessionStorage.removeItem("prefill_contact");
       setActiveTab("cart"); // pe mobil, deschide direct coșul
       setShowDraftBanner(false);
@@ -1820,6 +1964,9 @@ export default function CalculatorPage() {
           </div>
         </div>
       )}
+
+      {/* Selector catalog produse (țară) — apare doar cu >1 catalog */}
+      <CatalogSelector />
 
       {/* Desktop: two columns */}
       <div

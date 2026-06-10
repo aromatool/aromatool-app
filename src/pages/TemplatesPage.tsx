@@ -415,38 +415,6 @@ function TemplateEditor({
               />
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "10px",
-                marginBottom: "14px",
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Text buton</label>
-                <input
-                  value={editBody.cta}
-                  onChange={(e) =>
-                    setEditBody((p) => ({ ...p, cta: e.target.value }))
-                  }
-                  placeholder="ex: Scrie-mi"
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Semnătură</label>
-                <input
-                  value={editBody.closing}
-                  onChange={(e) =>
-                    setEditBody((p) => ({ ...p, closing: e.target.value }))
-                  }
-                  placeholder="ex: Cu drag"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
             {/* ── MATERIALE IMPLICITE ── */}
             <div style={{ marginBottom: "14px" }}>
               <label style={labelStyle}>Materiale atașate implicit</label>
@@ -1032,38 +1000,6 @@ export default function TemplatesPage() {
               placeholder="ex: Bună {{nume}}, am ceva special pentru tine..."
               style={{ ...inputStyle, resize: "vertical" }}
             />
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "10px",
-              marginBottom: "14px",
-            }}
-          >
-            <div>
-              <label style={labelStyle}>Text buton</label>
-              <input
-                value={newTemplate.cta}
-                onChange={(e) =>
-                  setNewTemplate((p) => ({ ...p, cta: e.target.value }))
-                }
-                placeholder="ex: Scrie-mi"
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Semnătură</label>
-              <input
-                value={newTemplate.closing}
-                onChange={(e) =>
-                  setNewTemplate((p) => ({ ...p, closing: e.target.value }))
-                }
-                placeholder="ex: Cu drag"
-                style={inputStyle}
-              />
-            </div>
           </div>
 
           <button

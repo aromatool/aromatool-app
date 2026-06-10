@@ -5,6 +5,7 @@ import { useSubscription } from '../lib/subscription'
 import { createResourceLinks } from '../lib/resourceLink'
 import { EMAIL_HEADER_HTML } from '../lib/emailLogo'
 import { buildEmailFooter } from '../lib/emailFooter'
+import i18n from '../i18n'
 import type { CartItem } from './useCartStore'
 
 interface SendOfferParams {
@@ -14,11 +15,13 @@ interface SendOfferParams {
   contactId?: string
   notes: string
   items: CartItem[]
-  transport: number       // in EUR
+  transport: number       // în moneda de bază a ofertei
   totalDisplay: number        // total in display currency
-  totalEur: number        // total in EUR
-  exchangeRate: number    // EUR → display currency rate
+  totalEur: number        // total în moneda de bază (nume istoric)
+  exchangeRate: number    // factor bază → monedă de afișare
   currency: string        // display currency code
+  baseCurrency?: string   // moneda de bază a catalogului (EUR, GBP, ...)
+  lang?: string           // limba emailului către client ('ro' | 'en')
   includeGuide?: boolean
   enrollLink?: string
   resourceIds?: string[]   // resurse din bibliotecă, inserate ca linkuri
@@ -41,32 +44,64 @@ function fmtCurrency(amount: number, currency: string): string {
   return `${formatted} ${symbol}`
 }
 
+// Rotunjire la bani (2 zecimale). Folosită ca să facem TOTALUL = suma liniilor
+// AFIȘATE, nu rotunjirea sumei brute (altfel totalul putea diferi de adunarea
+// manuală a clientului cu 1-2 bani — „penny rounding").
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+// Sursa unică pentru totaluri consistente: total = Σ(linii rotunjite) + transport
+// rotunjit. Folosit ATÂT la randarea emailului CÂT ȘI la salvarea ofertei, ca
+// suma stocată să fie identică cu cea pe care o vede clientul.
+function computeOfferTotals(
+  items: CartItem[],
+  transport: number,
+  rate: number
+): { totalEur: number; totalDisplay: number } {
+  let sumDisplay = 0
+  let sumEur = 0
+  for (const item of items) {
+    const lineEur = round2(item.price_eur * item.qty * (1 - item.disc / 100))
+    sumEur += lineEur
+    sumDisplay += round2(lineEur * rate)
+  }
+  return {
+    totalEur: round2(sumEur + round2(transport)),
+    totalDisplay: round2(sumDisplay + round2(transport * rate)),
+  }
+}
+
 
 export function buildEmailHtml(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string, resourceLinks: ResourceLink[] = [], userSignature?: string): string {
-  const { clientName, items, transport, totalDisplay, totalEur, exchangeRate, currency, notes, enrollLink } = params
+  const { clientName, items, transport, exchangeRate, currency, baseCurrency, lang, notes, enrollLink } = params
   const displayCurrency = currency || 'RON'
-  const rate = exchangeRate || 5.2523
+  const base = baseCurrency || 'EUR'
+  // `rate` = factor bază → afișare. (Default 1 → ofertă în aceeași monedă.)
+  const rate = exchangeRate || 1
+  // Limba emailului către client (implicit RO). Helper local cu lng fix.
+  const lng = lang || 'ro'
+  const t = (key: string, opts?: Record<string, unknown>) => i18n.t(key, { lng, ...opts })
 
   const rows = items.map(item => {
-    const priceEur = item.price_eur
-    const lineTotalEur = priceEur * item.qty * (1 - item.disc / 100)
-    const lineTotalDisplay = lineTotalEur * rate
+    const lineEur = round2(item.price_eur * item.qty * (1 - item.disc / 100))
+    const lineDisplay = round2(lineEur * rate)
     const disc = item.disc > 0 ? `<span style="color:#C94F6A;font-size:11px"> −${item.disc}%</span>` : ''
-    const secondaryEur = displayCurrency !== 'EUR' ? `<div style="font-size:11px;color:#A89888;margin-top:2px">€ ${lineTotalEur.toFixed(2)}</div>` : ''
+    const secondaryEur = displayCurrency !== base ? `<div style="font-size:11px;color:#A89888;margin-top:2px">${fmtCurrency(lineEur, base)}</div>` : ''
     return `<tr>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530">${item.name}${disc}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#A89888;text-align:center">${item.qty}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530;text-align:right;font-weight:600">
-        ${fmtCurrency(lineTotalDisplay, displayCurrency)}${secondaryEur}
+        ${fmtCurrency(lineDisplay, displayCurrency)}${secondaryEur}
       </td>
     </tr>`
   }).join('')
 
-  const transportDisplay = transport * rate
+  const transportDisplay = round2(transport * rate)
+  // Total = Σ linii rotunjite + transport rotunjit (consistent cu afișarea).
+  const { totalEur, totalDisplay } = computeOfferTotals(items, transport, rate)
 
   const resourceButtons = resourceLinks.length > 0 ? `
     <div style="margin-top:16px;padding:16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
-      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px">Materiale atașate</div>
+      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px">${t('email.materialsLabel')}</div>
       ${resourceLinks.map(r => `
         <a href="${r.url}" style="display:block;margin-bottom:8px;padding:11px 16px;background:#5C7A5C;border-radius:8px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;text-align:center">
           📎 ${r.title}
@@ -81,19 +116,18 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
 
   <div style="padding:28px 28px 0;">
     <p style="font-size:15px;color:#3D3530;margin-bottom:6px;text-align:center">
-      Bună ziua${clientName ? `, <strong>${clientName}</strong>` : ''}!
+      ${t('email.greeting')}${clientName ? `, <strong>${clientName}</strong>` : ''}!
     </p>
     <p style="font-size:13px;color:#A89888;margin-bottom:24px;text-align:center">
-      Oferta de mai jos a fost pregătită special pentru dumneavoastră<br>
-      de către <strong style="color:#5C7A5C">${userName}</strong>.
+      ${t('email.intro', { user: userName })}
     </p>
 
     <table style="width:100%;border-collapse:collapse;border:1px solid #E8F0E8;border-radius:10px;overflow:hidden;">
       <thead>
         <tr style="background:#F2F5F0;">
-          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:left;font-weight:600;text-transform:uppercase">Produs</th>
-          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:center;font-weight:600;text-transform:uppercase">Cant.</th>
-          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:right;font-weight:600;text-transform:uppercase">Total</th>
+          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:left;font-weight:600;text-transform:uppercase">${t('email.colProduct')}</th>
+          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:center;font-weight:600;text-transform:uppercase">${t('email.colQty')}</th>
+          <th style="padding:10px 16px;font-size:11px;color:#A89888;text-align:right;font-weight:600;text-transform:uppercase">${t('email.colTotal')}</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -102,27 +136,27 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     ${transport > 0 ? `
     <table style="width:100%;border-collapse:collapse;margin-top:8px;">
       <tr>
-        <td style="padding:6px 16px;font-size:13px;color:#A89888">🚚 Transport</td>
+        <td style="padding:6px 16px;font-size:13px;color:#A89888">${t('email.transport')}</td>
         <td style="padding:6px 16px;font-size:13px;color:#6A5A50;text-align:right;font-weight:500">
           ${fmtCurrency(transportDisplay, displayCurrency)}
-          ${displayCurrency !== 'EUR' ? `<span style="font-size:11px;color:#A89888;margin-left:6px">€ ${transport.toFixed(2)}</span>` : ''}
+          ${displayCurrency !== base ? `<span style="font-size:11px;color:#A89888;margin-left:6px">${fmtCurrency(transport, base)}</span>` : ''}
         </td>
       </tr>
     </table>` : ''}
 
     <table style="width:100%;border-collapse:collapse;background:#E8F0E8;border-radius:10px;margin-top:8px;overflow:hidden;">
       <tr>
-        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:15px;color:#3D3530">Total de plată</td>
+        <td style="padding:16px 20px;font-family:Georgia,serif;font-size:15px;color:#3D3530">${t('email.totalToPay')}</td>
         <td style="padding:16px 20px;font-family:Georgia,serif;font-size:26px;color:#3D3530;font-weight:600;text-align:right">
           ${fmtCurrency(totalDisplay, displayCurrency)}
-          ${displayCurrency !== 'EUR' ? `<div style="font-size:13px;color:#A89888;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:400">€ ${totalEur.toFixed(2)}</div>` : ''}
+          ${displayCurrency !== base ? `<div style="font-size:13px;color:#A89888;font-family:'Helvetica Neue',Arial,sans-serif;font-weight:400">${fmtCurrency(totalEur, base)}</div>` : ''}
         </td>
       </tr>
     </table>
 
     ${notes ? `
     <div style="margin-top:14px;padding:14px 16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
-      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px">Notițe personalizate</div>
+      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px">${t('email.notesLabel')}</div>
       <div style="font-size:13px;color:#3D3530;line-height:1.7;white-space:pre-wrap">${notes}</div>
     </div>` : ''}
 
@@ -132,25 +166,25 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     <div style="margin-top:16px;padding:24px;background:linear-gradient(135deg,#E8F0E8,#E8F8F0);border-radius:12px;border:1px solid #CADBCA;text-align:center;">
       <div style="font-size:22px;margin-bottom:8px">🌸</div>
       <div style="font-family:Georgia,serif;font-size:18px;color:#3D3530;font-weight:600;margin-bottom:8px">
-        Începe călătoria ta alături de noi!
+        ${t('email.enrollTitle')}
       </div>
       <div style="font-size:13px;color:#6A5A50;margin-bottom:18px;line-height:1.7;max-width:340px;margin-left:auto;margin-right:auto">
-        Fii parte dintr-o echipă care te susține, te inspiră și crește împreună cu tine. Un singur pas te separă de această comunitate minunată.
+        ${t('email.enrollBody')}
       </div>
       <a href="${enrollLink}"
         style="display:inline-block;background:linear-gradient(135deg,#6B8E6B,#5C7A5C);border-radius:10px;padding:13px 36px;color:white;font-family:'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:0.03em;box-shadow:0 4px 15px rgba(92,122,92,0.3)">
-        Înscrie-te în echipă →
+        ${t('email.enrollButton')}
       </a>
       <div style="font-size:11px;color:#A89888;margin-top:12px">
-        🌿 Young Living · Înregistrare oficială
+        ${t('email.enrollFooter')}
       </div>
     </div>` : ''}
   </div>
 
-  ${buildEmailFooter({ userName, userPhone, userEmail, userSignature })}
+  ${buildEmailFooter({ userName, userPhone, userEmail, userSignature, lang: lng })}
 
   <div style="background:#FAFAF7;border-top:1px solid #EEF3EE;padding:12px 28px;text-align:center;">
-    <span style="font-size:11px;color:#A89888">Trimis prin AromaTool</span>
+    <span style="font-size:11px;color:#A89888">${t('email.sentVia')}</span>
   </div>
 
 </div>
@@ -167,17 +201,32 @@ export function useSendEmail() {
   const sendOffer = async (params: SendOfferParams) => {
     if (!requireAccess()) return false
     if (!params.clientEmail || !params.clientEmail.includes('@') || params.clientEmail.includes('@noemail.local')) {
-      setError('Clientul nu are un email valid. Adaugă un email în fișa de contact înainte să trimiți oferta.')
+      setError(i18n.t('offers.sendErrInvalidEmail'))
       return false
     }
     if (params.items.length === 0) {
-      setError('Coșul e gol.')
+      setError(i18n.t('offers.sendErrEmptyCart'))
+      return false
+    }
+    // H1: NU trimite/salva o ofertă cu un curs valutar invalid (NaN/0). getRate()
+    // întoarce NaN când lipsește un curs → altfel am persista total_display=NaN
+    // în `offers` și am trimite „NaN" clientului. Oprim devreme, cu mesaj clar.
+    if (!Number.isFinite(params.exchangeRate) || params.exchangeRate <= 0) {
+      setError(i18n.t('offers.sendErrRate'))
       return false
     }
 
     setLoading(true)
     setError('')
     setSuccess(false)
+
+    // Totaluri consistente (Σ linii rotunjite), folosite la salvarea ofertei.
+    const offerTotals = computeOfferTotals(params.items, params.transport, params.exchangeRate)
+    // Plasă de siguranță: dacă totalurile ies non-finite (preț corupt), oprim.
+    if (!Number.isFinite(offerTotals.totalEur) || !Number.isFinite(offerTotals.totalDisplay)) {
+      setError(i18n.t('offers.sendErrRate'))
+      return false
+    }
 
     try {
       // ── Verificare communication controls dacă avem contact_id ──
@@ -189,12 +238,12 @@ export function useSendEmail() {
           .single()
 
         if (contactCheck?.communication_blocked) {
-          setError('Comunicarea este blocată pentru acest contact. Nu se poate trimite email.')
+          setError(i18n.t('offers.sendErrBlocked'))
           setLoading(false)
           return false
         }
         if (contactCheck?.email_opt_out) {
-          setError('Emailul este dezactivat pentru acest contact. Activează-l din fișa de contact înainte de trimitere.')
+          setError(i18n.t('offers.sendErrOptOut'))
           setLoading(false)
           return false
         }
@@ -205,9 +254,10 @@ export function useSendEmail() {
       const userEmail = user?.user_metadata?.contact_email || user?.email || ''
       const userSignature = user?.user_metadata?.email_signature || ''
 
+      const lng = params.lang || 'ro'
       const subject = params.clientName
-        ? `${params.clientName}, iată oferta ta — ${userName}`
-        : `Oferta ta — ${userName}`
+        ? i18n.t('email.subjectWithName', { lng, name: params.clientName, user: userName })
+        : i18n.t('email.subject', { lng, user: userName })
 
       // ── RESURSE: creăm linkuri securizate (token) înainte de trimitere ──
       const resourceIds = params.resourceIds ?? []
@@ -234,7 +284,19 @@ export function useSendEmail() {
         if (linkRows.length > 0) {
           await supabase.from('resource_links').delete().in('id', linkRows.map(l => l.id))
         }
-        if (fnError) throw fnError
+        // Pentru statusuri non-2xx (ex. 402 abonament, 429 rate-limit) mesajul
+        // util e în corpul răspunsului, nu în fnError (care e generic). Îl extragem.
+        if (fnError) {
+          let msg = fnError.message
+          const ctx = (fnError as { context?: Response }).context
+          if (ctx && typeof ctx.json === 'function') {
+            try {
+              const body = await ctx.json()
+              if (body?.error) msg = body.error
+            } catch { /* corp ne-JSON — păstrăm mesajul generic */ }
+          }
+          throw new Error(msg)
+        }
         throw new Error(data.error)
       }
 
@@ -294,10 +356,13 @@ export function useSendEmail() {
           })),
           transport: params.transport,
           notes: params.notes || null,
-          total_display: params.totalDisplay,
-          total_eur: params.totalEur,
+          // Totaluri consistente cu emailul (Σ linii rotunjite), nu valoarea
+          // brută din calculator → evită discrepanțe de 1-2 bani în istoricul ofertelor.
+          total_display: offerTotals.totalDisplay,
+          total_eur: offerTotals.totalEur,
           exchange_rate: params.exchangeRate,
           currency: params.currency || 'RON',
+          base_currency: params.baseCurrency || 'EUR',
           sent_via: 'email',
         })
         .select('id')
@@ -315,7 +380,7 @@ export function useSendEmail() {
       return true
     } catch (err: any) {
       console.error('Send email error:', err)
-      setError(err.message || 'Eroare la trimitere. Încearcă din nou.')
+      setError(err.message || i18n.t('offers.sendErrGeneric'))
       return false
     } finally {
       setLoading(false)

@@ -11,11 +11,21 @@ const C = {
   card: "#FFFFFF",
 };
 
+const CULTURES: Record<string, string> = {
+  RO: "ro-RO",
+  DE: "de-DE",
+  FR: "fr-FR",
+  GB: "en-GB",
+  US: "en-US",
+};
+
 interface EnrollLinkProps {
   clientName?: string;
   clientPhone?: string;
   compact?: boolean;
   onLinkGenerated?: (link: string) => void;
+  // Țara catalogului ofertei — inițializează țara/limba linkului de înscriere.
+  country?: string;
 }
 
 export default function EnrollLink({
@@ -23,6 +33,7 @@ export default function EnrollLink({
   clientPhone,
   compact = false,
   onLinkGenerated,
+  country,
 }: EnrollLinkProps) {
   const [sponsorId, setSponsorId] = useState("");
   const [enrollerId, setEnrollerId] = useState("");
@@ -30,8 +41,15 @@ export default function EnrollLink({
   const [isOpen, setIsOpen] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const [countryCode, setCountryCode] = useState("RO");
-  const [culture, setCulture] = useState("ro-RO");
+  const [countryCode, setCountryCode] = useState(country || "RO");
+  const [culture, setCulture] = useState(CULTURES[country || "RO"] || "ro-RO");
+
+  // Când oferta schimbă catalogul (țara), aliniem implicit țara/limba linkului.
+  useEffect(() => {
+    if (!country) return;
+    setCountryCode(country);
+    setCulture(CULTURES[country] || "ro-RO");
+  }, [country]);
 
   const enrollLink = sponsorId
     ? `https://www.youngliving.com/vo/#/signup/new-start?sponsorid=${sponsorId}&enrollerid=${enrollerId || sponsorId}&isocountrycode=${countryCode}&culture=${culture}&type=member`
@@ -171,14 +189,7 @@ export default function EnrollLink({
                   value={countryCode}
                   onChange={(e) => {
                     setCountryCode(e.target.value);
-                    const cultures: Record<string, string> = {
-                      RO: "ro-RO",
-                      DE: "de-DE",
-                      FR: "fr-FR",
-                      GB: "en-GB",
-                      US: "en-US",
-                    };
-                    setCulture(cultures[e.target.value] || "ro-RO");
+                    setCulture(CULTURES[e.target.value] || "ro-RO");
                   }}
                   style={{ ...inputStyle, appearance: "none" }}
                 >

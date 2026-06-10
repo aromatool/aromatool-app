@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getRecommendedAction, displayStatus } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
 import type { Contact } from "../pages/DashboardPage";
@@ -232,14 +233,13 @@ function SectionLabel({
 
 const STATUS_OPTIONS: {
   value: ContactStatus;
-  label: string;
   bg: string;
   color: string;
 }[] = [
-  { value: "prospect", label: "Prospect", bg: T.ambLt, color: T.amb },
-  { value: "client_nou", label: "Client", bg: T.sageLt, color: T.sage },
-  { value: "team_member", label: "Membru echipă", bg: T.lavLt, color: T.lav },
-  { value: "inactiv", label: "Inactiv", bg: T.linen, color: T.muted },
+  { value: "prospect", bg: T.ambLt, color: T.amb },
+  { value: "client_nou", bg: T.sageLt, color: T.sage },
+  { value: "team_member", bg: T.lavLt, color: T.lav },
+  { value: "inactiv", bg: T.linen, color: T.muted },
 ];
 
 export default function ContactSlideOver({
@@ -252,6 +252,7 @@ export default function ContactSlideOver({
   onNotesChange,
   onOpenOffer,
 }: Props) {
+  const { t } = useTranslation();
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
@@ -274,7 +275,7 @@ export default function ContactSlideOver({
 
   if (!contact) return null;
 
-  const action = getRecommendedAction(contact);
+  const action = getRecommendedAction(contact, t);
   const ac = {
     bg: action.accentBg,
     border: action.accentColor + "55",
@@ -329,9 +330,7 @@ export default function ContactSlideOver({
     return s;
   };
   const currentCanonical = canonicalStatus(contact.status);
-  const currentStatusLabel =
-    STATUS_OPTIONS.find((s) => s.value === currentCanonical)?.label ??
-    displayStatus(contact.status);
+  const currentStatusLabel = displayStatus(currentCanonical, t);
 
   return (
     <>
@@ -400,12 +399,15 @@ export default function ContactSlideOver({
               {contact.name}
             </div>
             <div style={{ fontSize: 12, color: T.warm, marginTop: 2 }}>
-              {displayStatus(contact.status)} · În CRM de {inCRM} zile
+              {t("contacts.slideOver.subtitle", {
+                status: displayStatus(contact.status, t),
+                days: inCRM,
+              })}
             </div>
           </div>
           <button
             onClick={onClose}
-            aria-label="Închide"
+            aria-label={t("contacts.common.close")}
             style={{
               width: 28,
               height: 28,
@@ -489,7 +491,8 @@ export default function ContactSlideOver({
                     style={{ fontSize: 14, color: T.muted }}
                     aria-hidden="true"
                   />
-                  Sursă: {contact.source}
+                  {t("contacts.slideOver.sourcePrefix")}
+                  {contact.source}
                 </div>
               )}
             </div>
@@ -530,7 +533,7 @@ export default function ContactSlideOver({
                   style={{ fontSize: 12 }}
                   aria-hidden="true"
                 />
-                Acțiune recomandată
+                {t("contacts.common.recommendedAction")}
               </div>
               {action.priority === "urgent" && (
                 <span
@@ -544,7 +547,7 @@ export default function ContactSlideOver({
                     padding: "2px 8px",
                   }}
                 >
-                  Urgent
+                  {t("contacts.common.urgent")}
                 </span>
               )}
               {action.priority === "attention" && (
@@ -559,7 +562,7 @@ export default function ContactSlideOver({
                     padding: "2px 8px",
                   }}
                 >
-                  Atenție
+                  {t("contacts.common.attention")}
                 </span>
               )}
             </div>
@@ -579,7 +582,7 @@ export default function ContactSlideOver({
                 fontSize: 12, color: T.red,
               }}>
                 <i className="ti ti-ban" style={{ fontSize: 14 }} />
-                <span><strong>Comunicare blocată.</strong> Niciun mesaj nu poate fi trimis.</span>
+                <span><strong>{t("contacts.comm.blocked")}</strong> {t("contacts.comm.blockedSub")}</span>
               </div>
             )}
             {!contact.communication_blocked && contact.email_opt_out && (
@@ -590,7 +593,7 @@ export default function ContactSlideOver({
                 fontSize: 12, color: T.amb,
               }}>
                 <i className="ti ti-mail-off" style={{ fontSize: 14 }} />
-                <span><strong>Email dezactivat.</strong> Folosește WhatsApp pentru contact.</span>
+                <span><strong>{t("contacts.comm.emailOff")}</strong> {t("contacts.comm.emailOffSub")}</span>
               </div>
             )}
 
@@ -599,7 +602,7 @@ export default function ContactSlideOver({
                 <PrimaryButton
                   color={action.accentColor}
                   icon="ti-file-text"
-                  label="Trimite ofertă"
+                  label={t("contacts.cta.sendOffer")}
                   onClick={() => onOffer?.(contact)}
                   disabled={!!contact.communication_blocked}
                 />
@@ -607,7 +610,7 @@ export default function ContactSlideOver({
                 <PrimaryButton
                   color={T.grn}
                   icon="ti-brand-whatsapp"
-                  label="Scrie un mesaj"
+                  label={t("contacts.cta.writeMessage")}
                   onClick={() => onWhatsApp?.(contact)}
                   disabled={!!contact.communication_blocked}
                 />
@@ -615,7 +618,7 @@ export default function ContactSlideOver({
                 <PrimaryButton
                   color={action.accentColor}
                   icon="ti-mail"
-                  label={contact.email_opt_out ? "Email dezactivat" : "Trimite email"}
+                  label={contact.email_opt_out ? t("contacts.cta.emailDisabled") : t("contacts.cta.sendEmail")}
                   onClick={() => onEmail?.(contact)}
                   disabled={!!contact.communication_blocked || !!contact.email_opt_out}
                 />
@@ -625,7 +628,7 @@ export default function ContactSlideOver({
               {action.type !== "needs_offer" && (
                 <SecondaryButton
                   icon="ti-file-text"
-                  label="Ofertă"
+                  label={t("contacts.cta.offer")}
                   onClick={() => onOffer?.(contact)}
                   disabled={!!contact.communication_blocked}
                 />
@@ -633,14 +636,14 @@ export default function ContactSlideOver({
               {action.type === "needs_offer" && (
                 <SecondaryButton
                   icon="ti-mail"
-                  label="Email"
+                  label={t("contacts.cta.email")}
                   onClick={() => onEmail?.(contact)}
                   disabled={!!contact.communication_blocked || !!contact.email_opt_out}
                 />
               )}
               <SecondaryButton
                 icon="ti-brand-whatsapp"
-                label="WhatsApp"
+                label={t("contacts.cta.whatsapp")}
                 onClick={() => onWhatsApp?.(contact)}
                 disabled={!!contact.communication_blocked}
               />
@@ -648,7 +651,7 @@ export default function ContactSlideOver({
           </div>
 
           {/* Rezumat relație — 4 carduri */}
-          <SectionLabel>Rezumat relație</SectionLabel>
+          <SectionLabel>{t("contacts.slideOver.relationSummary")}</SectionLabel>
           <div
             style={{
               display: "grid",
@@ -661,29 +664,29 @@ export default function ContactSlideOver({
               icon="ti-calendar"
               iconBg={T.sageLt}
               iconColor={T.sage}
-              value={`${inCRM} zile`}
-              label="În CRM de"
+              value={t("contacts.common.days", { count: inCRM })}
+              label={t("contacts.slideOver.statInCrm")}
             />
             <StatCard
               icon="ti-file-text"
               iconBg={T.ambLt}
               iconColor={T.amb}
               value={String(contact.offers_count ?? 0)}
-              label="Oferte trimise"
+              label={t("contacts.slideOver.statOffers")}
             />
             <StatCard
               icon="ti-currency-euro"
               iconBg={T.grnLt}
               iconColor={T.grn}
               value={`€${(contact.total_eur ?? 0).toFixed(0)}`}
-              label="Valoare totală"
+              label={t("contacts.slideOver.statValue")}
             />
             <StatCard
               icon="ti-clock"
               iconBg={T.lavLt}
               iconColor={T.lav}
-              value={lastContact !== null ? `${lastContact} zile` : "—"}
-              label="Ultimul contact"
+              value={lastContact !== null ? t("contacts.common.days", { count: lastContact }) : "—"}
+              label={t("contacts.slideOver.statLastContact")}
             />
           </div>
 
@@ -693,7 +696,7 @@ export default function ContactSlideOver({
               action={
                 !editingNotes
                   ? {
-                      label: contact.notes ? "Editează" : "+ Adaugă",
+                      label: contact.notes ? t("contacts.common.edit") : t("contacts.slideOver.addNote"),
                       onClick: () => {
                         setNotesDraft(contact.notes ?? "");
                         setEditingNotes(true);
@@ -702,7 +705,7 @@ export default function ContactSlideOver({
                   : undefined
               }
             >
-              Notițe
+              {t("contacts.common.notes")}
             </SectionLabel>
             {editingNotes ? (
               <div>
@@ -711,7 +714,7 @@ export default function ContactSlideOver({
                   onChange={(e) => setNotesDraft(e.target.value)}
                   autoFocus
                   rows={4}
-                  placeholder="Scrie o notiță despre acest contact..."
+                  placeholder={t("contacts.common.notesPlaceholder")}
                   style={{
                     width: "100%",
                     fontSize: 12,
@@ -742,7 +745,7 @@ export default function ContactSlideOver({
                       fontFamily: "inherit",
                     }}
                   >
-                    {savingNotes ? "Se salvează..." : "Salvează"}
+                    {savingNotes ? t("contacts.common.saving") : t("contacts.common.save")}
                   </button>
                   <button
                     onClick={() => {
@@ -761,7 +764,7 @@ export default function ContactSlideOver({
                       fontFamily: "inherit",
                     }}
                   >
-                    Anulează
+                    {t("contacts.common.cancel")}
                   </button>
                 </div>
               </div>
@@ -778,15 +781,14 @@ export default function ContactSlideOver({
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {contact.notes ||
-                  "Nicio notiță încă. Adaugă context despre acest contact."}
+                {contact.notes || t("contacts.common.notesEmpty")}
               </div>
             )}
           </div>
 
           {/* Status — mutat sus, editabil */}
           <div style={{ marginBottom: 16, position: "relative" }}>
-            <SectionLabel>Status</SectionLabel>
+            <SectionLabel>{t("contacts.common.status")}</SectionLabel>
             <button
               onClick={() => setStatusMenuOpen((v) => !v)}
               disabled={changingStatus}
@@ -807,7 +809,7 @@ export default function ContactSlideOver({
               }}
             >
               <span>
-                {changingStatus ? "Se salvează..." : currentStatusLabel}
+                {changingStatus ? t("contacts.common.saving") : currentStatusLabel}
               </span>
               <i
                 className={`ti ti-chevron-${statusMenuOpen ? "up" : "down"}`}
@@ -861,7 +863,7 @@ export default function ContactSlideOver({
                         color: opt.color,
                       }}
                     >
-                      {opt.label}
+                      {displayStatus(opt.value, t)}
                     </span>
                     {opt.value === currentCanonical && (
                       <i
@@ -883,7 +885,7 @@ export default function ContactSlideOver({
           {/* Istoric activități — cu iconițe per tip + link la oferte */}
           {contact.timeline && contact.timeline.length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <SectionLabel>Istoric activități</SectionLabel>
+              <SectionLabel>{t("contacts.common.activityHistory")}</SectionLabel>
               {contact.timeline.slice(0, 6).map((item: any, idx: number) => {
                 const clickable = item.type === "offer" && item.offerId;
                 const iconCfgMap: Record<string, { icon: string; bg: string; color: string }> = {
@@ -971,7 +973,7 @@ export default function ContactSlideOver({
           {/* Ultima ofertă */}
           {contact.last_offer && (
             <div style={{ marginBottom: 16 }}>
-              <SectionLabel>Ultima ofertă</SectionLabel>
+              <SectionLabel>{t("contacts.slideOver.lastOffer")}</SectionLabel>
               <div
                 style={{
                   display: "flex",
@@ -1003,17 +1005,20 @@ export default function ContactSlideOver({
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: T.esp }}>
-                    Ofertă ·{" "}
-                    {new Date(contact.last_offer.sentAt).toLocaleDateString(
-                      "ro-RO",
-                      { day: "numeric", month: "short", year: "numeric" },
-                    )}
+                    {t("contacts.slideOver.offerDate", {
+                      date: new Date(
+                        contact.last_offer.sentAt,
+                      ).toLocaleDateString(t("actions.localeCode"), {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      }),
+                    })}
                   </div>
                   <div style={{ fontSize: 11, color: T.muted }}>
-                    {contact.last_offer.productCount}{" "}
-                    {contact.last_offer.productCount === 1
-                      ? "produs"
-                      : "produse"}{" "}
+                    {t("contacts.slideOver.products", {
+                      count: contact.last_offer.productCount,
+                    })}{" "}
                     · €{contact.last_offer.totalEur.toFixed(0)}
                   </div>
                 </div>
@@ -1035,7 +1040,7 @@ export default function ContactSlideOver({
                     gap: 4,
                   }}
                 >
-                  Vezi oferta{" "}
+                  {t("contacts.slideOver.viewOffer")}{" "}
                   <i
                     className="ti ti-external-link"
                     style={{ fontSize: 12 }}
@@ -1049,7 +1054,7 @@ export default function ContactSlideOver({
           {/* Produse recomandate ultima dată */}
           {contact.offer_products && contact.offer_products.length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <SectionLabel>Produse recomandate ultima dată</SectionLabel>
+              <SectionLabel>{t("contacts.slideOver.recommendedProducts")}</SectionLabel>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                 {contact.offer_products.map((p: any, i: any) => (
                   <span
@@ -1071,7 +1076,7 @@ export default function ContactSlideOver({
 
           {/* Email tracking */}
           <div style={{ marginBottom: 8 }}>
-            <SectionLabel>Email tracking</SectionLabel>
+            <SectionLabel>{t("contacts.slideOver.emailTracking")}</SectionLabel>
             {hasEmailTracking ? (
               <div style={{ display: "flex", gap: 8 }}>
                 <div
@@ -1096,7 +1101,7 @@ export default function ContactSlideOver({
                       {emailOpens}
                     </div>
                     <div style={{ fontSize: 11, color: T.warm }}>
-                      {emailOpens === 1 ? "deschidere" : "deschideri"}
+                      {t("contacts.slideOver.opens", { count: emailOpens })}
                     </div>
                   </div>
                 </div>
@@ -1122,7 +1127,7 @@ export default function ContactSlideOver({
                       {emailClicks}
                     </div>
                     <div style={{ fontSize: 11, color: T.warm }}>
-                      {emailClicks === 1 ? "click" : "click-uri"}
+                      {t("contacts.slideOver.clicks", { count: emailClicks })}
                     </div>
                   </div>
                 </div>
@@ -1159,10 +1164,10 @@ export default function ContactSlideOver({
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: T.lav }}>
-                    Disponibil după activarea domeniului
+                    {t("contacts.slideOver.trackingUnavailable")}
                   </div>
                   <div style={{ fontSize: 11, color: T.warm, marginTop: 1 }}>
-                    Activează Resend pentru a urmări emailurile trimise.
+                    {t("contacts.slideOver.trackingUnavailableSub")}
                   </div>
                 </div>
               </div>

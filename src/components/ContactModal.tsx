@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
-import { getRecommendedAction, displayStatus } from "../lib/recommendedAction";
+import { getRecommendedAction, displayStatus, statusGroup } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
 import type { Contact } from "../pages/DashboardPage";
 import PhoneInput from "./PhoneInput";
@@ -74,35 +76,34 @@ function initials(name?: string | null, email?: string): string {
     .slice(0, 2)
     .toUpperCase();
 }
-function fmtDate(iso?: string | null): string {
+function fmtDate(iso: string | null | undefined, locale: string): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("ro-RO", {
+  return new Date(iso).toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
 }
-function fmtTime(iso?: string | null): string {
+function fmtTime(iso: string | null | undefined, locale: string): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleTimeString("ro-RO", {
+  return new Date(iso).toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-function statusPill(status: string) {
-  const shown = displayStatus(status as ContactStatus);
-  switch (shown) {
-    case "Prospect":
-      return { label: "Prospect", bg: T.amberLight, color: T.amber };
-    case "Client":
-      return { label: "Client", bg: T.greenLight, color: T.green };
-    case "Membru echipă":
-      return { label: "Membru echipă", bg: T.lavenderLight, color: T.lavender };
-    case "Inactiv":
-      return { label: "Inactiv", bg: T.linen, color: T.muted };
+function statusPill(status: string, t: TFunction) {
+  const label = displayStatus(status as ContactStatus, t);
+  switch (statusGroup(status as ContactStatus)) {
+    case "client":
+      return { label, bg: T.greenLight, color: T.green };
+    case "team":
+      return { label, bg: T.lavenderLight, color: T.lavender };
+    case "inactive":
+      return { label, bg: T.linen, color: T.muted };
+    case "prospect":
     default:
-      return { label: shown, bg: T.linen, color: T.muted };
+      return { label, bg: T.amberLight, color: T.amber };
   }
 }
 const TIMELINE_VISUAL: Record<
@@ -115,11 +116,11 @@ const TIMELINE_VISUAL: Record<
   whatsapp: { icon: "ti-brand-whatsapp", bg: "#EAF8EF", color: "#3DAE6E" },
   event: { icon: "ti-user-plus", bg: T.linen, color: T.muted },
 };
-const STATUS_OPTIONS: { value: ContactStatus; label: string }[] = [
-  { value: "prospect", label: "Prospect" },
-  { value: "client_nou", label: "Client" },
-  { value: "team_member", label: "Membru echipă" },
-  { value: "inactiv", label: "Inactiv" },
+const STATUS_OPTIONS: { value: ContactStatus }[] = [
+  { value: "prospect" },
+  { value: "client_nou" },
+  { value: "team_member" },
+  { value: "inactiv" },
 ];
 
 type Tab = "offers" | "products" | "tracking";
@@ -137,6 +138,8 @@ export default function ContactModal({
   onContactDelete,
 }: Props) {
   const { user } = useAuth();
+  const { t } = useTranslation();
+  const locale = t("actions.localeCode");
   const [tab, setTab] = useState<Tab>("offers");
   const [offers, setOffers] = useState<OfferRow[]>([]);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
@@ -148,7 +151,7 @@ export default function ContactModal({
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editDraft, setEditDraft] = useState({ name: "", phone: "", email: "", source: "" });
+  const [editDraft, setEditDraft] = useState({ name: "", phone: "", email: "", source: "", language: "ro" });
   const [savingEdit, setSavingEdit] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -204,11 +207,14 @@ export default function ContactModal({
     const events: (TimelineItem & { sortKey: number })[] = [];
     offerRows.forEach((o, idx) => {
       events.push({
-        date: fmtDate(o.sent_at),
-        time: fmtTime(o.sent_at),
+        date: fmtDate(o.sent_at, locale),
+        time: fmtTime(o.sent_at, locale),
         sortKey: new Date(o.sent_at).getTime(),
-        label: "Ofertă trimisă",
-        sub: `Oferta #${offerRows.length - idx} · €${o.total_eur.toFixed(0)}`,
+        label: t("contacts.timeline.offerSent"),
+        sub: t("contacts.timeline.offerSub", {
+          n: offerRows.length - idx,
+          value: o.total_eur.toFixed(0),
+        }),
         type: "offer",
         amount: `€${o.total_eur.toFixed(0)}`,
         offerId: o.id,
@@ -224,19 +230,19 @@ export default function ContactModal({
             : "followup";
       const label =
         st === "whatsapp_initiated"
-          ? "WhatsApp trimis"
+          ? t("contacts.timeline.whatsappSent")
           : st === "sent"
-            ? "Email trimis"
-            : "Follow-up trimis";
+            ? t("contacts.timeline.emailSent")
+            : t("contacts.timeline.followupSent");
       const sub =
         st === "whatsapp_initiated"
-          ? "Mesaj WhatsApp"
+          ? t("contacts.timeline.subWhatsapp")
           : st === "sent"
-            ? "Email trimis"
-            : "Follow-up";
+            ? t("contacts.timeline.emailSent")
+            : t("contacts.timeline.subFollowup");
       events.push({
-        date: fmtDate(f.sent_at),
-        time: fmtTime(f.sent_at),
+        date: fmtDate(f.sent_at, locale),
+        time: fmtTime(f.sent_at, locale),
         sortKey: new Date(f.sent_at).getTime(),
         label,
         sub,
@@ -244,11 +250,11 @@ export default function ContactModal({
       });
     });
     events.push({
-      date: fmtDate(c.created_at),
-      time: fmtTime(c.created_at),
+      date: fmtDate(c.created_at, locale),
+      time: fmtTime(c.created_at, locale),
       sortKey: new Date(c.created_at).getTime(),
-      label: "Contact creat",
-      sub: "Adăugat manual",
+      label: t("contacts.timeline.contactCreated"),
+      sub: t("contacts.timeline.addedManually"),
       type: "event",
     });
     events.sort((a, b) => b.sortKey - a.sortKey);
@@ -268,15 +274,15 @@ export default function ContactModal({
 
   if (!contact) return null;
 
-  const action = getRecommendedAction(contact);
+  const action = getRecommendedAction(contact, t);
   const inCRM = daysSince(contact.created_at);
   const lastContact = daysSince(
     contact.last_activity_at ?? contact.first_offer_at,
   );
-  const pill = statusPill(contact.status);
+  const pill = statusPill(contact.status, t);
 
   const handleStatusSelect = async (s: ContactStatus) => {
-    if (displayStatus(s) === displayStatus(contact.status)) {
+    if (statusGroup(s) === statusGroup(contact.status)) {
       setStatusMenuOpen(false);
       return;
     }
@@ -334,6 +340,7 @@ export default function ContactModal({
       phone: contact.phone ?? "",
       email: isPlaceholder ? "" : (contact.email ?? ""),
       source: contact.source ?? "",
+      language: contact.language_code ?? "ro",
     });
     setEditMode(true);
   };
@@ -344,6 +351,7 @@ export default function ContactModal({
       name: editDraft.name.trim() || null,
       phone: editDraft.phone.trim() || null,
       source: editDraft.source.trim() || null,
+      language_code: editDraft.language || "ro",
     };
     if (editDraft.email.trim()) updates.email = editDraft.email.trim();
     const { error } = await supabase.from("contacts").update(updates).eq("id", contact.id);
@@ -363,20 +371,20 @@ export default function ContactModal({
   const primaryCTA =
     action.type === "needs_offer"
       ? {
-          label: "Creează ofertă",
+          label: t("contacts.cta.createOffer"),
           icon: "ti-file-text",
           onClick: () => onOffer?.(contact),
           color: action.accentColor,
         }
       : action.type === "none" || action.type === "reactivate"
         ? {
-            label: "Trimite mesaj",
+            label: t("contacts.cta.sendMessage"),
             icon: "ti-brand-whatsapp",
             onClick: () => onWhatsApp?.(contact),
             color: T.green,
           }
         : {
-            label: "Trimite email",
+            label: t("contacts.cta.sendEmail"),
             icon: "ti-mail",
             onClick: () => onEmail?.(contact),
             color: T.sage,
@@ -487,7 +495,7 @@ export default function ContactModal({
               )}
               {inCRM !== null && (
                 <span style={{ fontSize: 12, color: T.muted }}>
-                  · în CRM de {inCRM} zile
+                  {t("contacts.modal.inCrmPrefix", { days: inCRM })}
                 </span>
               )}
             </div>
@@ -530,15 +538,15 @@ export default function ContactModal({
                 style={{ ...hdrBtn(), background: T.sage, color: "#fff", border: "none" }}
               >
                 <i className="ti ti-check" style={{ fontSize: 15 }} />
-                {savingEdit ? "Se salvează..." : "Salvează"}
+                {savingEdit ? t("contacts.common.saving") : t("contacts.common.save")}
               </button>
               <button onClick={() => setEditMode(false)} style={hdrBtn()}>
-                <i className="ti ti-x" style={{ fontSize: 15 }} /> Anulează
+                <i className="ti ti-x" style={{ fontSize: 15 }} /> {t("contacts.common.cancel")}
               </button>
             </div>
           ) : (
             <button onClick={handleStartEdit} style={hdrBtn()}>
-              <i className="ti ti-edit" style={{ fontSize: 15 }} /> Editează contact
+              <i className="ti ti-edit" style={{ fontSize: 15 }} /> {t("contacts.modal.editContact")}
             </button>
           )}
           <div
@@ -550,7 +558,7 @@ export default function ContactModal({
               disabled={changingStatus}
               style={hdrBtn()}
             >
-              <span>Schimbă status</span>
+              <span>{t("contacts.modal.changeStatus")}</span>
               <i
                 className={`ti ti-chevron-${statusMenuOpen ? "up" : "down"}`}
                 style={{ fontSize: 14 }}
@@ -574,7 +582,7 @@ export default function ContactModal({
               >
                 {STATUS_OPTIONS.map((o) => {
                   const active =
-                    displayStatus(o.value) === displayStatus(contact.status);
+                    statusGroup(o.value) === statusGroup(contact.status);
                   return (
                     <button
                       key={o.value}
@@ -595,7 +603,7 @@ export default function ContactModal({
                         color: T.espresso,
                       }}
                     >
-                      {o.label}
+                      {displayStatus(o.value, t)}
                       {active && (
                         <i
                           className="ti ti-check"
@@ -615,7 +623,7 @@ export default function ContactModal({
           >
             <button
               onClick={() => setMoreMenuOpen((v) => !v)}
-              title="Mai multe"
+              title={t("contacts.modal.more")}
               style={{
                 width: 38,
                 height: 38,
@@ -668,14 +676,14 @@ export default function ContactModal({
                   }}
                 >
                   <i className="ti ti-trash" style={{ fontSize: 15 }} />
-                  Șterge definitiv
+                  {t("contacts.modal.deletePermanently")}
                 </button>
               </div>
             )}
           </div>
           <button
             onClick={onClose}
-            aria-label="Închide"
+            aria-label={t("contacts.common.close")}
             style={{
               width: 38,
               height: 38,
@@ -711,7 +719,7 @@ export default function ContactModal({
             }}
           >
             <i className="ti ti-ban" style={{ fontSize: 16, flexShrink: 0 }} />
-            Acest contact nu dorește să mai fie contactat. Acțiunile de comunicare sunt dezactivate.
+            {t("contacts.modal.contactOptedOut")}
           </div>
         )}
         {isEmailOptOut && !isBlocked && (
@@ -729,7 +737,7 @@ export default function ContactModal({
             }}
           >
             <i className="ti ti-mail-off" style={{ fontSize: 14, flexShrink: 0 }} />
-            Email dezactivat — contactul nu mai primește emailuri.
+            {t("contacts.modal.emailOffBanner")}
           </div>
         )}
 
@@ -774,10 +782,10 @@ export default function ContactModal({
                 <i className="ti ti-trash" style={{ fontSize: 22, color: T.red }} />
               </div>
               <div style={{ fontSize: 18, fontWeight: 600, color: T.espresso, marginBottom: 8 }}>
-                Șterge definitiv contactul?
+                {t("contacts.modal.deleteTitle")}
               </div>
               <div style={{ fontSize: 13, color: T.warm, lineHeight: 1.6, marginBottom: 6 }}>
-                Vei șterge <strong>{contact.name || contact.email}</strong> împreună cu toate ofertele și istoricul asociat.
+                {t("contacts.modal.deleteBodyPre")}<strong>{contact.name || contact.email}</strong>{t("contacts.modal.deleteBodyPost")}
               </div>
               <div
                 style={{
@@ -792,7 +800,7 @@ export default function ContactModal({
                 }}
               >
                 <i className="ti ti-alert-triangle" style={{ fontSize: 13, marginRight: 5 }} />
-                Această acțiune nu poate fi anulată.
+                {t("contacts.modal.deleteIrreversible")}
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button
@@ -816,8 +824,8 @@ export default function ContactModal({
                   }}
                 >
                   {deleting
-                    ? <><i className="ti ti-loader-2" style={{ fontSize: 14 }} /> Se șterge...</>
-                    : <><i className="ti ti-trash" style={{ fontSize: 14 }} /> Șterge definitiv</>
+                    ? <><i className="ti ti-loader-2" style={{ fontSize: 14 }} /> {t("contacts.modal.deleting")}</>
+                    : <><i className="ti ti-trash" style={{ fontSize: 14 }} /> {t("contacts.modal.deletePermanently")}</>
                   }
                 </button>
                 <button
@@ -835,7 +843,7 @@ export default function ContactModal({
                     fontFamily: "inherit",
                   }}
                 >
-                  Anulează
+                  {t("contacts.common.cancel")}
                 </button>
               </div>
             </div>
@@ -858,14 +866,14 @@ export default function ContactModal({
           {editMode && (
             <div style={{ background: T.white, border: `0.5px solid ${T.border}`, borderRadius: 14, padding: 24, maxWidth: 520 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: T.espresso, marginBottom: 20 }}>
-                Editează informații contact
+                {t("contacts.modal.editContactInfo")}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {[
-                  { key: "name", label: "Nume", icon: "ti-user", placeholder: "Numele contactului" },
-                  { key: "phone", label: "Telefon", icon: "ti-phone", placeholder: "ex: 0722 123 456" },
-                  { key: "email", label: "Email", icon: "ti-mail", placeholder: "adresa@email.com" },
-                  { key: "source", label: "Sursă", icon: "ti-map-pin", placeholder: "ex: Instagram, recomandare" },
+                  { key: "name", label: t("contacts.modal.fieldName"), icon: "ti-user", placeholder: t("contacts.modal.namePlaceholder") },
+                  { key: "phone", label: t("contacts.modal.fieldPhone"), icon: "ti-phone", placeholder: t("contacts.modal.phonePlaceholder") },
+                  { key: "email", label: t("contacts.modal.fieldEmail"), icon: "ti-mail", placeholder: t("contacts.modal.emailPlaceholder") },
+                  { key: "source", label: t("contacts.modal.fieldSource"), icon: "ti-map-pin", placeholder: t("contacts.modal.sourcePlaceholder") },
                 ].map(({ key, label, icon, placeholder }) => (
                   <div key={key}>
                     <label style={{ fontSize: 12, color: T.muted, display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
@@ -904,6 +912,34 @@ export default function ContactModal({
                     )}
                   </div>
                 ))}
+                <div>
+                  <label style={{ fontSize: 12, color: T.muted, display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+                    <i className="ti ti-language" style={{ fontSize: 13 }} /> {t("contacts.modal.fieldLanguage")}
+                  </label>
+                  <select
+                    value={editDraft.language}
+                    onChange={(e) => setEditDraft((prev) => ({ ...prev, language: e.target.value }))}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      fontSize: 14,
+                      color: T.espresso,
+                      border: `0.5px solid ${T.border}`,
+                      borderRadius: 9,
+                      outline: "none",
+                      fontFamily: "inherit",
+                      boxSizing: "border-box",
+                      background: T.white,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <option value="ro">{t("common.romanian")}</option>
+                    <option value="en">{t("common.english")}</option>
+                  </select>
+                  <div style={{ fontSize: 11, color: T.muted, marginTop: 5 }}>
+                    {t("contacts.modal.fieldLanguageHint")}
+                  </div>
+                </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
                 <button
@@ -911,13 +947,13 @@ export default function ContactModal({
                   disabled={savingEdit}
                   style={{ background: T.sage, color: "#fff", border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
                 >
-                  {savingEdit ? "Se salvează..." : "Salvează modificările"}
+                  {savingEdit ? t("contacts.common.saving") : t("contacts.modal.saveChanges")}
                 </button>
                 <button
                   onClick={() => setEditMode(false)}
                   style={{ background: T.linen, color: T.warm, border: `0.5px solid ${T.border}`, borderRadius: 9, padding: "10px 16px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
                 >
-                  Anulează
+                  {t("contacts.common.cancel")}
                 </button>
               </div>
             </div>
@@ -955,8 +991,8 @@ export default function ContactModal({
                   marginBottom: 6,
                 }}
               >
-                <i className="ti ti-send" style={{ fontSize: 13 }} /> Acțiune
-                recomandată
+                <i className="ti ti-send" style={{ fontSize: 13 }} />{" "}
+                {t("contacts.common.recommendedAction")}
               </div>
               <div style={{ fontSize: 20, fontWeight: 600, color: T.espresso }}>
                 {action.title}
@@ -987,14 +1023,14 @@ export default function ContactModal({
                   }}
                 >
                   <i className="ti ti-ban" style={{ fontSize: 14 }} />
-                  Comunicare blocată — acțiunile sunt dezactivate
+                  {t("contacts.modal.commBlockedActions")}
                 </div>
               ) : (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
                     onClick={primaryCTA.onClick}
                     disabled={isEmailOptOut && primaryCTA.icon === "ti-mail"}
-                    title={isEmailOptOut && primaryCTA.icon === "ti-mail" ? "Email dezactivat pentru acest contact" : undefined}
+                    title={isEmailOptOut && primaryCTA.icon === "ti-mail" ? t("contacts.modal.emailOffTooltip") : undefined}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -1018,12 +1054,12 @@ export default function ContactModal({
                   {primaryCTA.icon !== "ti-brand-whatsapp" && (
                     <button onClick={() => onWhatsApp?.(contact)} style={ghostBtn()}>
                       <i className="ti ti-brand-whatsapp" style={{ fontSize: 15 }} />{" "}
-                      WhatsApp
+                      {t("contacts.cta.whatsapp")}
                     </button>
                   )}
                   <button onClick={() => onOffer?.(contact)} style={ghostBtn()}>
                     <i className="ti ti-file-text" style={{ fontSize: 15 }} />{" "}
-                    Ofertă nouă
+                    {t("contacts.cta.newOffer")}
                   </button>
                 </div>
               )}
@@ -1042,29 +1078,29 @@ export default function ContactModal({
                 iconBg={T.sageLight}
                 iconColor={T.sage}
                 value={String(contact.offers_count ?? 0)}
-                label="Oferte trimise"
+                label={t("contacts.modal.statOffers")}
               />
               <Kpi
                 icon="ti-currency-euro"
                 iconBg={T.amberLight}
                 iconColor={T.amber}
                 value={`€${(contact.total_eur ?? 0).toFixed(0)}`}
-                label="Valoare totală"
+                label={t("contacts.modal.statValue")}
                 valueColor={T.green}
               />
               <Kpi
                 icon="ti-clock"
                 iconBg={T.lavenderLight}
                 iconColor={T.lavender}
-                value={lastContact !== null ? `${lastContact} zile` : "—"}
-                label="Ultimul contact"
+                value={lastContact !== null ? t("contacts.common.days", { count: lastContact }) : "—"}
+                label={t("contacts.modal.statLastContact")}
               />
               <Kpi
                 icon="ti-refresh"
                 iconBg={T.roseLight}
                 iconColor={T.rose}
                 value={String(contact.followup_count ?? 0)}
-                label="Follow-up-uri"
+                label={t("contacts.modal.statFollowups")}
               />
             </div>
           </div>
@@ -1080,21 +1116,21 @@ export default function ContactModal({
           >
             {/* STÂNGA */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Card title="Informații contact">
+              <Card title={t("contacts.modal.contactInfo")}>
                 <InfoRow
                   icon="ti-phone"
-                  label="Telefon"
+                  label={t("contacts.modal.fieldPhone")}
                   value={contact.phone || "—"}
                 />
                 <InfoRow
                   icon="ti-mail"
-                  label="Email"
+                  label={t("contacts.modal.fieldEmail")}
                   value={contact.email || "—"}
                 />
                 {contact.source && (
                   <InfoRow
                     icon="ti-map-pin"
-                    label="Sursă"
+                    label={t("contacts.modal.fieldSource")}
                     value={contact.source}
                   />
                 )}
@@ -1106,7 +1142,7 @@ export default function ContactModal({
                     style={{ fontSize: 16, color: T.muted, marginTop: 1 }}
                   />
                   <div>
-                    <div style={{ fontSize: 11, color: T.muted }}>Status</div>
+                    <div style={{ fontSize: 11, color: T.muted }}>{t("contacts.modal.fieldStatus")}</div>
                     <span
                       style={{
                         fontSize: 12,
@@ -1125,8 +1161,8 @@ export default function ContactModal({
                 </div>
                 <InfoRow
                   icon="ti-calendar"
-                  label="Data creării"
-                  value={fmtDate(contact.created_at)}
+                  label={t("contacts.modal.fieldCreatedAt")}
+                  value={fmtDate(contact.created_at, locale)}
                 />
               </Card>
 
@@ -1162,7 +1198,7 @@ export default function ContactModal({
                       className="ti ti-note"
                       style={{ fontSize: 16, color: T.amber }}
                     />{" "}
-                    Notițe
+                    {t("contacts.common.notes")}
                   </span>
                   {!editingNotes && (
                     <button
@@ -1186,7 +1222,7 @@ export default function ContactModal({
                       }}
                     >
                       <i className="ti ti-edit" style={{ fontSize: 14 }} />{" "}
-                      Editează
+                      {t("contacts.common.edit")}
                     </button>
                   )}
                 </div>
@@ -1197,7 +1233,7 @@ export default function ContactModal({
                       onChange={(e) => setNotesDraft(e.target.value)}
                       autoFocus
                       rows={6}
-                      placeholder="Scrie o notiță despre acest contact..."
+                      placeholder={t("contacts.common.notesPlaceholder")}
                       style={{
                         width: "100%",
                         fontSize: 14,
@@ -1228,7 +1264,7 @@ export default function ContactModal({
                           fontFamily: "inherit",
                         }}
                       >
-                        {savingNotes ? "Se salvează..." : "Salvează"}
+                        {savingNotes ? t("contacts.common.saving") : t("contacts.common.save")}
                       </button>
                       <button
                         onClick={() => {
@@ -1246,7 +1282,7 @@ export default function ContactModal({
                           fontFamily: "inherit",
                         }}
                       >
-                        Anulează
+                        {t("contacts.common.cancel")}
                       </button>
                     </div>
                   </div>
@@ -1260,8 +1296,7 @@ export default function ContactModal({
                       minHeight: 48,
                     }}
                   >
-                    {contact.notes ||
-                      "Nicio notiță încă. Adaugă context despre acest contact."}
+                    {contact.notes || t("contacts.common.notesEmpty")}
                   </div>
                 )}
               </div>
@@ -1287,30 +1322,32 @@ export default function ContactModal({
                   }}
                 >
                   <i className="ti ti-settings" style={{ fontSize: 15, color: T.muted }} />
-                  Preferințe comunicare
+                  {t("contacts.modal.commPrefs")}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   {/* Email opt-out toggle */}
                   <CommToggle
-                    label="Emailuri"
-                    description={isEmailOptOut ? "Dezactivat" : "Activ"}
+                    label={t("contacts.modal.commEmails")}
+                    description={isEmailOptOut ? t("contacts.modal.commDisabled") : t("contacts.modal.commActive")}
                     checked={!isEmailOptOut}
                     disabled={isBlocked || savingComm === "email_opt_out"}
                     onChange={(val) => handleToggleEmailOptOut(!val)}
+                    t={t}
                     dangerOff
                   />
                   {/* Communication blocked toggle */}
                   <CommToggle
-                    label="Comunicare completă"
-                    description={isBlocked ? "Blocată" : "Permisă"}
+                    label={t("contacts.modal.commFull")}
+                    description={isBlocked ? t("contacts.modal.commBlockedState") : t("contacts.modal.commAllowed")}
                     checked={!isBlocked}
                     disabled={savingComm === "communication_blocked"}
                     onChange={(val) => handleToggleCommunicationBlocked(!val)}
+                    t={t}
                     dangerOff
                   />
                   {isBlocked && (
                     <div style={{ fontSize: 11, color: T.muted, lineHeight: 1.5 }}>
-                      Contactul nu va mai apărea în acțiunile de zi și agenda săptămânii.
+                      {t("contacts.modal.commBlockedHint")}
                     </div>
                   )}
                 </div>
@@ -1318,11 +1355,11 @@ export default function ContactModal({
             </div>
 
             {/* DREAPTA: Istoric activități */}
-            <Card title="Istoric activități">
+            <Card title={t("contacts.common.activityHistory")}>
               {loading ? (
-                <Empty icon="ti-loader" text="Se încarcă..." />
+                <Empty icon="ti-loader" text={t("contacts.modal.loadingHistory")} />
               ) : timeline.length === 0 ? (
-                <Empty icon="ti-history" text="Niciun eveniment încă." />
+                <Empty icon="ti-history" text={t("contacts.modal.noEvents")} />
               ) : (
                 <>
                   <div style={{ position: "relative" }}>
@@ -1452,7 +1489,7 @@ export default function ContactModal({
                         gap: 5,
                       }}
                     >
-                      {showAllTimeline ? "Arată mai puține" : "Vezi mai multe"}{" "}
+                      {showAllTimeline ? t("contacts.modal.showLess") : t("contacts.modal.showMore")}{" "}
                       <i
                         className={`ti ti-chevron-${showAllTimeline ? "up" : "down"}`}
                         style={{ fontSize: 15 }}
@@ -1492,8 +1529,8 @@ export default function ContactModal({
               >
                 {(
                   [
-                    ["offers", `Oferte (${offers.length})`],
-                    ["products", "Produse"],
+                    ["offers", t("contacts.modal.tabOffers", { count: offers.length })],
+                    ["products", t("contacts.modal.tabProducts")],
                   ] as const
                 ).map(([k, l]) => (
                   <button
@@ -1528,7 +1565,7 @@ export default function ContactModal({
               <div style={{ padding: 16 }}>
                 {tab === "offers" ? (
                   offers.length === 0 ? (
-                    <Empty icon="ti-file-off" text="Nicio ofertă încă." />
+                    <Empty icon="ti-file-off" text={t("contacts.modal.noOffers")} />
                   ) : (
                     <table
                       style={{ width: "100%", borderCollapse: "collapse" }}
@@ -1536,15 +1573,15 @@ export default function ContactModal({
                       <thead>
                         <tr>
                           {[
-                            "Ofertă",
-                            "Data",
-                            "Valoare",
-                            "Produse",
-                            "Status",
+                            t("contacts.modal.colOffer"),
+                            t("contacts.modal.colDate"),
+                            t("contacts.modal.colValue"),
+                            t("contacts.modal.colProducts"),
+                            t("contacts.modal.colStatus"),
                             "",
-                          ].map((h) => (
+                          ].map((h, hi) => (
                             <th
-                              key={h}
+                              key={hi}
                               style={{
                                 textAlign: "left",
                                 fontSize: 10,
@@ -1587,7 +1624,7 @@ export default function ContactModal({
                                   marginRight: 5,
                                 }}
                               />
-                              Oferta #{offers.length - idx}
+                              {t("contacts.modal.offerNumber", { n: offers.length - idx })}
                             </td>
                             <td
                               style={{
@@ -1597,7 +1634,7 @@ export default function ContactModal({
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {fmtDate(o.sent_at)}
+                              {fmtDate(o.sent_at, locale)}
                             </td>
                             <td
                               style={{
@@ -1650,7 +1687,7 @@ export default function ContactModal({
                                   padding: "2px 8px",
                                 }}
                               >
-                                Trimisă
+                                {t("contacts.modal.offerSent")}
                               </span>
                             </td>
                             <td
@@ -1667,7 +1704,7 @@ export default function ContactModal({
                     </table>
                   )
                 ) : productCounts.length === 0 ? (
-                  <Empty icon="ti-package-off" text="Niciun produs încă." />
+                  <Empty icon="ti-package-off" text={t("contacts.modal.noProducts")} />
                 ) : (
                   <div
                     style={{ display: "flex", flexDirection: "column", gap: 8 }}
@@ -1699,7 +1736,7 @@ export default function ContactModal({
                           {name}
                         </span>
                         <span style={{ fontSize: 12, color: T.muted }}>
-                          {count} {count === 1 ? "ofertă" : "oferte"}
+                          {t("contacts.modal.offerCount", { count })}
                         </span>
                       </div>
                     ))}
@@ -1728,7 +1765,7 @@ export default function ContactModal({
                   gap: 6,
                 }}
               >
-                <i className="ti ti-mail" style={{ fontSize: 15 }} /> Email Tracking
+                <i className="ti ti-mail" style={{ fontSize: 15 }} /> {t("contacts.modal.emailTrackingTitle")}
               </div>
 
               {/* Stat: Deschideri */}
@@ -1737,27 +1774,27 @@ export default function ContactModal({
                   icon="ti-eye"
                   iconBg={T.lavenderLight}
                   iconColor={T.lavender}
-                  label="Emailuri deschise"
+                  label={t("contacts.modal.trackOpens")}
                   value={contact.email_opens ?? 0}
-                  suffix="ori"
+                  suffix={t("contacts.modal.trackOpensSuffix")}
                   active={(contact.email_opens ?? 0) > 0}
                 />
                 <TrackingStat
                   icon="ti-cursor-text"
                   iconBg={T.sageLight}
                   iconColor={T.sage}
-                  label="Link-uri apăsate"
+                  label={t("contacts.modal.trackClicks")}
                   value={contact.email_clicks ?? 0}
-                  suffix="click-uri"
+                  suffix={t("contacts.modal.trackClicksSuffix")}
                   active={(contact.email_clicks ?? 0) > 0}
                 />
                 <TrackingStat
                   icon="ti-file-text"
                   iconBg={T.amberLight}
                   iconColor={T.amber}
-                  label="Oferte trimise"
+                  label={t("contacts.modal.trackOffers")}
                   value={contact.offers_count ?? 0}
-                  suffix="oferte"
+                  suffix={t("contacts.modal.trackOffersSuffix")}
                   active={(contact.offers_count ?? 0) > 0}
                 />
               </div>
@@ -1765,21 +1802,21 @@ export default function ContactModal({
               {/* Status email */}
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: `0.5px solid ${T.border}` }}>
                 <div style={{ fontSize: 11, color: T.muted, marginBottom: 8, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".05em" }}>
-                  Status email
+                  {t("contacts.modal.statusEmail")}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <StatusDot
                     active={!isEmailOptOut}
-                    activeLabel="Emailuri active"
-                    inactiveLabel="Email dezactivat"
+                    activeLabel={t("contacts.modal.emailsActive")}
+                    inactiveLabel={t("contacts.modal.emailDisabledDot")}
                     activeColor={T.green}
                     inactiveBg={T.redLight}
                     inactiveColor={T.red}
                   />
                   <StatusDot
                     active={!isBlocked}
-                    activeLabel="Comunicare permisă"
-                    inactiveLabel="Comunicare blocată"
+                    activeLabel={t("contacts.modal.commAllowedDot")}
+                    inactiveLabel={t("contacts.modal.commBlockedDot")}
                     activeColor={T.green}
                     inactiveBg={T.redLight}
                     inactiveColor={T.red}
@@ -1789,7 +1826,7 @@ export default function ContactModal({
 
               {(contact.email_opens ?? 0) === 0 && (contact.email_clicks ?? 0) === 0 && (
                 <div style={{ marginTop: 14, fontSize: 11, color: T.muted, lineHeight: 1.6 }}>
-                  Datele de tracking apar automat după ce contactul deschide sau apasă un link în email.
+                  {t("contacts.modal.trackingHint")}
                 </div>
               )}
             </div>
@@ -2065,12 +2102,14 @@ function CommToggle({
   checked,
   disabled,
   onChange,
+  t,
 }: {
   label: string;
   description: string;
   checked: boolean;
   disabled?: boolean;
   onChange: (val: boolean) => void;
+  t: TFunction;
   dangerOff?: boolean;
 }) {
   return (
@@ -2082,7 +2121,7 @@ function CommToggle({
       <button
         onClick={() => !disabled && onChange(!checked)}
         disabled={disabled}
-        title={disabled ? undefined : checked ? "Dezactivează" : "Activează"}
+        title={disabled ? undefined : checked ? t("contacts.modal.commToggleOff") : t("contacts.modal.commToggleOn")}
         style={{
           width: 42,
           height: 24,

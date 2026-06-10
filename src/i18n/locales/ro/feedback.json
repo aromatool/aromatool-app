@@ -1,0 +1,19 @@
+{
+  "types": {
+    "sugestie": "Sugestie",
+    "problema": "Problemă",
+    "altele": "Altele"
+  },
+  "sendError": "Nu am putut trimite. Mai încearcă o dată.",
+  "fabTitle": "Trimite feedback",
+  "fabLabel": "Feedback",
+  "thanks": "Mulțumim! 🌿",
+  "thanksBody": "Feedback-ul tău ne ajută să facem AromaTool mai bun.",
+  "close": "Închide",
+  "title": "Spune-ne părerea ta",
+  "subtitle": "Sugestii, probleme sau idei — te ascultăm.",
+  "placeholder": "Scrie aici ce vrei să ne transmiți...",
+  "cancel": "Anulează",
+  "sending": "Se trimite...",
+  "send": "Trimite"
+}

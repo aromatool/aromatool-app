@@ -7,15 +7,17 @@ import { EMAIL_HEADER_HTML } from "../lib/emailLogo";
 import { createResourceLinks } from "../lib/resourceLink";
 import { buildEmailFooter } from "../lib/emailFooter";
 import { useResources } from "../hooks/useResources";
+import { useTranslation } from "react-i18next";
 
 // Acțiunile care au mesaje recomandate (awaiting_reply/none nu declanșează nimic
 // special — folosim mesajele de follow-up ca fallback util).
-const ACTION_LABEL: Record<string, string> = {
-  needs_offer: "Trimite prima ofertă",
-  needs_followup: "Trimite follow-up",
-  reactivate: "Reactivează contactul",
-  discuss_business: "Discută despre business",
-};
+// Cheile valide pentru actionLabel (label-ul propriu-zis vine din i18n).
+const ACTION_LABEL_KEYS = new Set([
+  "needs_offer",
+  "needs_followup",
+  "reactivate",
+  "discuss_business",
+]);
 
 // Mapează acțiunea recomandată → ce mesaje încărcăm (trigger_action).
 function messageActionFor(action?: ActionType): string {
@@ -49,6 +51,45 @@ const C = {
   redbg: "#FFF0F4",
 };
 
+// Etichete pentru învelișul emailului (chrome), localizate după limba clientului.
+const EMAIL_TEXT: Record<
+  "ro" | "en",
+  {
+    attachments: string;
+    prevOffer: string;
+    product: string;
+    qty: string;
+    total: string;
+    totalLabel: string;
+    sentVia: string;
+    locale: string;
+  }
+> = {
+  ro: {
+    attachments: "Materiale atașate",
+    prevOffer: "Oferta anterioară",
+    product: "Produs",
+    qty: "Cant.",
+    total: "Total",
+    totalLabel: "Total: ",
+    sentVia: "Trimis prin AromaTool",
+    locale: "ro-RO",
+  },
+  en: {
+    attachments: "Attached materials",
+    prevOffer: "Previous offer",
+    product: "Product",
+    qty: "Qty",
+    total: "Total",
+    totalLabel: "Total: ",
+    sentVia: "Sent via AromaTool",
+    locale: "en-GB",
+  },
+};
+function emailText(lang?: string) {
+  return EMAIL_TEXT[lang === "en" ? "en" : "ro"];
+}
+
 interface Template {
   id: string;
   subject: string;
@@ -57,6 +98,7 @@ interface Template {
   trigger_action: string | null;
   active: boolean;
   user_id: string | null; // null = mesaj de sistem (global)
+  language_code?: string | null;
 }
 
 interface TemplateBody {
@@ -76,6 +118,7 @@ interface Contact {
   followup_count?: number;
   email_opt_out?: boolean;
   communication_blocked?: boolean;
+  language_code?: string | null;
 }
 
 interface LastOffer {
@@ -126,14 +169,16 @@ function buildEmailHtml(
   resourceLinks: ResourceLink[] = [],
   userPhone?: string,
   userEmail?: string,
+  lang?: string,
 ): string {
+  const ET = emailText(lang);
   const headline = replaceVars(body.headline, vars);
   const intro = replaceVars(body.intro, vars);
 
   const resourceButtons =
     resourceLinks.length > 0
       ? `<div style="margin-bottom:20px;padding:16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
-      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px;font-family:'Helvetica Neue',Arial,sans-serif">Materiale atașate</div>
+      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px;font-family:'Helvetica Neue',Arial,sans-serif">${ET.attachments}</div>
       ${resourceLinks
         .map(
           (r) => `<a href="${r.url}" style="display:block;margin-bottom:8px;padding:11px 16px;background:#5C7A5C;border-radius:8px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif">📎 ${r.title}</a>`,
@@ -153,7 +198,7 @@ function buildEmailHtml(
         return `<tr>
       <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#3D3530">${p.name}${p.disc > 0 ? ` <span style="color:#C94F6A;font-size:11px">−${p.disc}%</span>` : ""}</td>
       <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#A89888;text-align:center">×${p.qty}</td>
-      <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;font-weight:600;color:#4A6A4A;text-align:right">${total.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${lastOffer.currency || "RON"}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;font-weight:600;color:#4A6A4A;text-align:right">${total.toLocaleString(ET.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${lastOffer.currency || "RON"}</td>
     </tr>`;
       })
       .join("") || "";
@@ -167,27 +212,27 @@ function buildEmailHtml(
     ${
       lastOffer
         ? `<div style="margin-bottom:20px;">
-      <div style="font-size:11px;color:#A89888;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:8px">Oferta anterioară</div>
+      <div style="font-size:11px;color:#A89888;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:8px">${ET.prevOffer}</div>
       <table style="width:100%;border-collapse:collapse;border:1px solid #EDE8E0;border-radius:10px;overflow:hidden;">
         <thead><tr style="background:#F5EEE8;">
-          <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:left;font-weight:500">Produs</th>
-          <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:center;font-weight:500">Cant.</th>
-          <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:right;font-weight:500">Total</th>
+          <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:left;font-weight:500">${ET.product}</th>
+          <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:center;font-weight:500">${ET.qty}</th>
+          <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:right;font-weight:500">${ET.total}</th>
         </tr></thead>
         <tbody>${productsHtml}</tbody>
       </table>
       <div style="text-align:right;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;">
-        <span style="font-size:13px;color:#A89888">Total: </span>
-        <span style="font-size:18px;font-weight:700;color:#4A6A4A">${lastOffer.total_display?.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} ${lastOffer.currency || "RON"}</span>
+        <span style="font-size:13px;color:#A89888">${ET.totalLabel}</span>
+        <span style="font-size:18px;font-weight:700;color:#4A6A4A">${lastOffer.total_display?.toLocaleString(ET.locale, { minimumFractionDigits: 2 })} ${lastOffer.currency || "RON"}</span>
       </div>
     </div>`
         : ""
     }
     ${resourceButtons}
   </div>
-  ${buildEmailFooter({ userName, userPhone, userEmail, userSignature })}
+  ${buildEmailFooter({ userName, userPhone, userEmail, userSignature, lang })}
   <div style="background:#FAFAF7;border-top:1px solid #EDE8E0;padding:10px;text-align:center;">
-    <span style="font-size:10px;color:#C8D8C8">Trimis prin AromaTool</span>
+    <span style="font-size:10px;color:#C8D8C8">${ET.sentVia}</span>
   </div>
 </div></body></html>`;
 }
@@ -199,7 +244,9 @@ function buildCustomHtml(
   userSignature?: string,
   userPhone?: string,
   userEmail?: string,
+  lang?: string,
 ): string {
+  const ET = emailText(lang);
   const safe = message.replace(/\n/g, "<br>");
   return `<!DOCTYPE html><html><body style="margin:0;padding:16px;background:#FAFAF7;font-family:Georgia,serif;">
 <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #EDE8E0;">
@@ -207,9 +254,9 @@ function buildCustomHtml(
   <div style="padding:28px;">
     <p style="font-size:14px;color:#3D3530;line-height:1.8;margin:0 0 20px;white-space:pre-wrap">${safe}</p>
   </div>
-  ${buildEmailFooter({ userName, userPhone, userEmail, userSignature })}
+  ${buildEmailFooter({ userName, userPhone, userEmail, userSignature, lang })}
   <div style="background:#FAFAF7;border-top:1px solid #EDE8E0;padding:10px;text-align:center;">
-    <span style="font-size:10px;color:#C8D8C8">Trimis prin AromaTool</span>
+    <span style="font-size:10px;color:#C8D8C8">${ET.sentVia}</span>
   </div>
 </div></body></html>`;
 }
@@ -230,6 +277,7 @@ export default function FollowupModal({
   action,
 }: FollowupModalProps) {
   const { user } = useAuth();
+  const { t: tr } = useTranslation();
   const { requireAccess } = useSubscription();
   const { resources } = useResources();
   const [tab, setTab] = useState<Tab>("template");
@@ -252,15 +300,29 @@ export default function FollowupModal({
   // Custom email
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
+  // Limba emailului trimis clientului — implicit limba contactului.
+  const [emailLang, setEmailLang] = useState<string>(
+    contact.language_code === "en" ? "en" : "ro",
+  );
 
   const selected = templates.find((t) => t.id === selectedId);
   const selectedBody = selected ? parseBody(selected.body_html) : null;
+  // Tabelul cu „ultima ofertă" are sens DOAR la follow-up („revin cu oferta
+  // de acum X zile"). La prima ofertă / reactivare / business îl ascundem.
+  const offerForEmail =
+    selected?.trigger_action === "needs_followup" ? lastOffer : null;
+
+  // Mesajele de sistem se filtrează după limba aleasă; mesajele proprii ale
+  // userului se afișează mereu (sunt scrise de el, în limba lui).
+  const langTemplates = templates.filter(
+    (t) => t.user_id !== null || (t.language_code ?? "ro") === emailLang,
+  );
 
   // Lista afișată: doar recomandate (filtrate pe acțiune) sau toate.
   const currentAction = messageActionFor(action);
   const visibleTemplates = showAll
-    ? templates
-    : templates.filter((t) => t.trigger_action === currentAction);
+    ? langTemplates
+    : langTemplates.filter((t) => t.trigger_action === currentAction);
 
   const vars: Record<string, string> = {
     "{{nume}}": contact.name || (contact.email ?? "").split("@")[0],
@@ -277,7 +339,7 @@ export default function FollowupModal({
         ?.map((p) => `• ${p.name} ×${p.qty}`)
         .join("\n") || "",
     "{{total}}": lastOffer
-      ? `${lastOffer.total_display?.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} ${lastOffer.currency}`
+      ? `${lastOffer.total_display?.toLocaleString(emailText(emailLang).locale, { minimumFractionDigits: 2 })} ${lastOffer.currency}`
       : "",
     "{{distribuitor}}": userName,
     "{{telefon}}": userPhone,
@@ -286,6 +348,28 @@ export default function FollowupModal({
   useEffect(() => {
     loadData();
   }, []);
+
+  // Selecție implicită — re-evaluată când se încarcă mesajele sau se schimbă
+  // limba. Dacă selecția curentă nu mai e validă pentru limba aleasă, alegem
+  // primul mesaj recomandat (sau primul disponibil; altfel mergem pe „custom").
+  useEffect(() => {
+    if (templates.length === 0) return;
+    if (selectedId && langTemplates.some((t) => t.id === selectedId)) return;
+    const recommended = langTemplates.filter(
+      (t) => t.trigger_action === currentAction,
+    );
+    if (recommended.length > 0) {
+      setShowAll(false);
+      setSelectedId(recommended[0].id);
+    } else if (langTemplates.length > 0) {
+      setShowAll(true);
+      setSelectedId(langTemplates[0].id);
+    } else {
+      setSelectedId(null);
+      setTab("custom");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates, emailLang]);
 
   // La schimbarea mesajului → încarcă resursele implicite (template_resources).
   // Mesajele de sistem nu au resurse implicite (owner-only) → listă goală.
@@ -320,29 +404,16 @@ export default function FollowupModal({
 
     // Încărcăm TOATE mesajele active (sistem + personale), filtrarea pe
     // acțiune o facem client-side ca să putem comuta „Vezi toate".
-    const msgAction = messageActionFor(action);
     const { data: tpl } = await supabase
       .from("followup_templates")
-      .select("id, subject, body_html, title, trigger_action, active, user_id")
+      .select("id, subject, body_html, title, trigger_action, active, user_id, language_code")
       .or(`user_id.eq.${user!.id},user_id.is.null`)
       .eq("active", true)
       .not("trigger_action", "is", null)
       .order("user_id", { nullsFirst: true }); // mesajele de sistem primele
 
     setTemplates(tpl || []);
-    // Selectăm implicit primul mesaj recomandat pentru acțiunea curentă.
-    const recommended = (tpl || []).filter(
-      (t) => t.trigger_action === msgAction,
-    );
-    if (recommended.length > 0) {
-      setSelectedId(recommended[0].id);
-    } else if (tpl && tpl.length > 0) {
-      // Nu există mesaje pentru acțiune, dar există altele → arătăm toate.
-      setShowAll(true);
-      setSelectedId(tpl[0].id);
-    } else {
-      setTab("custom");
-    }
+    // Selecția implicită se face în efectul de mai jos (depinde de limbă).
 
     const { data: offer } = await supabase
       .from("offers")
@@ -367,9 +438,14 @@ export default function FollowupModal({
       setUserSignature(profile.email_signature || "");
     }
 
-    // Pre-completează subiectul custom
+    // Pre-completează subiectul custom (în limba clientului).
     const nume = contact.name || (contact.email ?? "").split("@")[0];
-    setCustomSubject(`Salut, ${nume}!`);
+    setCustomSubject(
+      tr("contacts.followup.greeting", {
+        name: nume,
+        lng: contact.language_code === "en" ? "en" : "ro",
+      }),
+    );
 
     setLoading(false);
   }
@@ -384,12 +460,12 @@ export default function FollowupModal({
 
     // Validări înainte de orice efect (link-uri etc.)
     if (tab === "template" && (!selected || !selectedBody)) {
-      setError("Selectează un template.");
+      setError(tr("contacts.followup.selectTemplate"));
       setSending(false);
       return;
     }
     if (tab === "custom" && !customMessage.trim()) {
-      setError("Scrie un mesaj.");
+      setError(tr("contacts.followup.writeMessageErr"));
       setSending(false);
       return;
     }
@@ -414,22 +490,24 @@ export default function FollowupModal({
         html = buildEmailHtml(
           selectedBody!,
           vars,
-          lastOffer,
+          offerForEmail,
           userName,
           userSignature,
           resourceLinks,
           userPhone,
           userEmail,
+          emailLang,
         );
         templateId = selected!.id;
       } else {
-        subject = customSubject.trim() || `Salut, ${contact.name || ""}!`;
+        subject = customSubject.trim() || tr("contacts.followup.greeting", { name: contact.name || "" });
         html = buildCustomHtml(
           customMessage,
           userName,
           userSignature,
           userPhone,
           userEmail,
+          emailLang,
         );
       }
 
@@ -462,7 +540,20 @@ export default function FollowupModal({
           sent_at: new Date().toISOString(),
           status: "failed",
         });
-        throw new Error(fnError?.message || data?.error);
+        // Pentru non-2xx (402 abonament / 429 rate-limit) mesajul util e în
+        // corpul răspunsului, nu în fnError (generic). Îl extragem.
+        if (fnError) {
+          let msg = fnError.message;
+          const ctx = (fnError as { context?: Response }).context;
+          if (ctx && typeof ctx.json === "function") {
+            try {
+              const body = await ctx.json();
+              if (body?.error) msg = body.error;
+            } catch { /* corp ne-JSON */ }
+          }
+          throw new Error(msg);
+        }
+        throw new Error(data?.error);
       }
 
       await supabase.from("followup_log").insert({
@@ -489,7 +580,7 @@ export default function FollowupModal({
       onSent(contact.id);
       setTimeout(() => onClose(), 1800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare la trimitere");
+      setError(err instanceof Error ? err.message : tr("contacts.followup.sendError"));
     } finally {
       setSending(false);
     }
@@ -559,15 +650,15 @@ export default function FollowupModal({
         >
           <div>
             <div style={{ fontSize: "18px", fontWeight: 500, color: C.dark }}>
-              Trimite email
+              {tr("contacts.followup.title")}
             </div>
             <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>
-              către {contact.name || contact.email}
+              {tr("contacts.followup.to", { name: contact.name || contact.email })}
             </div>
           </div>
           <button
             onClick={onClose}
-            aria-label="Închide"
+            aria-label={tr("contacts.common.close")}
             style={{
               background: "none",
               border: "none",
@@ -582,7 +673,7 @@ export default function FollowupModal({
         </div>
 
         {/* ── ACȚIUNE RECOMANDATĂ ── */}
-        {ACTION_LABEL[messageActionFor(action)] && (
+        {ACTION_LABEL_KEYS.has(messageActionFor(action)) && (
           <div
             style={{
               background: C.sageLight,
@@ -596,9 +687,9 @@ export default function FollowupModal({
           >
             <span style={{ fontSize: "15px" }}>💡</span>
             <span style={{ fontSize: "12px", color: C.text2 }}>
-              Acțiune recomandată:{" "}
+              {tr("contacts.followup.recommendedActionPrefix")}
               <strong style={{ color: C.primaryDark }}>
-                {ACTION_LABEL[messageActionFor(action)]}
+                {tr(`contacts.followup.actionLabel.${messageActionFor(action)}`)}
               </strong>
             </span>
           </div>
@@ -613,7 +704,7 @@ export default function FollowupModal({
             fontSize: "13px", color: C.red,
           }}>
             <span style={{ fontSize: "16px" }}>🚫</span>
-            <span><strong>Comunicare blocată.</strong> Nu se poate trimite niciun mesaj acestui contact.</span>
+            <span><strong>{tr("contacts.followup.blockedWarn")}</strong> {tr("contacts.followup.blockedWarnSub")}</span>
           </div>
         )}
         {!contact.communication_blocked && contact.email_opt_out && (
@@ -624,7 +715,7 @@ export default function FollowupModal({
             fontSize: "13px", color: "#7A5A00",
           }}>
             <span style={{ fontSize: "16px" }}>⚠️</span>
-            <span><strong>Email dezactivat.</strong> Contactul a optat să nu primească emailuri. Poți contacta pe WhatsApp.</span>
+            <span><strong>{tr("contacts.followup.emailOffWarn")}</strong> {tr("contacts.followup.emailOffWarnSub")}</span>
           </div>
         )}
 
@@ -661,14 +752,51 @@ export default function FollowupModal({
                 style={tabBtn(tab === "template")}
                 onClick={() => setTab("template")}
               >
-                Mesaje recomandate
+                {tr("contacts.followup.tabRecommended")}
               </button>
               <button
                 style={tabBtn(tab === "custom")}
                 onClick={() => setTab("custom")}
               >
-                Mesaj custom
+                {tr("contacts.followup.tabCustom")}
               </button>
+            </div>
+
+            {/* ── LIMBA EMAILULUI ── */}
+            <div style={{ marginBottom: "16px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <label style={{ fontSize: "12px", color: C.text2, fontWeight: 600 }}>
+                  {tr("contacts.followup.emailLangLabel")}
+                </label>
+                <select
+                  value={emailLang}
+                  onChange={(e) => setEmailLang(e.target.value)}
+                  style={{
+                    padding: "6px 10px",
+                    background: C.bg2,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    color: C.dark,
+                    fontFamily: "inherit",
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="ro">{tr("common.romanian")}</option>
+                  <option value="en">{tr("common.english")}</option>
+                </select>
+              </div>
+              <div style={{ fontSize: "11px", color: C.muted, marginTop: "5px" }}>
+                {tr("contacts.followup.emailLangHint")}
+              </div>
             </div>
 
             {/* TAB TEMPLATE */}
@@ -692,12 +820,12 @@ export default function FollowupModal({
                         marginBottom: "4px",
                       }}
                     >
-                      Niciun mesaj pentru această acțiune
+                      {tr("contacts.followup.noMsgForAction")}
                     </div>
                     <div style={{ fontSize: "12px", color: C.muted }}>
                       {templates.length > 0
-                        ? "Vezi toate mesajele tale sau folosește „Mesaj custom”."
-                        : "Folosește tab-ul „Mesaj custom” sau adaugă un mesaj din pagina Mesaje."}
+                        ? tr("contacts.followup.noMsgHintHas")
+                        : tr("contacts.followup.noMsgHintNone")}
                     </div>
                     {templates.length > 0 && !showAll && (
                       <button
@@ -715,7 +843,7 @@ export default function FollowupModal({
                           cursor: "pointer",
                         }}
                       >
-                        Vezi toate mesajele
+                        {tr("contacts.followup.viewAllMessages")}
                       </button>
                     )}
                   </div>
@@ -730,7 +858,7 @@ export default function FollowupModal({
                       }}
                     >
                       <label style={{ ...labelStyle, marginBottom: 0 }}>
-                        {showAll ? "Toate mesajele" : "Mesaje recomandate"}
+                        {showAll ? tr("contacts.followup.allMessages") : tr("contacts.followup.recommendedMessages")}
                       </label>
                       <button
                         onClick={() => setShowAll((s) => !s)}
@@ -745,7 +873,7 @@ export default function FollowupModal({
                           padding: 0,
                         }}
                       >
-                        {showAll ? "Doar recomandate" : "Vezi toate →"}
+                        {showAll ? tr("contacts.followup.onlyRecommended") : tr("contacts.followup.viewAll")}
                       </button>
                     </div>
                     <div
@@ -827,11 +955,11 @@ export default function FollowupModal({
                                       borderRadius: "999px",
                                     }}
                                   >
-                                    {isSystem ? "Sistem" : "Al meu"}
+                                    {isSystem ? tr("contacts.followup.badgeSystem") : tr("contacts.followup.badgeMine")}
                                   </span>
                                   {showAll &&
                                     t.trigger_action &&
-                                    ACTION_LABEL[t.trigger_action] && (
+                                    ACTION_LABEL_KEYS.has(t.trigger_action) && (
                                       <span
                                         style={{
                                           marginLeft: "6px",
@@ -843,7 +971,7 @@ export default function FollowupModal({
                                           fontWeight: 400,
                                         }}
                                       >
-                                        {ACTION_LABEL[t.trigger_action]}
+                                        {tr(`contacts.followup.actionLabel.${t.trigger_action}`)}
                                       </span>
                                     )}
                                 </div>
@@ -884,7 +1012,7 @@ export default function FollowupModal({
                           }}
                         >
                           <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
-                          Atașează materiale
+                          {tr("contacts.followup.attachMaterials")}
                           {selectedResourceIds.length > 0 &&
                             ` (${selectedResourceIds.length})`}
                         </button>
@@ -910,7 +1038,7 @@ export default function FollowupModal({
                                   padding: "12px",
                                 }}
                               >
-                                Nu ai resurse încă. Adaugă-le din pagina „Resurse".
+                                {tr("contacts.followup.noResources")}
                               </div>
                             ) : (
                               resources.map((r) => {
@@ -1003,7 +1131,7 @@ export default function FollowupModal({
                                   {r.title}
                                   <button
                                     onClick={() => toggleResource(id)}
-                                    aria-label="Scoate"
+                                    aria-label={tr("contacts.followup.removeAria")}
                                     style={{
                                       background: "none",
                                       border: "none",
@@ -1041,8 +1169,8 @@ export default function FollowupModal({
                         }}
                       >
                         {showPreview
-                          ? "▲ Ascunde preview"
-                          : "👁 Previzualizează emailul"}
+                          ? tr("contacts.followup.hidePreview")
+                          : tr("contacts.followup.showPreview")}
                       </button>
                     )}
 
@@ -1059,7 +1187,7 @@ export default function FollowupModal({
                           srcDoc={buildEmailHtml(
                             selectedBody,
                             vars,
-                            lastOffer,
+                            offerForEmail,
                             userName,
                             userSignature,
                             selectedResourceIds
@@ -1070,6 +1198,7 @@ export default function FollowupModal({
                               .map((r) => ({ title: r.title, url: "#" })),
                             userPhone,
                             userEmail,
+                            emailLang,
                           )}
                           style={{
                             width: "100%",
@@ -1088,26 +1217,26 @@ export default function FollowupModal({
             {/* TAB CUSTOM */}
             {tab === "custom" && (
               <div style={{ marginBottom: "12px" }}>
-                <label style={labelStyle}>Subiect</label>
+                <label style={labelStyle}>{tr("contacts.followup.subjectLabel")}</label>
                 <input
                   type="text"
                   value={customSubject}
                   onChange={(e) => setCustomSubject(e.target.value)}
                   style={{ ...inputStyle, marginBottom: "12px" }}
-                  placeholder="Subiectul emailului"
+                  placeholder={tr("contacts.followup.subjectPlaceholder")}
                 />
-                <label style={labelStyle}>Mesaj</label>
+                <label style={labelStyle}>{tr("contacts.followup.messageLabel")}</label>
                 <textarea
                   value={customMessage}
                   onChange={(e) => setCustomMessage(e.target.value)}
                   rows={7}
                   style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
-                  placeholder={`Bună ${contact.name?.split(" ")[0] || ""}!\n\nScrie aici mesajul tău...`}
+                  placeholder={tr("contacts.followup.customPlaceholder", { name: contact.name?.split(" ")[0] || "" })}
                 />
                 <div
                   style={{ fontSize: "11px", color: C.muted, marginTop: "6px" }}
                 >
-                  Mesajul va fi trimis cu antetul AromaTool și semnătura ta.
+                  {tr("contacts.followup.customFooterNote")}
                 </div>
               </div>
             )}
@@ -1141,7 +1270,7 @@ export default function FollowupModal({
                   fontWeight: 500,
                 }}
               >
-                ✓ Email trimis cu succes!
+                {tr("contacts.followup.sentSuccess")}
               </div>
             ) : (
               <div style={{ display: "flex", gap: "8px" }}>
@@ -1159,7 +1288,7 @@ export default function FollowupModal({
                     cursor: "pointer",
                   }}
                 >
-                  Anulează
+                  {tr("contacts.common.cancel")}
                 </button>
                 <button
                   onClick={send}
@@ -1198,12 +1327,12 @@ export default function FollowupModal({
                   }}
                 >
                   {sending
-                    ? "Se trimite..."
+                    ? tr("contacts.followup.sending")
                     : contact.communication_blocked
-                    ? "Comunicare blocată"
+                    ? tr("contacts.followup.commBlockedBtn")
                     : contact.email_opt_out
-                    ? "Email dezactivat"
-                    : `Trimite către ${contact.name?.split(" ")[0] || (contact.email ?? "").split("@")[0]}`}
+                    ? tr("contacts.followup.emailOffBtn")
+                    : tr("contacts.followup.sendTo", { name: contact.name?.split(" ")[0] || (contact.email ?? "").split("@")[0] })}
                 </button>
               </div>
             )}

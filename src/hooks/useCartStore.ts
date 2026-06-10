@@ -7,7 +7,53 @@ export interface CartItem extends Product {
   disc: number
   guideSelected: boolean
   isCustom?: boolean
-  customPriceEur?: number  // custom items stored in EUR
+  customPriceEur?: number  // custom items stored in catalog base currency
+}
+
+// Limite de siguranță pentru inputuri (C3). Orice valoare din UI sau din
+// localStorage (care poate fi editat de user) trece prin aceste clamp-uri
+// înainte să ajungă în calcule sau în oferta trimisă clientului.
+const MAX_QTY = 9999
+
+// qty: întreg ≥ 1, ≤ MAX_QTY. NaN/Infinity → 1.
+export function sanitizeQty(qty: number): number {
+  const n = Math.floor(Number(qty))
+  if (!Number.isFinite(n) || n < 1) return 1
+  return Math.min(MAX_QTY, n)
+}
+
+// disc: 0–100. NaN/Infinity → 0.
+export function sanitizeDisc(disc: number): number {
+  const n = Number(disc)
+  if (!Number.isFinite(n)) return 0
+  return Math.min(100, Math.max(0, n))
+}
+
+// price: ≥ 0, finit. NaN/Infinity/negativ → 0.
+export function sanitizePrice(price: number): number {
+  const n = Number(price)
+  if (!Number.isFinite(n) || n < 0) return 0
+  return n
+}
+
+// Validează un CartItem hidratat din localStorage. Returnează null dacă e
+// corupt iremediabil (lipsă câmpuri esențiale), altfel îl normalizează.
+function sanitizeCartItem(raw: unknown): CartItem | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  if (typeof o.id !== 'string' || typeof o.name !== 'string') return null
+  const price = sanitizePrice(o.price_eur as number)
+  return {
+    ...(o as unknown as Product),
+    id: o.id,
+    name: o.name,
+    price_eur: price,
+    qty: sanitizeQty(o.qty as number),
+    disc: sanitizeDisc(o.disc as number),
+    guideSelected: Boolean(o.guideSelected),
+    isCustom: o.isCustom === true ? true : undefined,
+    customPriceEur: o.customPriceEur != null ? sanitizePrice(o.customPriceEur as number) : undefined,
+  }
 }
 
 interface CartStore {
@@ -20,6 +66,10 @@ interface CartStore {
   exchangeRate: number    // EUR/RON — kept for legacy sync
   currency: string        // display currency
   customRates: Record<string, number>
+  catalogCountry: string  // country whose product catalog this offer uses
+  catalogCurrency: string // base currency of the catalog (EUR, GBP, ...)
+                          // — `price_eur` values are expressed in THIS currency
+  offerLang: string       // email language for the client ('ro' | 'en'); '' = auto by catalog
 
   addItem: (product: Product) => void
   removeItem: (id: string) => void
@@ -34,6 +84,9 @@ interface CartStore {
   setNotes: (notes: string) => void
   setExchangeRate: (rate: number) => void
   setCurrency: (currency: string) => void
+  setCatalogCountry: (country: string) => void
+  setCatalogCurrency: (currency: string) => void
+  setOfferLang: (lang: string) => void
   setCustomRate: (currency: string, rate: number) => void
   prefillContactId: string | null
   setPrefillContactId: (id: string | null) => void
@@ -59,44 +112,64 @@ export const useCartStore = create<CartStore>()(
       exchangeRate: 5.2523,
       currency: 'RON',
       customRates: {},
+      catalogCountry: 'RO',
+      catalogCurrency: 'EUR',
+      offerLang: '',
       prefillContactId: null,
 
       addItem: (product) => set(state => {
         const existing = state.items.find(i => i.id === product.id)
+        // Sincronizează moneda de bază a catalogului din produsul adăugat.
+        // Pentru baze non-EUR (ex: GBP) setăm și moneda de AFIȘARE pe bază,
+        // ca oferta UK să apară implicit în £ (pentru EUR păstrăm alegerea
+        // userului — ex: RON pentru piața RO).
+        const base = product.currency || state.catalogCurrency || 'EUR'
+        const patch: Partial<CartStore> = { catalogCurrency: base }
+        if (base !== 'EUR' && state.currency !== base) patch.currency = base
         if (existing) {
-          return { items: state.items.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i) }
+          return {
+            ...patch,
+            items: state.items.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i),
+          }
         }
-        return { items: [...state.items, { ...product, qty: 1, disc: 0, guideSelected: true }] }
+        return {
+          ...patch,
+          items: [...state.items, { ...product, qty: 1, disc: 0, guideSelected: true }],
+        }
       }),
 
       removeItem: (id) => set(state => ({ items: state.items.filter(i => i.id !== id) })),
 
       updateQty: (id, qty) => set(state => ({
-        items: state.items.map(i => i.id === id ? { ...i, qty: Math.max(1, qty) } : i)
+        items: state.items.map(i => i.id === id ? { ...i, qty: sanitizeQty(qty) } : i)
       })),
 
       updateDisc: (id, disc) => set(state => ({
-        items: state.items.map(i => i.id === id ? { ...i, disc: Math.min(100, Math.max(0, disc)) } : i)
+        items: state.items.map(i => i.id === id ? { ...i, disc: sanitizeDisc(disc) } : i)
       })),
 
       toggleGuide: (id, selected) => set(state => ({
         items: state.items.map(i => i.id === id ? { ...i, guideSelected: selected } : i)
       })),
 
-      addCustomItem: (name, priceEur, qty, disc) => set(state => ({
-        items: [...state.items, {
-          id: 'custom_' + Date.now(),
-          name,
-          sku: 'CUSTOM',
-          points: 0,
-          price_eur: priceEur, // stored as EUR
-          qty,
-          disc,
-          guideSelected: false,
-          isCustom: true,
-          customPriceEur: priceEur,
-        }]
-      })),
+      addCustomItem: (name, priceEur, qty, disc) => set(state => {
+        const safePrice = sanitizePrice(priceEur)
+        return {
+          items: [...state.items, {
+            id: 'custom_' + Date.now(),
+            name,
+            sku: 'CUSTOM',
+            points: 0,
+            price_eur: safePrice, // stored in catalog base currency
+            currency: state.catalogCurrency || 'EUR',
+            qty: sanitizeQty(qty),
+            disc: sanitizeDisc(disc),
+            guideSelected: false,
+            isCustom: true,
+            customPriceEur: safePrice,
+          }]
+        }
+      }),
 
       setTransport: (transport) => set({ transport }),
       setClientName: (clientName) => set({ clientName }),
@@ -105,11 +178,22 @@ export const useCartStore = create<CartStore>()(
       setNotes: (notes) => set({ notes }),
       setExchangeRate: (exchangeRate) => set({ exchangeRate }),
       setCurrency: (currency) => set({ currency }),
+      // Schimbarea catalogului golește produsele din coș (prețurile/SKU diferă
+      // de la o țară la alta — nu amestecăm cataloage în aceeași ofertă).
+      setCatalogCountry: (catalogCountry) => set(state => (
+        state.catalogCountry === catalogCountry
+          ? { catalogCountry }
+          // La schimbarea catalogului resetăm și moneda de bază — se va
+          // re-deriva din primul produs adăugat din noul catalog.
+          : { catalogCountry, items: [], catalogCurrency: 'EUR' }
+      )),
+      setCatalogCurrency: (catalogCurrency) => set({ catalogCurrency }),
+      setOfferLang: (offerLang) => set({ offerLang }),
       setPrefillContactId: (prefillContactId) => set({ prefillContactId }),
       setCustomRate: (currency, rate) => set(state => ({
         customRates: { ...state.customRates, [currency]: rate }
       })),
-      clearCart: () => set({ items: [], transport: 0, clientName: '', clientEmail: '', clientPhone: '', notes: '' }),
+      clearCart: () => set({ items: [], transport: 0, clientName: '', clientEmail: '', clientPhone: '', notes: '', offerLang: '' }),
 
       // All in EUR
       getSubtotalEur: () => {
@@ -145,6 +229,18 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: 'aromatool-cart',
+      // Coșul persistat în localStorage poate fi editat manual de user (DevTools)
+      // sau corupt între versiuni. Re-validăm fiecare item la hydrate (C3) ca să
+      // nu intre prețuri/discounturi/qty invalide în calcule sau în oferta trimisă.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<CartStore>
+        const rawItems = Array.isArray(p.items) ? p.items : []
+        const items = rawItems
+          .map(sanitizeCartItem)
+          .filter((i): i is CartItem => i !== null)
+        const transport = sanitizePrice((p as { transport?: number }).transport ?? 0)
+        return { ...current, ...p, items, transport }
+      },
       partialize: (state) => ({
         items: state.items,
         transport: state.transport,
@@ -155,6 +251,9 @@ export const useCartStore = create<CartStore>()(
         exchangeRate: state.exchangeRate,
         currency: state.currency,
         customRates: state.customRates,
+        catalogCountry: state.catalogCountry,
+        catalogCurrency: state.catalogCurrency,
+        offerLang: state.offerLang,
         prefillContactId: state.prefillContactId,
       }),
     }

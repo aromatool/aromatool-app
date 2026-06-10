@@ -30,6 +30,7 @@ export interface Contact {
   status: ContactStatus;
   notes?: string;
   source?: string | null;
+  language_code?: string | null;
   created_at: string;
   updated_at?: string | null;
   first_offer_at?: string | null;

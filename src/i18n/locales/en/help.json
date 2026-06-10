@@ -1,0 +1,213 @@
+{
+  "pageTitle": "Guide & help",
+  "pageSubtitle": "Search for answers or browse by category. Can't find what you're looking for? Ask us anytime.",
+  "searchPlaceholder": "Search the guide... (e.g. offer, follow-up, signature)",
+  "noResultsTitle": "No results for \"{{search}}\"",
+  "noResultsSub": "Try other words, or browse the categories.",
+  "footerTitle": "Still haven't found your answer?",
+  "footerSub": "Check your account settings or write to us — we'll gladly reply.",
+  "footerButton": "Open Settings",
+  "guide": {
+    "title": "How statuses and actions work",
+    "subtitle": "You choose the status. The app suggests the action automatically. Here's what each color means.",
+    "statusHeading": "Contact statuses",
+    "statusIntro": "The status is the label you put on a contact, so you know what relationship you have with them. You can change it anytime from the contact's profile.",
+    "statuses": {
+      "prospect": {
+        "label": "Prospect",
+        "meaning": "An interested person who hasn't bought yet.",
+        "how": "Every new contact starts here. They stay a prospect until they buy and you mark them a client."
+      },
+      "client": {
+        "label": "Client",
+        "meaning": "Has bought from you at least once.",
+        "how": "You mark them \"client\" after their first order. Loyal clients are the ones who come back often."
+      },
+      "team": {
+        "label": "Team",
+        "meaning": "Has joined your team as a distributor.",
+        "how": "You move them to \"team\" when they enroll under you. They no longer get offers, but support."
+      },
+      "inactive": {
+        "label": "Inactive",
+        "meaning": "Hasn't replied or bought in a long time.",
+        "how": "You mark them inactive so they stop appearing in daily actions. You can reactivate them anytime."
+      }
+    },
+    "actionHeading": "Recommended actions",
+    "actionIntro": "The action is calculated by the app itself, based on the status and the activity (offers sent, follow-ups, how many days have passed). You just see it and decide when to send.",
+    "actions": {
+      "reactivate": {
+        "label": "Reactivate",
+        "when": "The contact is inactive, or is a client you haven't contacted in over 60 days."
+      },
+      "needs_offer": {
+        "label": "Send the first offer",
+        "when": "They're a prospect and you haven't sent them any offer yet."
+      },
+      "needs_followup": {
+        "label": "Send a follow-up",
+        "when": "You sent them an offer but haven't followed up — or it's been over 7 days since the last message."
+      },
+      "discuss_business": {
+        "label": "Talk business",
+        "when": "They're an engaged client (many offers, high value, long history) — a good team candidate."
+      },
+      "awaiting_reply": {
+        "label": "Awaiting reply",
+        "when": "You just sent a follow-up. It's normal to wait a few days for a reply."
+      },
+      "none": {
+        "label": "All up to date",
+        "when": "There's nothing urgent to do with this contact right now."
+      }
+    },
+    "agendaNote": "Actions that aren't urgent today appear in the \"Weekly agenda\", scheduled a few days out, so you know exactly when to come back."
+  },
+  "categories": {
+    "quickStart": {
+      "title": "Quick start",
+      "items": [
+        {
+          "q": "What should I do first?",
+          "a": "Start from Settings: fill in your name, phone, contact email and email signature. These appear automatically in the offers and messages you send.\nThen add your first contacts to the CRM and build your first offer from \"Build offer\"."
+        },
+        {
+          "q": "How does the app work, in short?",
+          "a": "AromaTool helps you manage clients (CRM), build product offers with correct prices, send them by email and come back at the right time with follow-up messages. The app suggests what to do — you decide when to send."
+        }
+      ]
+    },
+    "buildOffer": {
+      "title": "Build offer",
+      "items": [
+        {
+          "q": "How do I build an offer?",
+          "a": "Go to \"Build offer\", add products to the cart, set the quantity and, if you want, a per-product discount. Choose the currency and exchange rate, add shipping and a note if needed. At the end you preview and send the offer by email to the chosen contact."
+        },
+        {
+          "q": "How are prices and the exchange rate calculated?",
+          "a": "Base prices are in EUR. When you choose another currency, everything is converted at the exchange rate you set, so you can show the client the amount in their currency. The rate used stays saved on the offer, so you can rebuild the exact calculation later."
+        },
+        {
+          "q": "Can I attach materials (PDFs, images) to the offer?",
+          "a": "Yes. Materials aren't sent as heavy attachments but as secure links to your files in Resources. This keeps the email light, and you can see whether they were accessed."
+        }
+      ]
+    },
+    "sentOffers": {
+      "title": "Sent offers",
+      "items": [
+        {
+          "q": "Where do I see sent offers?",
+          "a": "On the \"Offers\" page. Offers are grouped by client — tap a client to see all their offers, and tap an offer to see the products and details."
+        },
+        {
+          "q": "I clicked an offer from the Dashboard/CRM. Why does it appear filtered?",
+          "a": "When you open an offer from another place, the \"Offers\" page brings it to the top, filtered by that client, with the offer opened and highlighted. To return to the full list, tap \"View all offers\" in the top banner."
+        },
+        {
+          "q": "How do I find a specific offer?",
+          "a": "Use the search bar on the \"Offers\" page: you can search by client name, email or by the name of a product in the offer."
+        }
+      ]
+    },
+    "crm": {
+      "title": "CRM & contacts",
+      "items": [
+        {
+          "q": "What do the contact statuses mean?",
+          "a": "Prospect = an interested person, no offer yet. New client / Loyal client = has bought. Follow-up = you sent an offer and are awaiting a reply. Inactive = no activity for a long time. The status helps the app suggest the next appropriate action."
+        },
+        {
+          "q": "What are recommended actions?",
+          "a": "For each contact, the app suggests what makes sense to do now: send the first offer, come back with a follow-up, reactivate a dormant contact, etc. These are suggestions — you choose whether and when to act."
+        },
+        {
+          "q": "How do I quickly contact a client?",
+          "a": "From the CRM or Dashboard you have quick actions: WhatsApp, email and new offer. The WhatsApp message is prepared automatically based on the contact's status and opens in WhatsApp so you can adjust it before sending."
+        }
+      ]
+    },
+    "messages": {
+      "title": "Messages & follow-up",
+      "items": [
+        {
+          "q": "How do I send a follow-up message?",
+          "a": "From the CRM/Dashboard you pick the contact and open the message window. The app shows the messages recommended for their situation; you can tap \"View all\" to choose any other message. Edit if you want and send."
+        },
+        {
+          "q": "What's the difference between system and personal messages?",
+          "a": "System messages are ready-made templates provided by the app. You can \"Personalize\" them to create your own version, which you can then edit freely on the \"Messages\" page."
+        },
+        {
+          "q": "Can I attach default materials to a message?",
+          "a": "Yes. On a personal message you can set default materials (from Resources). They appear pre-checked when you send that message, and you can adjust them at send time."
+        },
+        {
+          "q": "What does the email signature contain?",
+          "a": "At the end of emails there's a discreet contact section: your phone number, a WhatsApp button and an email button, plus your signature. All are taken from Settings."
+        },
+        {
+          "q": "What happens with WhatsApp messages?",
+          "a": "They are suggestions generated automatically based on the contact's status, personalized with their first name and your signature. They open pre-filled in WhatsApp — you can edit them as much as you want before sending."
+        }
+      ]
+    },
+    "resources": {
+      "title": "Resources",
+      "items": [
+        {
+          "q": "What can I upload to Resources?",
+          "a": "Files useful for clients: PDFs (brochures, protocols) and images (JPG, PNG). You then use them in offers and messages."
+        },
+        {
+          "q": "How are files sent to clients?",
+          "a": "Not as attachments, but as secure links, unique per send. This keeps the email light and you can track whether the link was accessed."
+        }
+      ]
+    },
+    "subscription": {
+      "title": "Subscription & free trial",
+      "items": [
+        {
+          "q": "How long does the free trial last?",
+          "a": "When you create your account you get a free trial period with access to all features, without entering a card. You can see the exact number of days left anytime in Settings, in the \"Subscription\" card."
+        },
+        {
+          "q": "Do I need a card to start?",
+          "a": "No. The free trial starts automatically, with no credit card. You enter a payment method only when you decide to subscribe."
+        },
+        {
+          "q": "What happens when the free trial expires?",
+          "a": "You can still sign in, view your data and export it. Write actions (adding contacts, sending messages and offers, uploading resources) unlock once you subscribe."
+        },
+        {
+          "q": "How do I subscribe?",
+          "a": "From Settings → the \"Subscription\" card tap \"Subscribe\". We take you to the secure payment page, where you choose the payment method and, if you have one, enter the launch code. After confirmation, your account unlocks automatically."
+        },
+        {
+          "q": "I have a launch / discount code. Where do I enter it?",
+          "a": "At the payment step, after you tap \"Subscribe\", there's a field for the promo code. You enter it there and the discount applies automatically."
+        },
+        {
+          "q": "How do I manage my subscription or invoice?",
+          "a": "From Settings → the \"Subscription\" card → \"Manage subscription\". There you can change the payment method, view invoices or cancel the subscription, anytime."
+        }
+      ]
+    },
+    "settings": {
+      "title": "Settings & account",
+      "items": [
+        {
+          "q": "Where do I set my email signature?",
+          "a": "In Settings, in the \"Email signature\" field. The text there appears automatically in the footer of all emails (offer, follow-up, personalized message)."
+        },
+        {
+          "q": "How do my contact details appear in emails?",
+          "a": "The phone and contact email from Settings feed the WhatsApp and email buttons in the message footer. You update in one place and it's reflected everywhere."
+        }
+      ]
+    }
+  }
+}

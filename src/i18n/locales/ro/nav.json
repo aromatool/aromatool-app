@@ -1,0 +1,23 @@
+{
+  "home": "Home",
+  "crm": "CRM",
+  "buildOffer": "Construiește oferta",
+  "offers": "Oferte",
+  "resources": "Resurse",
+  "messages": "Mesaje",
+  "more": "Mai mult",
+  "tagline": "crafted for your team",
+  "accountSettings": "Setări cont",
+  "helpGuide": "Ghid & ajutor",
+  "admin": "Admin",
+  "signOut": "Ieși din cont",
+  "newContact": "+ Contact nou",
+  "newOffer": "Ofertă nouă",
+  "bannerPastDue": "Plata abonamentului a eșuat. Actualizează metoda de plată ca să nu pierzi accesul.",
+  "bannerManage": "Gestionează",
+  "bannerTrialExpiresTomorrow": "Perioada gratuită expiră mâine.",
+  "bannerTrialDaysLeft": "Perioada gratuită: {{days}} zile rămase.",
+  "bannerSeePlan": "Vezi planul",
+  "bannerTrialEnded": "Perioada gratuită s-a încheiat. Abonează-te ca să continui să adaugi contacte și să trimiți mesaje.",
+  "bannerSubscribe": "Abonează-te"
+}

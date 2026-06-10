@@ -10,6 +10,8 @@
 
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 // ── COMPLETEAZĂ DATELE FIRMEI AICI ─────────────────────────
 // Acestea apar în toate documentele legale.
@@ -38,10 +40,12 @@ const T = {
 
 // ── LAYOUT COMUN ───────────────────────────────────────────
 function LegalLayout({
+  t,
   title,
   intro,
   children,
 }: {
+  t: TFunction;
   title: string;
   intro?: string;
   children: ReactNode;
@@ -66,7 +70,7 @@ function LegalLayout({
             fontWeight: 500,
           }}
         >
-          ← Înapoi
+          {t("legal.back")}
         </Link>
 
         <div
@@ -81,7 +85,10 @@ function LegalLayout({
           {title}
         </div>
         <div style={{ fontSize: "12px", color: T.muted, marginBottom: "8px" }}>
-          {COMPANY.appName} · Ultima actualizare: {COMPANY.lastUpdated}
+          {t("legal.lastUpdated", {
+            appName: COMPANY.appName,
+            lastUpdated: COMPANY.lastUpdated,
+          })}
         </div>
 
         {/* Banner draft — de eliminat după validarea juridică */}
@@ -97,8 +104,7 @@ function LegalLayout({
             lineHeight: 1.6,
           }}
         >
-          ⚠️ Document în lucru — completează datele firmei și validează cu un
-          jurist înainte de lansare.
+          {t("legal.draftBanner")}
         </div>
 
         {intro && (
@@ -122,13 +128,13 @@ function LegalLayout({
           }}
         >
           <Link to="/legal/privacy" style={{ color: T.sage }}>
-            Confidențialitate
+            {t("legal.navPrivacy")}
           </Link>
           <Link to="/legal/terms" style={{ color: T.sage }}>
-            Termeni
+            {t("legal.navTerms")}
           </Link>
           <Link to="/legal/cookies" style={{ color: T.sage }}>
-            Cookie-uri
+            {t("legal.navCookies")}
           </Link>
         </div>
       </div>
@@ -168,147 +174,152 @@ const ul: React.CSSProperties = {
 // 1. PRIVACY POLICY
 // ════════════════════════════════════════════════════════════
 export function PrivacyPage() {
+  const { t } = useTranslation();
   return (
     <LegalLayout
-      title="Politica de confidențialitate"
-      intro={`Această politică explică ce date personale prelucrează ${COMPANY.appName} și cum. Te rugăm să o citești cu atenție.`}
+      t={t}
+      title={t("legal.privacyTitle")}
+      intro={t("legal.privacyIntro", { appName: COMPANY.appName })}
     >
-      <Section title="1. Cine suntem (operatorul)">
-        {COMPANY.legalName}, {COMPANY.cui}, cu sediul în {COMPANY.address},
-        operează aplicația {COMPANY.appName} ({COMPANY.appUrl}). Pentru orice
-        întrebare legată de date personale, ne poți scrie la{" "}
+      <Section title={t("legal.privacyS1Title")}>
+        {t("legal.privacyS1Body", {
+          legalName: COMPANY.legalName,
+          cui: COMPANY.cui,
+          address: COMPANY.address,
+          appName: COMPANY.appName,
+          appUrl: COMPANY.appUrl,
+        })}
         <strong>{COMPANY.privacyEmail}</strong>.
       </Section>
 
-      <Section title="2. Rolurile noastre">
+      <Section title={t("legal.privacyS2Title")}>
         <ul style={ul}>
           <li>
-            Pentru <strong>datele contului tău</strong> (nume, email, telefon)
-            suntem <strong>operator</strong>.
+            {t("legal.privacyS2Li1Pre")}
+            <strong>{t("legal.privacyS2Li1Bold1")}</strong>
+            {t("legal.privacyS2Li1Mid")}
+            <strong>{t("legal.privacyS2Li1Bold2")}</strong>
+            {t("legal.privacyS2Li1Post")}
           </li>
           <li>
-            Pentru <strong>datele contactelor pe care le introduci</strong> în
-            aplicație, tu ești <strong>operatorul</strong>, iar noi suntem{" "}
-            <strong>persoană împuternicită (procesor)</strong> și prelucrăm
-            aceste date doar pentru a-ți furniza serviciul, conform
-            instrucțiunilor tale și Termenilor.
+            {t("legal.privacyS2Li2Pre")}
+            <strong>{t("legal.privacyS2Li2Bold1")}</strong>
+            {t("legal.privacyS2Li2Mid")}
+            <strong>{t("legal.privacyS2Li2Bold2")}</strong>
+            {t("legal.privacyS2Li2Mid2")}
+            <strong>{t("legal.privacyS2Li2Bold3")}</strong>
+            {t("legal.privacyS2Li2Post")}
           </li>
         </ul>
       </Section>
 
-      <Section title="3. Ce date colectăm">
+      <Section title={t("legal.privacyS3Title")}>
         <ul style={ul}>
           <li>
-            <strong>Date cont:</strong> nume, email, telefon, semnătură email,
-            preferințe (țară, limbă, oră Daily Focus).
+            <strong>{t("legal.privacyS3Li1Bold")}</strong>
+            {t("legal.privacyS3Li1Body")}
           </li>
           <li>
-            <strong>Date introduse de tine despre contacte:</strong> nume,
-            email, telefon, notițe, sursă, istoric activități, oferte.
+            <strong>{t("legal.privacyS3Li2Bold")}</strong>
+            {t("legal.privacyS3Li2Body")}
           </li>
           <li>
-            <strong>Date de utilizare email:</strong> trimiteri, deschideri și
-            click-uri (email tracking), pentru a-ți arăta statusul mesajelor.
+            <strong>{t("legal.privacyS3Li3Bold")}</strong>
+            {t("legal.privacyS3Li3Body")}
           </li>
           <li>
-            <strong>Date de plată:</strong> procesate de Stripe; noi nu stocăm
-            datele cardului.
+            <strong>{t("legal.privacyS3Li4Bold")}</strong>
+            {t("legal.privacyS3Li4Body")}
           </li>
           <li>
-            <strong>Date tehnice strict necesare:</strong> cookie de sesiune
-            pentru autentificare.
+            <strong>{t("legal.privacyS3Li5Bold")}</strong>
+            {t("legal.privacyS3Li5Body")}
           </li>
         </ul>
       </Section>
 
-      <Section title="4. Temeiul legal și scopurile">
+      <Section title={t("legal.privacyS4Title")}>
         <ul style={ul}>
           <li>
-            <strong>Executarea contractului</strong> — furnizarea aplicației și
-            a contului tău.
+            <strong>{t("legal.privacyS4Li1Bold")}</strong>
+            {t("legal.privacyS4Li1Body")}
           </li>
           <li>
-            <strong>Interes legitim</strong> — funcționarea CRM-ului, securitate,
-            prevenirea abuzului.
+            <strong>{t("legal.privacyS4Li2Bold")}</strong>
+            {t("legal.privacyS4Li2Body")}
           </li>
           <li>
-            <strong>Obligație legală</strong> — păstrarea facturilor (legislația
-            contabilă).
+            <strong>{t("legal.privacyS4Li3Bold")}</strong>
+            {t("legal.privacyS4Li3Body")}
           </li>
         </ul>
       </Section>
 
-      <Section title="5. Furnizori (sub-procesori)">
-        Folosim furnizori de încredere pentru a opera serviciul:
+      <Section title={t("legal.privacyS5Title")}>
+        {t("legal.privacyS5Intro")}
         <ul style={ul}>
           <li>
-            <strong>Supabase</strong> — bază de date, autentificare, stocare
-            fișiere.
+            <strong>{t("legal.privacyS5Li1Bold")}</strong>
+            {t("legal.privacyS5Li1Body")}
           </li>
           <li>
-            <strong>Vercel</strong> — găzduire aplicație web.
+            <strong>{t("legal.privacyS5Li2Bold")}</strong>
+            {t("legal.privacyS5Li2Body")}
           </li>
           <li>
-            <strong>Resend</strong> — trimitere emailuri (SUA, cu clauze
-            contractuale standard pentru transfer internațional).
+            <strong>{t("legal.privacyS5Li3Bold")}</strong>
+            {t("legal.privacyS5Li3Body")}
           </li>
           <li>
-            <strong>Stripe</strong> — procesare plăți (SUA, cu clauze
-            contractuale standard).
+            <strong>{t("legal.privacyS5Li4Bold")}</strong>
+            {t("legal.privacyS5Li4Body")}
           </li>
         </ul>
       </Section>
 
-      <Section title="6. Cât păstrăm datele (retenție)">
+      <Section title={t("legal.privacyS6Title")}>
         <ul style={ul}>
           <li>
-            <strong>Cont șters:</strong> ștergem datele în maximum 30 de zile;
-            copiile de siguranță expiră în maximum 90 de zile.
+            <strong>{t("legal.privacyS6Li1Bold")}</strong>
+            {t("legal.privacyS6Li1Body")}
           </li>
           <li>
-            <strong>Contact șters:</strong> ștergere imediată.
+            <strong>{t("legal.privacyS6Li2Bold")}</strong>
+            {t("legal.privacyS6Li2Body")}
           </li>
           <li>
-            <strong>Resurse (fișiere) șterse:</strong> ștergere imediată din
-            stocare.
+            <strong>{t("legal.privacyS6Li3Bold")}</strong>
+            {t("legal.privacyS6Li3Body")}
           </li>
           <li>
-            <strong>Loguri email:</strong> păstrate maximum 12 luni.
+            <strong>{t("legal.privacyS6Li4Bold")}</strong>
+            {t("legal.privacyS6Li4Body")}
           </li>
           <li>
-            <strong>Facturi:</strong> păstrate conform legii contabile (până la
-            10 ani) — această obligație legală prevalează asupra cererii de
-            ștergere.
+            <strong>{t("legal.privacyS6Li5Bold")}</strong>
+            {t("legal.privacyS6Li5Body")}
           </li>
         </ul>
       </Section>
 
-      <Section title="7. Drepturile tale">
-        Ai dreptul de acces, rectificare, ștergere, restricționare,
-        portabilitate și opoziție. Le poți exercita direct din aplicație
-        (export, ștergere cont, ștergere contact) sau scriindu-ne la{" "}
-        <strong>{COMPANY.privacyEmail}</strong>. Răspundem în maximum 30 de zile.
-        Ai și dreptul de a depune o plângere la{" "}
-        <strong>ANSPDCP</strong> (Autoritatea Națională de Supraveghere a
-        Prelucrării Datelor cu Caracter Personal).
+      <Section title={t("legal.privacyS7Title")}>
+        {t("legal.privacyS7Body1")}
+        <strong>{COMPANY.privacyEmail}</strong>
+        {t("legal.privacyS7Body2")}
+        <strong>{t("legal.privacyS7Authority")}</strong>
+        {t("legal.privacyS7Body3")}
       </Section>
 
-      <Section title="8. Email tracking">
-        Pentru emailurile trimise prin aplicație putem înregistra dacă au fost
-        livrate, deschise sau dacă s-a dat click pe linkuri, ca să-ți arătăm
-        statusul. Destinatarii se pot dezabona oricând prin linkul din email.
+      <Section title={t("legal.privacyS8Title")}>
+        {t("legal.privacyS8Body")}
       </Section>
 
-      <Section title="9. Securitate">
-        Folosim izolarea datelor pe utilizator (Row Level Security), stocare
-        privată cu acces restricționat, conexiuni criptate și acces minim
-        necesar. Niciun sistem nu e 100% sigur, dar tratăm securitatea cu
-        prioritate.
+      <Section title={t("legal.privacyS9Title")}>
+        {t("legal.privacyS9Body")}
       </Section>
 
-      <Section title="10. Modificări">
-        Putem actualiza această politică. Te anunțăm la schimbări semnificative,
-        iar data ultimei actualizări apare în antet.
+      <Section title={t("legal.privacyS10Title")}>
+        {t("legal.privacyS10Body")}
       </Section>
     </LegalLayout>
   );
@@ -318,108 +329,76 @@ export function PrivacyPage() {
 // 2. TERMS OF SERVICE
 // ════════════════════════════════════════════════════════════
 export function TermsPage() {
+  const { t } = useTranslation();
   return (
     <LegalLayout
-      title="Termeni și condiții"
-      intro={`Prin crearea unui cont și utilizarea ${COMPANY.appName} ești de acord cu acești termeni.`}
+      t={t}
+      title={t("legal.termsTitle")}
+      intro={t("legal.termsIntro", { appName: COMPANY.appName })}
     >
-      <Section title="1. Serviciul">
-        {COMPANY.appName} este o aplicație de tip CRM pentru distribuitori
-        independenți (calculator de oferte, gestionare contacte, follow-up,
-        resurse). Putem îmbunătăți sau modifica funcționalitățile în timp.
+      <Section title={t("legal.termsS1Title")}>
+        {t("legal.termsS1Body", { appName: COMPANY.appName })}
       </Section>
 
-      <Section title="2. Contul tău">
-        Ești responsabil pentru păstrarea în siguranță a datelor de
-        autentificare și pentru activitatea din contul tău. Trebuie să ai cel
-        puțin 18 ani și să furnizezi informații corecte.
+      <Section title={t("legal.termsS2Title")}>
+        {t("legal.termsS2Body")}
       </Section>
 
-      <Section title="3. Abonament și plăți">
-        Anumite funcționalități necesită abonament plătit, procesat prin Stripe.
-        Prețurile și planurile sunt afișate în aplicație. Poți anula oricând;
-        accesul continuă până la finalul perioadei plătite. Facturile se emit
-        conform legislației aplicabile.
+      <Section title={t("legal.termsS3Title")}>
+        {t("legal.termsS3Body")}
       </Section>
 
-      <Section title="4. Responsabilitatea ta privind datele contactelor (important)">
-        Tu introduci datele contactelor tale și ești <strong>operatorul</strong>{" "}
-        acestor date. Garantezi că:
+      <Section title={t("legal.termsS4Title")}>
+        {t("legal.termsS4Pre")}
+        <strong>{t("legal.termsS4Bold")}</strong>
+        {t("legal.termsS4Post")}
         <ul style={ul}>
+          <li>{t("legal.termsS4Li1")}</li>
+          <li>{t("legal.termsS4Li2")}</li>
           <li>
-            ai dreptul legal și, unde e cazul, consimțământul de a prelucra
-            datele persoanelor pe care le adaugi;
-          </li>
-          <li>
-            informezi acele persoane despre prelucrare și le respecți
-            drepturile (acces, ștergere, dezabonare);
-          </li>
-          <li>
-            nu introduci <strong>date sensibile</strong> (de exemplu informații
-            despre sănătate, diagnostice sau tratamente) în notițe sau alte
-            câmpuri.
+            {t("legal.termsS4Li3Pre")}
+            <strong>{t("legal.termsS4Li3Bold")}</strong>
+            {t("legal.termsS4Li3Post")}
           </li>
         </ul>
-        Tu ești responsabil pentru legalitatea datelor introduse. Noi îți
-        punem la dispoziție uneltele necesare (ștergere contact, dezactivare
-        email, blocare comunicare).
+        {t("legal.termsS4Closing")}
       </Section>
 
-      <Section title="5. Prelucrarea datelor în numele tău (clauză de procesor / DPA)">
-        Când prelucrăm datele contactelor tale, acționăm ca persoană
-        împuternicită. Ne angajăm să:
+      <Section title={t("legal.termsS5Title")}>
+        {t("legal.termsS5Intro")}
         <ul style={ul}>
-          <li>
-            prelucrăm aceste date doar pentru a-ți furniza serviciul și conform
-            instrucțiunilor tale;
-          </li>
-          <li>aplicăm măsuri de securitate adecvate;</li>
-          <li>
-            folosim sub-procesori (Supabase, Vercel, Resend, Stripe) sub
-            obligații echivalente de protecție;
-          </li>
-          <li>
-            te informăm fără întârziere nejustificată în caz de incident de
-            securitate ce afectează datele tale;
-          </li>
-          <li>
-            ștergem sau returnăm datele la încetarea contului, sub rezerva
-            obligațiilor legale de păstrare.
-          </li>
+          <li>{t("legal.termsS5Li1")}</li>
+          <li>{t("legal.termsS5Li2")}</li>
+          <li>{t("legal.termsS5Li3")}</li>
+          <li>{t("legal.termsS5Li4")}</li>
+          <li>{t("legal.termsS5Li5")}</li>
         </ul>
       </Section>
 
-      <Section title="6. Utilizare acceptabilă">
-        Nu ai voie să folosești {COMPANY.appName} pentru:
+      <Section title={t("legal.termsS6Title")}>
+        {t("legal.termsS6Intro", { appName: COMPANY.appName })}
         <ul style={ul}>
-          <li>spam sau mesaje nesolicitate în masă;</li>
-          <li>liste de contacte cumpărate sau obținute fără temei legal;</li>
-          <li>conținut ilegal, înșelător sau care încalcă drepturi terțe;</li>
-          <li>încercări de a accesa date ale altor utilizatori.</li>
+          <li>{t("legal.termsS6Li1")}</li>
+          <li>{t("legal.termsS6Li2")}</li>
+          <li>{t("legal.termsS6Li3")}</li>
+          <li>{t("legal.termsS6Li4")}</li>
         </ul>
       </Section>
 
-      <Section title="7. Fără garanție de venit">
-        {COMPANY.appName} este o unealtă de organizare și comunicare. Nu
-        garantăm vânzări, venituri sau rezultate de business. Succesul depinde
-        de activitatea ta.
+      <Section title={t("legal.termsS7Title")}>
+        {t("legal.termsS7Body", { appName: COMPANY.appName })}
       </Section>
 
-      <Section title="8. Limitarea răspunderii">
-        Serviciul este oferit „ca atare". În limita permisă de lege, nu suntem
-        răspunzători pentru pierderi indirecte sau de profit. Răspunderea
-        noastră totală este limitată la suma plătită de tine în ultimele 12
-        luni.
+      <Section title={t("legal.termsS8Title")}>
+        {t("legal.termsS8Body")}
       </Section>
 
-      <Section title="9. Încetare">
-        Poți șterge contul oricând din Setări. Putem suspenda sau închide
-        conturi care încalcă acești termeni.
+      <Section title={t("legal.termsS9Title")}>
+        {t("legal.termsS9Body")}
       </Section>
 
-      <Section title="10. Legea aplicabilă">
-        Acești termeni sunt guvernați de legea română, iar eventualele litigii
-        sunt de competența instanțelor din România. Pentru întrebări:{" "}
+      <Section title={t("legal.termsS10Title")}>
+        {t("legal.termsS10Body")}
         <strong>{COMPANY.contactEmail}</strong>.
       </Section>
     </LegalLayout>
@@ -430,41 +409,36 @@ export function TermsPage() {
 // 3. COOKIE POLICY
 // ════════════════════════════════════════════════════════════
 export function CookiePage() {
+  const { t } = useTranslation();
   return (
     <LegalLayout
-      title="Politica de cookie-uri"
-      intro={`${COMPANY.appName} folosește un set minim de cookie-uri, strict necesare funcționării.`}
+      t={t}
+      title={t("legal.cookieTitle")}
+      intro={t("legal.cookieIntro", { appName: COMPANY.appName })}
     >
-      <Section title="1. Ce cookie-uri folosim">
+      <Section title={t("legal.cookieS1Title")}>
         <ul style={ul}>
           <li>
-            <strong>Cookie de sesiune (autentificare):</strong> ne permite să te
-            menținem conectat în siguranță. Strict necesar — fără el aplicația
-            nu funcționează.
+            <strong>{t("legal.cookieS1Li1Bold")}</strong>
+            {t("legal.cookieS1Li1Body")}
           </li>
           <li>
-            <strong>Stripe (la plată):</strong> Stripe poate seta cookie-uri
-            pentru procesarea sigură a plăților și prevenirea fraudei, doar în
-            timpul checkout-ului.
+            <strong>{t("legal.cookieS1Li2Bold")}</strong>
+            {t("legal.cookieS1Li2Body")}
           </li>
         </ul>
       </Section>
 
-      <Section title="2. Ce NU folosim">
-        Nu folosim cookie-uri de marketing, publicitate sau urmărire între
-        site-uri. Din acest motiv, nu îți cerem consimțământ printr-un banner —
-        toate cookie-urile sunt strict necesare.
+      <Section title={t("legal.cookieS2Title")}>
+        {t("legal.cookieS2Body")}
       </Section>
 
-      <Section title="3. Controlul cookie-urilor">
-        Poți șterge sau bloca cookie-urile din setările browserului. Reține că
-        blocarea cookie-ului de sesiune te va împiedica să te autentifici.
+      <Section title={t("legal.cookieS3Title")}>
+        {t("legal.cookieS3Body")}
       </Section>
 
-      <Section title="4. Modificări">
-        Dacă vom adăuga în viitor instrumente care folosesc cookie-uri
-        neesențiale (de exemplu analytics), vom actualiza această politică și,
-        dacă e necesar, vom afișa un banner de consimțământ.
+      <Section title={t("legal.cookieS4Title")}>
+        {t("legal.cookieS4Body")}
       </Section>
     </LegalLayout>
   );

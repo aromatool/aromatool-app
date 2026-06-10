@@ -29,6 +29,29 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Țări suportate la lansare (zona EUR, unde prețul de bază în EUR e valid).
+// Detectăm țara din locale-ul browserului; dacă nu e suportată → RO implicit.
+// Editabilă oricând din Setări.
+const SUPPORTED_COUNTRIES = [
+  "RO", "DE", "FR", "IT", "ES", "NL", "BE", "AT", "IE", "PT", "FI",
+];
+
+function detectCountry(): string {
+  try {
+    const locales = [
+      ...(navigator.languages ?? []),
+      navigator.language,
+    ].filter(Boolean);
+    for (const loc of locales) {
+      const region = loc.split("-")[1]?.toUpperCase();
+      if (region && SUPPORTED_COUNTRIES.includes(region)) return region;
+    }
+  } catch {
+    // ignore — fallback de mai jos
+  }
+  return "RO";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -61,7 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        // country_code e citit de handle_new_user (vezi migrația
+        // 20260621_signup_country.sql) și salvat în profiles.
+        data: { full_name: fullName, country_code: detectCountry() },
         // Linkul de confirmare duce înapoi în aplicație (trebuie să fie
         // și în Authentication → URL Configuration → Redirect URLs).
         emailRedirectTo: `${window.location.origin}/auth`,

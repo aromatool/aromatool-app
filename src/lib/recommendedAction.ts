@@ -1,5 +1,7 @@
+import type { TFunction } from 'i18next'
 import type { Contact } from './contactTypes.ts'
 import type { ContactStatus } from './relationshipScore.ts'
+import { INACTIVE_DAYS, FOLLOWUP_STALE_DAYS } from './crmThresholds.ts'
 
 // Tipul de acțiune — folosit intern pentru grupare/filtrare în Dashboard.
 // Utilizatorul NU vede acest tip, doar textul acțiunii.
@@ -29,8 +31,6 @@ function daysSince(iso: string | null | undefined): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
 }
 
-const FOLLOWUP_STALE_DAYS = 7
-
 const ACCENT = {
   red:    { accentBg: '#FFF0F4', accentColor: '#C94F6A' }, // urgent / risc
   amber:  { accentBg: '#FDF5EE', accentColor: '#C4906A' }, // de făcut de tine
@@ -43,26 +43,50 @@ function firstName(name: string): string {
   return name.split(' ')[0]
 }
 
+// Grupa de status afișată (cele 4 categorii curate). Pură, fără text —
+// folosită pentru stilizare/filtrare fără a compara stringuri traduse.
+export type StatusGroup = 'prospect' | 'client' | 'team' | 'inactive'
+export function statusGroup(s: ContactStatus): StatusGroup {
+  if (s === 'client_nou' || s === 'client_fidel') return 'client'
+  if (s === 'team_member') return 'team'
+  if (s === 'inactiv') return 'inactive'
+  return 'prospect' // prospect, in_followup
+}
+
 // Status simplificat afișat utilizatorului (mapping din statusurile interne)
-export function displayStatus(status: ContactStatus): string {
+export function displayStatus(status: ContactStatus, t: TFunction): string {
   switch (status) {
-    case 'prospect':     return 'Prospect'
-    case 'in_followup':  return 'Prospect'   // în follow-up e tot un prospect, din perspectiva userului
-    case 'client_nou':   return 'Client'
-    case 'client_fidel': return 'Client'
-    case 'team_member':  return 'Membru echipă'
-    case 'inactiv':      return 'Inactiv'
-    default:             return 'Contact'
+    case 'prospect':     return t('actions.displayStatus.prospect')
+    case 'in_followup':  return t('actions.displayStatus.prospect')   // în follow-up e tot un prospect, din perspectiva userului
+    case 'client_nou':   return t('actions.displayStatus.client')
+    case 'client_fidel': return t('actions.displayStatus.client')
+    case 'team_member':  return t('actions.displayStatus.team_member')
+    case 'inactiv':      return t('actions.displayStatus.inactiv')
+    default:             return t('actions.displayStatus.contact')
   }
 }
 
+// Descriptor pur (fără text) — separă LOGICA de PREZENTARE.
+// Conține cheile i18n + parametrii; textul se obține cu `t` în getRecommendedAction.
+interface ActionDescriptor {
+  type: ActionType
+  titleKey: string
+  titleParams?: Record<string, unknown>
+  reasonKey: string
+  reasonParams?: Record<string, unknown>
+  priority: 'urgent' | 'attention' | 'normal'
+  accentBg: string
+  accentColor: string
+  urgent: boolean
+}
+
 /**
- * Calculează SINGURA acțiune recomandată pentru un contact.
- * Toată inteligența (risc, follow-up, business) e aici, dar rezultatul
- * e o singură concluzie clară, nu o listă de badge-uri.
+ * Calculează SINGURA acțiune recomandată pentru un contact (descriptor pur).
+ * Toată inteligența (risc, follow-up, business) e aici. Returnează chei i18n,
+ * nu text — astfel `getActionType`/`needsAttention`/`crmCategory` nu au nevoie de `t`.
  * Ordinea de evaluare = ordinea de prioritate.
  */
-export function getRecommendedAction(c: Contact): RecommendedAction {
+function computeAction(c: Contact): ActionDescriptor {
   const name = firstName(c.name)
   const totalOffers = c.offers_count ?? 0
   const totalValue = c.total_eur ?? 0
@@ -76,19 +100,18 @@ export function getRecommendedAction(c: Contact): RecommendedAction {
   if (c.status === 'inactiv') {
     return {
       type: 'reactivate',
-      title: `Reactivează ${name}`,
-      reason: lastActivity < 9999
-        ? `Inactiv de ${lastActivity} zile. Un mesaj cald poate readuce relația.`
-        : 'Marcat inactiv. Încearcă o reconectare.',
+      titleKey: 'actions.title.reactivate', titleParams: { name },
+      reasonKey: lastActivity < 9999 ? 'actions.reason.inactiveDays' : 'actions.reason.inactiveMarked',
+      reasonParams: { days: lastActivity },
       priority: 'urgent',
       ...ACCENT.red, urgent: true,
     }
   }
-  if (isClient && lastActivity > 60) {
+  if (isClient && lastActivity >= INACTIVE_DAYS) {
     return {
       type: 'reactivate',
-      title: `Contactează ${name}`,
-      reason: `Nu a mai fost contactat de ${lastActivity} zile.`,
+      titleKey: 'actions.title.contact', titleParams: { name },
+      reasonKey: 'actions.reason.clientNotContacted', reasonParams: { days: lastActivity },
       priority: 'urgent',
       ...ACCENT.red, urgent: true,
     }
@@ -98,8 +121,8 @@ export function getRecommendedAction(c: Contact): RecommendedAction {
   if (totalOffers === 0 && (c.status === 'prospect' || c.status === 'in_followup')) {
     return {
       type: 'needs_offer',
-      title: `Trimite prima ofertă`,
-      reason: `${name} nu a primit încă nicio ofertă. E în CRM de ${contactAge} zile.`,
+      titleKey: 'actions.title.needsOffer',
+      reasonKey: 'actions.reason.noOfferYet', reasonParams: { name, days: contactAge },
       priority: 'attention',
       ...ACCENT.amber, urgent: true,
     }
@@ -117,10 +140,9 @@ export function getRecommendedAction(c: Contact): RecommendedAction {
   if (needsFollowup) {
     return {
       type: 'needs_followup',
-      title: `Trimite follow-up`,
-      reason: followupCount === 0
-        ? `${name} a primit ofertă, dar n-a fost contactat de atunci.`
-        : `Ultimul follow-up acum ${daysSinceLastFollowup} zile.`,
+      titleKey: 'actions.title.needsFollowup',
+      reasonKey: followupCount === 0 ? 'actions.reason.followupNever' : 'actions.reason.followupLast',
+      reasonParams: { name, days: daysSinceLastFollowup },
       priority: 'attention',
       ...ACCENT.amber, urgent: true,
     }
@@ -138,8 +160,8 @@ export function getRecommendedAction(c: Contact): RecommendedAction {
   if (isClient && businessSignals >= 4) {
     return {
       type: 'discuss_business',
-      title: `Discută despre business`,
-      reason: `Client activ și implicat de peste 4 luni. Poate fi interesat de oportunitate.`,
+      titleKey: 'actions.title.discussBusiness',
+      reasonKey: 'actions.reason.discussBusiness',
       priority: 'normal',
       ...ACCENT.green, urgent: false,
     }
@@ -149,8 +171,8 @@ export function getRecommendedAction(c: Contact): RecommendedAction {
   if (totalOffers >= 1 && followupCount >= 1 && daysSinceFollowup < FOLLOWUP_STALE_DAYS) {
     return {
       type: 'awaiting_reply',
-      title: `Așteaptă răspuns`,
-      reason: `Follow-up trimis acum ${daysSinceFollowup} zile. Lasă-i timp sau trimite un mesaj scurt.`,
+      titleKey: 'actions.title.awaitingReply',
+      reasonKey: 'actions.reason.awaitingReply', reasonParams: { days: daysSinceFollowup },
       priority: 'normal',
       ...ACCENT.lav, urgent: false,
     }
@@ -159,12 +181,29 @@ export function getRecommendedAction(c: Contact): RecommendedAction {
   // 6. NIMIC URGENT
   return {
     type: 'none',
-    title: 'Nicio acțiune necesară',
-    reason: c.status === 'team_member'
-      ? 'Activ și implicat.'
-      : 'Totul e la zi cu acest contact.',
+    titleKey: 'actions.title.none',
+    reasonKey: c.status === 'team_member' ? 'actions.reason.noneTeam' : 'actions.reason.noneUpToDate',
     priority: 'normal',
     ...ACCENT.neutral, urgent: false,
+  }
+}
+
+// Doar tipul acțiunii — fără a construi text (folosit de filtre/categorii).
+export function getActionType(c: Contact): ActionType {
+  return computeAction(c).type
+}
+
+/** Acțiunea recomandată cu text tradus (UI + email). */
+export function getRecommendedAction(c: Contact, t: TFunction): RecommendedAction {
+  const d = computeAction(c)
+  return {
+    type: d.type,
+    title: t(d.titleKey, d.titleParams),
+    reason: t(d.reasonKey, d.reasonParams),
+    priority: d.priority,
+    accentBg: d.accentBg,
+    accentColor: d.accentColor,
+    urgent: d.urgent,
   }
 }
 
@@ -179,7 +218,7 @@ export const ACTIONABLE_TYPES: ActionType[] = [
 // Un contact "necesită atenție" dacă are o acțiune actionabilă acum.
 // Aceeași sursă ca Focus Today — folosit și de filtrul CRM (?filter=needs_attention).
 export function needsAttention(c: Contact): boolean {
-  return ACTIONABLE_TYPES.includes(getRecommendedAction(c).type)
+  return ACTIONABLE_TYPES.includes(getActionType(c))
 }
 
 // ============================================================
@@ -190,8 +229,8 @@ export type CrmCategory = 'offer' | 'followup' | 'reactivate' | 'none'
 
 // Mapare tip intern → categorie CRM
 export function crmCategory(c: Contact): CrmCategory {
-  const t = getRecommendedAction(c).type
-  switch (t) {
+  const type = getActionType(c)
+  switch (type) {
     case 'needs_offer':       return 'offer'
     case 'needs_followup':    return 'followup'
     case 'reactivate':        return 'reactivate'
@@ -204,17 +243,19 @@ export function crmCategory(c: Contact): CrmCategory {
   }
 }
 
-// Etichete umane pentru categoriile CRM
-export const CRM_CATEGORY_LABEL: Record<CrmCategory, string> = {
-  offer: 'Necesită ofertă',
-  followup: 'Necesită follow-up',
-  reactivate: 'Necesită reactivare',
-  none: 'Fără acțiuni',
+// Etichete umane pentru categoriile CRM (traduse)
+export function crmCategoryLabels(t: TFunction): Record<CrmCategory, string> {
+  return {
+    offer: t('actions.crmCategory.offer'),
+    followup: t('actions.crmCategory.followup'),
+    reactivate: t('actions.crmCategory.reactivate'),
+    none: t('actions.crmCategory.none'),
+  }
 }
 
 // Motiv scurt pentru afișare pe card (mai compact decât reason)
-export function shortReason(c: Contact): string {
-  const action = getRecommendedAction(c)
+export function shortReason(c: Contact, t: TFunction): string {
+  const type = getActionType(c)
   const lastActivity = daysSince(c.last_activity_at ?? c.first_offer_at)
   const contactAge = daysSince(c.created_at)
   const followupCount = c.followup_count ?? 0
@@ -222,21 +263,21 @@ export function shortReason(c: Contact): string {
   const fuRef = c.last_followup_at ?? (followupCount > 0 ? (c.last_activity_at ?? c.first_offer_at) : null)
   const daysSinceFollowup = fuRef ? daysSince(fuRef) : null
 
-  switch (action.type) {
+  switch (type) {
     case 'reactivate':
-      return lastActivity < 9999 ? `${lastActivity} zile fără contact` : 'inactiv'
+      return lastActivity < 9999 ? t('actions.shortReason.daysNoContact', { days: lastActivity }) : t('actions.shortReason.inactive')
     case 'needs_offer':
-      return contactAge <= 1 ? 'adăugat recent' : `în CRM de ${contactAge} zile, fără ofertă`
+      return contactAge <= 1 ? t('actions.shortReason.addedRecently') : t('actions.shortReason.inCrmNoOffer', { days: contactAge })
     case 'needs_followup':
       return followupCount === 0
-        ? 'Nu a fost contactat după ofertă'
-        : daysSinceFollowup !== null ? `ultimul acum ${daysSinceFollowup} zile` : 'follow-up de reluat'
+        ? t('actions.shortReason.notContactedAfterOffer')
+        : daysSinceFollowup !== null ? t('actions.shortReason.lastFollowupDays', { days: daysSinceFollowup }) : t('actions.shortReason.followupToResume')
     case 'awaiting_reply':
-      return daysSinceFollowup !== null ? `follow-up acum ${daysSinceFollowup} zile` : 'în așteptare'
+      return daysSinceFollowup !== null ? t('actions.shortReason.followupDaysAgo', { days: daysSinceFollowup }) : t('actions.shortReason.waiting')
     case 'discuss_business':
-      return 'client implicat'
+      return t('actions.shortReason.engagedClient')
     default:
-      return 'la zi'
+      return t('actions.shortReason.upToDate')
   }
 }
 
@@ -259,20 +300,12 @@ export interface NextAction {
   description: string
 }
 
-const NEXT_ACTION_DESC: Record<NextActionType, string> = {
-  offer_followup: 'Întreabă dacă a analizat oferta',
-  first_order_followup: 'Verifică experiența după prima comandă',
-  reactivation: 'Încearcă reactivarea',
-  business_opportunity: 'Discută despre oportunitatea de business',
-  contact_prospect: 'Ia legătura cu prospectul',
-}
-
 /**
  * Următoarea acțiune VIITOARE (de mâine încolo).
  * Returnează null dacă acțiunea e azi/restantă (rămâne în „Necesită atenția acum")
  * sau dacă nu există o acțiune viitoare relevantă.
  */
-export function getNextAction(c: Contact, followUpDays: number = 5): NextAction | null {
+export function getNextAction(c: Contact, t: TFunction, followUpDays: number = 5): NextAction | null {
   const lastActivity = c.last_activity_at ?? c.first_offer_at
   const totalOffers = c.offers_count ?? 0
   const isClient = c.status === 'client_nou' || c.status === 'client_fidel'
@@ -307,18 +340,19 @@ export function getNextAction(c: Contact, followUpDays: number = 5): NextAction 
     date: nextDate,
     daysUntil,
     type,
-    description: NEXT_ACTION_DESC[type],
+    description: t(`actions.nextAction.${type}`),
   }
 }
 
 // Grupare temporală umană
-export function groupLabel(date: Date, daysUntil: number): string {
-  if (daysUntil === 1) return 'Mâine'
+export function groupLabel(date: Date, daysUntil: number, t: TFunction): string {
+  if (daysUntil === 1) return t('actions.group.tomorrow')
   if (daysUntil <= 6) {
-    const zi = date.toLocaleDateString('ro-RO', { weekday: 'long' })
-    const dataScurta = date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
+    const locale = t('actions.localeCode')
+    const zi = date.toLocaleDateString(locale, { weekday: 'long' })
+    const dataScurta = date.toLocaleDateString(locale, { day: 'numeric', month: 'short' })
     return `${zi.charAt(0).toUpperCase() + zi.slice(1)}, ${dataScurta}`
   }
-  if (daysUntil <= 13) return 'Săptămâna viitoare'
-  return 'Mai târziu'
+  if (daysUntil <= 13) return t('actions.group.nextWeek')
+  return t('actions.group.later')
 }

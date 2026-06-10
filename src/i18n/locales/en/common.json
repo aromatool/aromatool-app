@@ -1,0 +1,22 @@
+{
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "close": "Close",
+  "back": "Back",
+  "next": "Next",
+  "loading": "Loading...",
+  "saving": "Saving...",
+  "search": "Search",
+  "confirm": "Confirm",
+  "yes": "Yes",
+  "no": "No",
+  "add": "Add",
+  "copy": "Copy",
+  "copied": "Copied!",
+  "send": "Send",
+  "language": "Language",
+  "romanian": "Romanian",
+  "english": "English"
+}

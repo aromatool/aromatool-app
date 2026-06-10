@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { useCartStore } from "../hooks/useCartStore";
@@ -8,6 +10,7 @@ import FollowupModal from "../components/FollowupModal";
 import { openWhatsApp, startOffer } from "../lib/contactActions";
 import {
   getRecommendedAction,
+  getActionType,
   displayStatus,
   shortReason,
   getNextAction,
@@ -15,6 +18,7 @@ import {
 } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
 import { aggregateContacts, selectFocusToday } from "../lib/focusToday";
+import { INACTIVE_DAYS } from "../lib/crmThresholds";
 
 // Tipurile trăiesc acum într-un modul curat (contactTypes.ts), refolosit și
 // de Edge Functions. Le re-exportăm de aici pentru compatibilitate cu
@@ -58,24 +62,24 @@ function daysSince(iso: string | null | undefined): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 }
 
-function greeting(): string {
+function greeting(t: TFunction): string {
   const h = new Date().getHours();
-  if (h < 12) return "Bună dimineața";
-  if (h < 18) return "Bună ziua";
-  return "Bună seara";
+  if (h < 12) return t("dashboard.greetingMorning");
+  if (h < 18) return t("dashboard.greetingAfternoon");
+  return t("dashboard.greetingEvening");
 }
 
-function enrichContact(c: Contact): Contact {
+function enrichContact(c: Contact, t: TFunction): Contact {
   const statusMap: Record<
     ContactStatus,
     { label: string; bg: string; color: string }
   > = {
-    prospect: { label: "Prospect", bg: T.ambLt, color: T.amb },
-    in_followup: { label: "În follow-up", bg: T.lavLt, color: T.lav },
-    inactiv: { label: "Inactiv", bg: T.redLt, color: T.red },
-    client_nou: { label: "Client nou", bg: T.sageLt, color: T.sage },
-    client_fidel: { label: "Client fidel", bg: T.sageLt, color: T.sage },
-    team_member: { label: "Membru echipă", bg: T.lavLt, color: T.lav },
+    prospect: { label: t("dashboard.status.prospect"), bg: T.ambLt, color: T.amb },
+    in_followup: { label: t("dashboard.status.in_followup"), bg: T.lavLt, color: T.lav },
+    inactiv: { label: t("dashboard.status.inactiv"), bg: T.redLt, color: T.red },
+    client_nou: { label: t("dashboard.status.client_nou"), bg: T.sageLt, color: T.sage },
+    client_fidel: { label: t("dashboard.status.client_fidel"), bg: T.sageLt, color: T.sage },
+    team_member: { label: t("dashboard.status.team_member"), bg: T.lavLt, color: T.lav },
   };
   const avMap: Record<ContactStatus, { bg: string; color: string }> = {
     prospect: { bg: T.ambLt, color: T.amb },
@@ -99,31 +103,31 @@ function enrichContact(c: Contact): Contact {
   let barColor: string = T.muted;
   let actionText: string | undefined;
 
-  if (c.status === "inactiv" || daysSinceActivity >= 60) {
-    urgentLabel = "Client în risc";
+  if (c.status === "inactiv" || daysSinceActivity >= INACTIVE_DAYS) {
+    urgentLabel = t("dashboard.urgentLabel");
     urgencyDays = daysSinceActivity;
-    urgencyLabel = "zile inactivă";
+    urgencyLabel = t("dashboard.urgency.daysInactive");
     urgencyColor = T.red;
     barColor = T.red;
-    actionText = "Reactivează";
+    actionText = t("dashboard.action.reactivate");
   } else if (c.status === "prospect" && (c.offers_count ?? 0) === 0) {
     urgencyDays = inCRM;
-    urgencyLabel = "zile în CRM";
+    urgencyLabel = t("dashboard.urgency.daysInCrm");
     urgencyColor = T.amb;
     barColor = T.amb;
-    actionText = "Trimite ofertă";
+    actionText = t("dashboard.action.sendOffer");
   } else if (c.status === "in_followup") {
     urgencyDays = daysSinceOffer;
-    urgencyLabel = "zile de la ofertă";
+    urgencyLabel = t("dashboard.urgency.daysSinceOffer");
     urgencyColor = T.lav;
     barColor = T.lav;
-    actionText = "Follow-up";
+    actionText = t("dashboard.action.followup");
   } else if (c.status === "client_nou" || c.status === "client_fidel") {
     urgencyDays = daysSinceActivity;
-    urgencyLabel = "zile de la ultima activitate";
+    urgencyLabel = t("dashboard.urgency.daysSinceLastActivity");
     urgencyColor = T.grn;
     barColor = T.grn;
-    actionText = "Contactează";
+    actionText = t("dashboard.action.contact");
   }
 
   return {
@@ -248,9 +252,10 @@ function ContactCard({
   contact: Contact;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
-  const action = getRecommendedAction(contact);
-  const reason = shortReason(contact);
+  const action = getRecommendedAction(contact, t);
+  const reason = shortReason(contact, t);
   const isUrgent = action.priority === "urgent";
   const isAttention = action.priority === "attention";
   const highlighted = isUrgent || isAttention;
@@ -289,7 +294,7 @@ function ContactCard({
             {contact.name}
           </span>
           <span style={{ fontSize: 11, color: T.muted }}>
-            · {displayStatus(contact.status)}
+            · {displayStatus(contact.status, t)}
           </span>
         </div>
         <div
@@ -326,7 +331,7 @@ function ContactCard({
             flexShrink: 0,
           }}
         >
-          {isUrgent ? "Urgent" : "Atenție"}
+          {isUrgent ? t("dashboard.badge.urgent") : t("dashboard.badge.attention")}
         </span>
       )}
       <i
@@ -361,6 +366,7 @@ function StatBox({
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const setPrefillContactId = useCartStore((s) => s.setPrefillContactId);
@@ -430,7 +436,7 @@ export default function DashboardPage() {
           fuLogList,
         );
         // enrichContact adaugă doar câmpurile vizuale (culori, etichete).
-        setContacts(aggregated.map(enrichContact));
+        setContacts(aggregated.map((c) => enrichContact(c, t)));
       }
       setOffers(offersList);
       setFollowupLog(fuLogList);
@@ -443,10 +449,10 @@ export default function DashboardPage() {
   const periodDays = period === "today" ? 1 : period === "week" ? 7 : 30;
   const periodLabel =
     period === "today"
-      ? "azi"
+      ? t("dashboard.period.today")
       : period === "week"
-        ? "săptămâna asta"
-        : "luna asta";
+        ? t("dashboard.period.week")
+        : t("dashboard.period.month");
   const newContactsInPeriod = contacts.filter(
     (c) => daysSince(c.created_at) < periodDays,
   ).length;
@@ -459,7 +465,7 @@ export default function DashboardPage() {
     0,
   );
 
-  const firstName = profile?.full_name?.split(" ")[0] ?? "tu";
+  const firstName = profile?.full_name?.split(" ")[0] ?? t("dashboard.defaultName");
 
   // Statistici
   const totalContacts = contacts.length;
@@ -468,7 +474,7 @@ export default function DashboardPage() {
   ).length;
 
   // Focus today — sursă unică (focusToday.ts), refolosită de Daily Focus Email
-  const focusToday = selectFocusToday(contacts).map((x) => x.contact);
+  const focusToday = selectFocusToday(contacts, t).map((x) => x.contact);
 
   // Activitate recentă = oferte + follow-up-uri combinate, sortate descrescător
   type ActivityItem = {
@@ -485,7 +491,7 @@ export default function DashboardPage() {
       id: `offer-${o.id}`,
       contactId: o.contact_id,
       kind: "offer" as const,
-      label: "Ofertă trimisă",
+      label: t("dashboard.activity.offerSent"),
       amount: `€${(o.total_eur ?? 0).toFixed(0)}`,
       at: o.sent_at,
     })),
@@ -501,10 +507,10 @@ export default function DashboardPage() {
             ? ("email" as const)
             : ("followup" as const),
         label: isWa
-          ? "WhatsApp trimis"
+          ? t("dashboard.activity.whatsappSent")
           : isEmail
-            ? "Email trimis"
-            : "Follow-up trimis",
+            ? t("dashboard.activity.emailSent")
+            : t("dashboard.activity.followupSent"),
         at: f.sent_at,
       };
     }),
@@ -523,7 +529,7 @@ export default function DashboardPage() {
   const agendaActions = contacts
     .filter((c) => !focusIds.has(c.id))
     .filter((c) => !c.communication_blocked)
-    .map((c) => getNextAction(c, followUpDays))
+    .map((c) => getNextAction(c, t, followUpDays))
     .filter((a): a is NonNullable<typeof a> => a !== null)
     .sort((a, b) => a.daysUntil - b.daysUntil)
     .slice(0, 5);
@@ -531,7 +537,7 @@ export default function DashboardPage() {
   // Grupare pe etichete temporale, păstrând ordinea
   const agendaGroups: { label: string; actions: typeof agendaActions }[] = [];
   for (const action of agendaActions) {
-    const label = groupLabel(action.date, action.daysUntil);
+    const label = groupLabel(action.date, action.daysUntil, t);
     const lastGroup = agendaGroups[agendaGroups.length - 1];
     if (lastGroup && lastGroup.label === label) {
       lastGroup.actions.push(action);
@@ -576,13 +582,13 @@ export default function DashboardPage() {
               ...c,
               status: newStatus,
               updated_at: new Date().toISOString(),
-            })
+            }, t)
           : c,
       ),
     );
     setSelectedContact((prev) =>
       prev && prev.id === contactId
-        ? enrichContact({ ...prev, status: newStatus })
+        ? enrichContact({ ...prev, status: newStatus }, t)
         : prev,
     );
   };
@@ -609,7 +615,7 @@ export default function DashboardPage() {
   // Log WhatsApp — contează ca follow-up (ai contactat persoana, doar pe alt canal)
   const logWhatsApp = async (c: Contact) => {
     const now = new Date().toISOString();
-    const todayLabel = new Date(now).toLocaleDateString("ro-RO", {
+    const todayLabel = new Date(now).toLocaleDateString(t("actions.localeCode"), {
       day: "numeric",
       month: "short",
       year: "2-digit",
@@ -638,7 +644,7 @@ export default function DashboardPage() {
               last_followup_at: now,
               followup_count: newCount,
               status: newStatus,
-            })
+            }, t)
           : x,
       ),
     );
@@ -646,7 +652,7 @@ export default function DashboardPage() {
       if (!prev || prev.id !== c.id) return prev;
       const newEvent = {
         date: todayLabel,
-        label: "WhatsApp trimis",
+        label: t("dashboard.activity.whatsappSent"),
         type: "whatsapp" as const,
       };
       return {
@@ -693,7 +699,7 @@ export default function DashboardPage() {
     }[] = [];
 
     const fmtDate = (iso: string) =>
-      new Date(iso).toLocaleDateString("ro-RO", {
+      new Date(iso).toLocaleDateString(t("actions.localeCode"), {
         day: "numeric",
         month: "short",
         year: "2-digit",
@@ -710,7 +716,7 @@ export default function DashboardPage() {
       events.push({
         date: fmtDate(o.sent_at),
         sortKey: new Date(o.sent_at).getTime(),
-        label: `Ofertă trimisă #${contactOffers.length - idx}`,
+        label: t("dashboard.activity.offerSentNumbered", { number: contactOffers.length - idx }),
         type: "offer",
         amount: `€${(o.total_eur ?? 0).toFixed(0)}`,
         offerId: o.id,
@@ -723,13 +729,13 @@ export default function DashboardPage() {
       .forEach((f) => {
         const st = (f as { status?: string }).status;
         let type: "followup" | "email" | "whatsapp" = "followup";
-        let label = "Follow-up trimis";
+        let label = t("dashboard.activity.followupSent");
         if (st === "whatsapp_initiated") {
           type = "whatsapp";
-          label = "WhatsApp trimis";
+          label = t("dashboard.activity.whatsappSent");
         } else if (st === "sent") {
           type = "email";
-          label = "Email trimis";
+          label = t("dashboard.activity.emailSent");
         }
         events.push({
           date: fmtDate(f.sent_at),
@@ -743,7 +749,7 @@ export default function DashboardPage() {
     events.push({
       date: fmtDate(c.created_at),
       sortKey: new Date(c.created_at).getTime(),
-      label: "Contact creat",
+      label: t("dashboard.activity.contactCreated"),
       type: "event",
     });
 
@@ -792,7 +798,7 @@ export default function DashboardPage() {
           fontSize: 14,
         }}
       >
-        Se încarcă...
+        {t("dashboard.loading")}
       </div>
     );
 
@@ -825,12 +831,12 @@ export default function DashboardPage() {
           <h1
             style={{ fontSize: 22, fontWeight: 500, color: T.esp, margin: 0 }}
           >
-            {greeting()}, {firstName}! 🌿
+            {t("dashboard.greetingLine", { greeting: greeting(t), name: firstName })}
           </h1>
           <p style={{ fontSize: 13, color: T.muted, margin: "3px 0 0" }}>
             {focusToday.length > 0
-              ? `Ai ${focusToday.length} ${focusToday.length === 1 ? "acțiune care merită" : "acțiuni care merită"} atenția ta azi.`
-              : "Totul e la zi. Zi productivă!"}
+              ? t("dashboard.focusCount", { count: focusToday.length })
+              : t("dashboard.allUpToDate")}
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -856,7 +862,7 @@ export default function DashboardPage() {
               style={{ fontSize: 15 }}
               aria-hidden="true"
             />
-            Contact nou
+            {t("dashboard.newContact")}
           </button>
         </div>
       </div>
@@ -875,11 +881,11 @@ export default function DashboardPage() {
         >
           <SectionTitle
             action={{
-              label: "Vezi toate",
+              label: t("dashboard.seeAll"),
               onClick: () => navigate("/app/contacts?filter=needs_attention"),
             }}
           >
-            Focus today
+            {t("dashboard.focusToday")}
           </SectionTitle>
 
           {focusToday.length === 0 ? (
@@ -892,7 +898,7 @@ export default function DashboardPage() {
                   padding: "16px 0",
                 }}
               >
-                Totul e la zi! Nicio acțiune urgentă. 🌿
+                {t("dashboard.focusEmpty")}
               </div>
             </Card>
           ) : (
@@ -911,13 +917,13 @@ export default function DashboardPage() {
               action={
                 agendaActions.length >= 8
                   ? {
-                      label: "Vezi toate",
+                      label: t("dashboard.seeAll"),
                       onClick: () => navigate("/app/contacts"),
                     }
                   : undefined
               }
             >
-              Agenda săptămânii
+              {t("dashboard.weeklyAgenda")}
             </SectionTitle>
             <Card style={{ padding: 0 }}>
               {agendaGroups.length === 0 ? (
@@ -929,7 +935,7 @@ export default function DashboardPage() {
                     textAlign: "center",
                   }}
                 >
-                  Nimic programat momentan. 🌿
+                  {t("dashboard.agendaEmpty")}
                 </div>
               ) : (
                 agendaGroups.map((group, gi) => (
@@ -991,7 +997,7 @@ export default function DashboardPage() {
                                 {action.contact.name}
                               </span>
                               <span style={{ fontSize: 11, color: T.muted }}>
-                                · {displayStatus(action.contact.status)}
+                                · {displayStatus(action.contact.status, t)}
                               </span>
                             </div>
                             <div style={{ fontSize: 11, color: T.muted }}>
@@ -999,23 +1005,43 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleEmail(action.contact)}
-                          style={{
-                            background: T.sageLt,
-                            color: T.sage,
-                            border: "none",
-                            borderRadius: 7,
-                            padding: "6px 14px",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                            flexShrink: 0,
-                          }}
-                        >
-                          Trimite
-                        </button>
+                        {(() => {
+                          // Canal corect pe acțiune: dacă emailul lipsește sau
+                          // e dezactivat (opt-out), nu mai sugerăm email — oferim
+                          // WhatsApp dacă există telefon. Contactele cu comunicarea
+                          // blocată sunt deja excluse din agendă.
+                          const canEmail =
+                            !!action.contact.email &&
+                            !action.contact.email_opt_out;
+                          const canWhatsApp = !!action.contact.phone;
+                          if (!canEmail && !canWhatsApp) return null;
+                          const useWa = !canEmail && canWhatsApp;
+                          return (
+                            <button
+                              onClick={() =>
+                                useWa
+                                  ? handleWhatsApp(action.contact)
+                                  : handleEmail(action.contact)
+                              }
+                              style={{
+                                background: useWa ? T.grnLt : T.sageLt,
+                                color: useWa ? T.grn : T.sage,
+                                border: "none",
+                                borderRadius: 7,
+                                padding: "6px 14px",
+                                fontSize: 12,
+                                fontWeight: 500,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {useWa
+                                ? t("dashboard.waBtn")
+                                : t("dashboard.sendBtn")}
+                            </button>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
@@ -1045,7 +1071,7 @@ export default function DashboardPage() {
                 letterSpacing: ".06em",
               }}
             >
-              Statistici rapide
+              {t("dashboard.quickStats")}
             </span>
             <div style={{ position: "relative" }}>
               <div
@@ -1068,10 +1094,10 @@ export default function DashboardPage() {
                   aria-hidden="true"
                 />
                 {period === "today"
-                  ? "Astăzi"
+                  ? t("dashboard.period.todayFull")
                   : period === "week"
-                    ? "Săptămâna aceasta"
-                    : "Luna aceasta"}
+                    ? t("dashboard.period.weekFull")
+                    : t("dashboard.period.monthFull")}
                 <i
                   className={`ti ti-chevron-${periodMenuOpen ? "up" : "down"}`}
                   style={{ fontSize: 12 }}
@@ -1096,9 +1122,9 @@ export default function DashboardPage() {
                 >
                   {(
                     [
-                      ["today", "Astăzi"],
-                      ["week", "Săptămâna aceasta"],
-                      ["month", "Luna aceasta"],
+                      ["today", t("dashboard.period.todayFull")],
+                      ["week", t("dashboard.period.weekFull")],
+                      ["month", t("dashboard.period.monthFull")],
                     ] as const
                   ).map(([val, label]) => (
                     <button
@@ -1146,22 +1172,22 @@ export default function DashboardPage() {
             }}
           >
             <StatBox
-              label="Contacte adăugate"
+              label={t("dashboard.stats.contactsAdded")}
               value={newContactsInPeriod}
               delta={periodLabel}
             />
             <StatBox
-              label="Clienți activi"
+              label={t("dashboard.stats.activeClients")}
               value={activeClients}
-              delta={`din ${totalContacts} total`}
+              delta={t("dashboard.stats.activeClientsDelta", { total: totalContacts })}
             />
             <StatBox
-              label="Oferte trimise"
+              label={t("dashboard.stats.offersSent")}
               value={offersCountPeriod}
               delta={periodLabel}
             />
             <StatBox
-              label="Valoare oferte trimise"
+              label={t("dashboard.stats.offersValue")}
               value={`€${valuePeriod.toFixed(0)}`}
               delta={periodLabel}
             />
@@ -1170,11 +1196,11 @@ export default function DashboardPage() {
           {/* Activitate recentă */}
           <SectionTitle
             action={{
-              label: "Vezi toată",
+              label: t("dashboard.seeAllFem"),
               onClick: () => navigate("/app/offers"),
             }}
           >
-            Activitate recentă
+            {t("dashboard.recentActivity")}
           </SectionTitle>
           <Card style={{ padding: 0 }}>
             {recentActivity.length === 0 ? (
@@ -1186,7 +1212,7 @@ export default function DashboardPage() {
                   textAlign: "center",
                 }}
               >
-                Nicio activitate încă.
+                {t("dashboard.noActivity")}
               </div>
             ) : (
               recentActivity.map((item, i) => {
@@ -1249,7 +1275,7 @@ export default function DashboardPage() {
                       <div
                         style={{ fontSize: 12, fontWeight: 500, color: T.esp }}
                       >
-                        {item.contact?.name ?? "Contact șters"}
+                        {item.contact?.name ?? t("dashboard.deletedContact")}
                       </div>
                       <div style={{ fontSize: 11, color: T.muted }}>
                         {item.label}
@@ -1264,8 +1290,8 @@ export default function DashboardPage() {
                       }}
                     >
                       {daysSince(item.at) === 0
-                        ? "Azi"
-                        : `Acum ${daysSince(item.at)} zile`}
+                        ? t("dashboard.today")
+                        : t("dashboard.daysAgo", { count: daysSince(item.at) })}
                     </div>
                   </div>
                 );
@@ -1293,7 +1319,7 @@ export default function DashboardPage() {
       {followupContact && (
         <FollowupModal
           contact={followupContact}
-          action={getRecommendedAction(followupContact).type}
+          action={getActionType(followupContact)}
           onClose={() => setFollowupContact(null)}
           onSent={(contactId: string) => {
             const now = new Date().toISOString();
@@ -1307,7 +1333,7 @@ export default function DashboardPage() {
                       last_activity_at: now,
                       status:
                         c.status === "prospect" ? "in_followup" : c.status,
-                    })
+                    }, t)
                   : c,
               ),
             );

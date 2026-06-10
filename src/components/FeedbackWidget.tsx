@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
@@ -18,13 +19,14 @@ const T = {
   greenLight: "#E8F8F0",
 };
 
-const TYPES: { key: string; label: string; icon: string }[] = [
-  { key: "sugestie", label: "Sugestie", icon: "ti-bulb" },
-  { key: "problema", label: "Problemă", icon: "ti-alert-triangle" },
-  { key: "altele", label: "Altele", icon: "ti-message" },
+const TYPES: { key: string; icon: string }[] = [
+  { key: "sugestie", icon: "ti-bulb" },
+  { key: "problema", icon: "ti-alert-triangle" },
+  { key: "altele", icon: "ti-message" },
 ];
 
 export default function FeedbackWidget() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -60,7 +62,7 @@ export default function FeedbackWidget() {
     });
     setSending(false);
     if (insErr) {
-      setError("Nu am putut trimite. Mai încearcă o dată.");
+      setError(t("feedback.sendError"));
       return;
     }
     setSent(true);
@@ -72,7 +74,7 @@ export default function FeedbackWidget() {
       <button
         onClick={() => setOpen(true)}
         className="feedback-fab"
-        title="Trimite feedback"
+        title={t("feedback.fabTitle")}
         style={{
           position: "fixed",
           right: "20px",
@@ -94,7 +96,7 @@ export default function FeedbackWidget() {
         }}
       >
         <i className="ti ti-message-2-heart" style={{ fontSize: "17px" }} />
-        <span className="feedback-fab-label">Feedback</span>
+        <span className="feedback-fab-label">{t("feedback.fabLabel")}</span>
       </button>
 
       {/* Modal */}
@@ -150,7 +152,7 @@ export default function FeedbackWidget() {
                     marginBottom: "6px",
                   }}
                 >
-                  Mulțumim! 🌿
+                  {t("feedback.thanks")}
                 </div>
                 <div
                   style={{
@@ -160,7 +162,7 @@ export default function FeedbackWidget() {
                     lineHeight: 1.6,
                   }}
                 >
-                  Feedback-ul tău ne ajută să facem AromaTool mai bun.
+                  {t("feedback.thanksBody")}
                 </div>
                 <button
                   onClick={close}
@@ -176,7 +178,7 @@ export default function FeedbackWidget() {
                     cursor: "pointer",
                   }}
                 >
-                  Închide
+                  {t("feedback.close")}
                 </button>
               </div>
             ) : (
@@ -199,7 +201,7 @@ export default function FeedbackWidget() {
                         color: T.espresso,
                       }}
                     >
-                      Spune-ne părerea ta
+                      {t("feedback.title")}
                     </div>
                     <div
                       style={{
@@ -208,7 +210,7 @@ export default function FeedbackWidget() {
                         marginTop: "2px",
                       }}
                     >
-                      Sugestii, probleme sau idei — te ascultăm.
+                      {t("feedback.subtitle")}
                     </div>
                   </div>
                   <button
@@ -229,12 +231,12 @@ export default function FeedbackWidget() {
                 <div style={{ padding: "20px 24px" }}>
                   {/* Tip */}
                   <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-                    {TYPES.map((t) => {
-                      const active = type === t.key;
+                    {TYPES.map((tp) => {
+                      const active = type === tp.key;
                       return (
                         <button
-                          key={t.key}
-                          onClick={() => setType(t.key)}
+                          key={tp.key}
+                          onClick={() => setType(tp.key)}
                           style={{
                             flex: 1,
                             display: "flex",
@@ -252,8 +254,8 @@ export default function FeedbackWidget() {
                             fontWeight: 500,
                           }}
                         >
-                          <i className={`ti ${t.icon}`} style={{ fontSize: "18px" }} />
-                          {t.label}
+                          <i className={`ti ${tp.icon}`} style={{ fontSize: "18px" }} />
+                          {t(`feedback.types.${tp.key}`)}
                         </button>
                       );
                     })}
@@ -265,7 +267,7 @@ export default function FeedbackWidget() {
                     onChange={(e) => setMessage(e.target.value)}
                     rows={5}
                     autoFocus
-                    placeholder="Scrie aici ce vrei să ne transmiți..."
+                    placeholder={t("feedback.placeholder")}
                     style={{
                       width: "100%",
                       padding: "12px 14px",
@@ -317,7 +319,7 @@ export default function FeedbackWidget() {
                       cursor: "pointer",
                     }}
                   >
-                    Anulează
+                    {t("feedback.cancel")}
                   </button>
                   <button
                     onClick={submit}
@@ -339,7 +341,7 @@ export default function FeedbackWidget() {
                       gap: "6px",
                     }}
                   >
-                    {sending ? "Se trimite..." : "Trimite"}
+                    {sending ? t("feedback.sending") : t("feedback.send")}
                   </button>
                 </div>
               </>
