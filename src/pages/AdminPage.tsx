@@ -28,6 +28,12 @@ const T = {
   lavenderLight: "#F0EEF8",
 };
 
+// Țările cu catalog suportat (= cheile CULTURE_BY_COUNTRY din edge function).
+// Folosite de butonul „Importă toate" pentru a rula importul secvențial.
+const IMPORT_COUNTRIES = [
+  "RO", "DE", "FR", "IT", "ES", "NL", "BE", "AT", "IE", "PT", "FI", "GB", "MD", "UA",
+];
+
 interface Overview {
   total_users: number;
   total_contacts: number;
@@ -204,6 +210,7 @@ export default function AdminPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState("");
   const [syncError, setSyncError] = useState("");
+  const [syncProgress, setSyncProgress] = useState("");
   const [importCountry, setImportCountry] = useState("RO");
 
   // ── Daily Focus ──────────────────────────────────────────
@@ -332,6 +339,44 @@ export default function AdminPage() {
     } finally {
       setSyncing(false);
     }
+  }
+
+  // Importă TOATE cataloagele, secvențial (un apel per țară). Secvențial =
+  // fără timeout pe o singură invocare și progres clar; o țară eșuată nu
+  // oprește restul (le colectăm și le raportăm la final).
+  async function syncAllProducts() {
+    setSyncing(true);
+    setSyncError("");
+    setSyncResult("");
+    let totalImported = 0;
+    const failed: string[] = [];
+    for (let i = 0; i < IMPORT_COUNTRIES.length; i++) {
+      const c = IMPORT_COUNTRIES[i];
+      setSyncProgress(
+        t("admin.syncProgress", { country: c, i: i + 1, n: IMPORT_COUNTRIES.length })
+      );
+      try {
+        const { data, error: fnError } =
+          await supabase.functions.invoke("import-products", {
+            body: { country: c },
+          });
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+        totalImported += data?.imported ?? 0;
+      } catch {
+        failed.push(c);
+      }
+    }
+    setSyncProgress("");
+    setSyncResult(
+      t("admin.syncAllResult", {
+        imported: totalImported,
+        ok: IMPORT_COUNTRIES.length - failed.length,
+        total: IMPORT_COUNTRIES.length,
+      }) + (failed.length ? " " + t("admin.syncAllFailed", { list: failed.join(", ") }) : "")
+    );
+    await loadLastJob();
+    setSyncing(false);
   }
 
   async function testDailyFocus() {
@@ -1708,6 +1753,45 @@ export default function AdminPage() {
               ? t("admin.syncing")
               : t("admin.syncCatalog", { country: importCountry })}
           </button>
+
+          <button
+            onClick={syncAllProducts}
+            disabled={syncing}
+            style={{
+              width: "100%",
+              marginTop: "8px",
+              padding: "12px",
+              background: T.white,
+              border: `1px solid ${T.sage}`,
+              borderRadius: "10px",
+              color: T.sage,
+              fontFamily: "inherit",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: syncing ? "not-allowed" : "pointer",
+              opacity: syncing ? 0.6 : 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "7px",
+            }}
+          >
+            <i className="ti ti-world-download" style={{ fontSize: "15px" }} />
+            {t("admin.importAll")}
+          </button>
+
+          {syncing && syncProgress && (
+            <div
+              style={{
+                marginTop: "10px",
+                fontSize: "12px",
+                color: T.warm,
+                textAlign: "center",
+              }}
+            >
+              {syncProgress}
+            </div>
+          )}
 
           {syncResult && (
             <div

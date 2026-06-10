@@ -19,18 +19,31 @@ select cron.unschedule('import-yl-products')
 where exists (select 1 from cron.job where jobname = 'import-yl-products');
 
 -- Rulează zilnic la 03:15 UTC (≈ 05:15/06:15 RO, în afara orelor de vârf).
+-- Importă TOATE cataloagele: un POST per țară (fiecare = o invocare scurtă a
+-- funcției, fără risc de timeout). pg_net pune cererile în coadă și le execută
+-- în fundal, deci nu blochează tranzacția cron.
 select cron.schedule(
   'import-yl-products',
   '15 3 * * *',
   $$
-  select net.http_post(
-    url     := 'https://kbtstoqrukxwnhpuvglv.supabase.co/functions/v1/import-products',
-    headers := jsonb_build_object(
-      'Content-Type',  'application/json',
-      'x-cron-secret', '<CRON_SECRET>'
-    ),
-    body    := '{}'::jsonb
-  );
+  do $inner$
+  declare c text;
+  begin
+    foreach c in array array[
+      'RO','DE','FR','IT','ES','NL','BE','AT','IE','PT','FI','GB','MD','UA'
+    ]
+    loop
+      perform net.http_post(
+        url     := 'https://kbtstoqrukxwnhpuvglv.supabase.co/functions/v1/import-products',
+        headers := jsonb_build_object(
+          'Content-Type',  'application/json',
+          'x-cron-secret', '0d207efca20435419bf9a8e1eb151de14e4eba29c710cce01308c73c6b447ea8'
+        ),
+        body    := jsonb_build_object('country', c)
+      );
+    end loop;
+  end
+  $inner$;
   $$
 );
 
