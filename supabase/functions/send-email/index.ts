@@ -71,6 +71,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// ── RATE-LIMIT (H1): plafoane generoase pentru uz legitim, dar care opresc
+// abuzul (trimiteri în masă prin infrastructura noastră Resend). ──
+const RATE_LIMIT_HOUR = 40
+const RATE_LIMIT_DAY = 300
+
+// ── ACCES (H2): replică server-side a regulii din src/lib/subscription.tsx.
+// hasAccess = is_admin || free_access || subscription_status==='active'
+//             || (trial valid: trial_ends_at în viitor)
+function computeHasAccess(p: {
+  is_admin?: boolean | null
+  free_access?: boolean | null
+  subscription_status?: string | null
+  trial_ends_at?: string | null
+}): boolean {
+  if (p.is_admin) return true
+  if (p.free_access) return true
+  if (p.subscription_status === 'active') return true
+  if (p.trial_ends_at && new Date(p.trial_ends_at).getTime() > Date.now()) return true
+  return false
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -98,6 +119,43 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
 
     if (userError || !user) return json({ error: 'Unauthorized' }, 401)
+
+    // ── GATE DE ACCES (H2) ───────────────────────────────────
+    // Trimiterea de email costă infrastructură reală (Resend) → o permitem
+    // doar conturilor cu acces: admin, free_access, abonament activ sau trial
+    // valid. Replică server-side a regulii din UI (nu te poți baza pe client).
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin, free_access, subscription_status, trial_ends_at')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || !computeHasAccess(profile)) {
+      return json({ error: 'Abonament necesar pentru a trimite emailuri.' }, 402)
+    }
+
+    // ── RATE-LIMIT (H1) ──────────────────────────────────────
+    const nowMs = Date.now()
+    const hourAgo = new Date(nowMs - 60 * 60 * 1000).toISOString()
+    const dayAgo = new Date(nowMs - 24 * 60 * 60 * 1000).toISOString()
+
+    const { count: hourCount } = await supabase
+      .from('email_send_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('sent_at', hourAgo)
+    if ((hourCount ?? 0) >= RATE_LIMIT_HOUR) {
+      return json({ error: 'Ai atins limita de emailuri pe oră. Încearcă mai târziu.' }, 429)
+    }
+
+    const { count: dayCount } = await supabase
+      .from('email_send_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('sent_at', dayAgo)
+    if ((dayCount ?? 0) >= RATE_LIMIT_DAY) {
+      return json({ error: 'Ai atins limita de emailuri pe zi. Încearcă mâine.' }, 429)
+    }
 
     // ── VERIFICARE DESTINATAR ────────────────────────────────
     // Dacă contact_id e furnizat, verifică că aparține userului.
@@ -176,6 +234,15 @@ serve(async (req) => {
 
       return json({ error: data.message || 'Failed to send email' }, res.status)
     }
+
+    // Înregistrează trimiterea pentru rate-limiting (H1). Nu blocăm răspunsul
+    // dacă logarea eșuează — emailul a plecat deja cu succes.
+    await supabase
+      .from('email_send_log')
+      .insert({ user_id: user.id })
+      .then(({ error }) => {
+        if (error) console.error('email_send_log insert error:', error.message)
+      })
 
     return json({ success: true, id: data.id })
 

@@ -476,3 +476,24 @@ entrypoint = "./functions/unsubscribe/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/delete-account/index.ts"
+
+# Refresh cursuri valutare (C1) — apelat de pg_cron (x-cron-secret) sau
+# manual de admin (JWT + is_admin). verify_jwt = false: citim tokenul manual.
+[functions.refresh-rates]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/refresh-rates/index.ts"
+
+# Import produse — apelat din aplicație de admin; verificăm JWT + is_admin
+# în funcție (verify_jwt = false ca să citim manual tokenul).
+[functions.import-products]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/import-products/index.ts"
+
+# Webhook Resend (status livrare email) — apelat de Resend, fără JWT;
+# autorizarea vine din semnătura Svix (RESEND_WEBHOOK_SECRET, vezi H3).
+[functions.resend-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/resend-webhook/index.ts"

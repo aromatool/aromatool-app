@@ -33,6 +33,29 @@ const USER_TABLES = [
   'companies',
 ]
 
+// Listează RECURSIV toate căile de fișiere dintr-un prefix de bucket.
+// Storage Supabase nu are listare recursivă nativă: un item cu id === null
+// este un „folder" (placeholder), pe care trebuie să-l descindem manual.
+// deno-lint-ignore no-explicit-any
+async function listAllFiles(supabase: any, bucket: string, prefix: string): Promise<string[]> {
+  const out: string[] = []
+  const { data: items, error } = await supabase.storage
+    .from(bucket)
+    .list(prefix, { limit: 1000 })
+  if (error || !items) return out
+  for (const item of items) {
+    const full = `${prefix}/${item.name}`
+    if (item.id === null) {
+      // Subfolder → coborâm recursiv.
+      const nested = await listAllFiles(supabase, bucket, full)
+      out.push(...nested)
+    } else {
+      out.push(full)
+    }
+  }
+  return out
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -79,14 +102,16 @@ serve(async (req) => {
     }
 
     // ── 2. STORAGE: șterge fișierele userului ────────────────
-    // Bucket privat „resources", fișiere sub folderul {userId}/...
+    // Bucket privat „resources". Layout real = {userId}/{resourceId}/{nume},
+    // deci un singur .list(userId) NU vede fișierele (doar subfoldere).
+    // Mergem recursiv: list returnează un „folder" când item.id === null.
     try {
-      const { data: files } = await supabase.storage
-        .from('resources')
-        .list(userId, { limit: 1000 })
-      if (files && files.length) {
-        const paths = files.map((f) => `${userId}/${f.name}`)
-        await supabase.storage.from('resources').remove(paths)
+      const allPaths = await listAllFiles(supabase, 'resources', userId)
+      // Supabase remove acceptă ~max câteva sute de căi/cerere; batch-uim la 100.
+      for (let i = 0; i < allPaths.length; i += 100) {
+        await supabase.storage
+          .from('resources')
+          .remove(allPaths.slice(i, i + 100))
       }
     } catch (e) {
       console.error('Storage cleanup failed (continuăm):', e)

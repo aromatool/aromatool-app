@@ -12,11 +12,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, svix-id, svix-timestamp, svix-signature',
 }
 
-// ─── VERIFICARE SEMNĂTURĂ SVIX (opțional) ────────────────────
+// ─── VERIFICARE SEMNĂTURĂ SVIX (OBLIGATORIE) ─────────────────
 // Resend folosește Svix pentru webhook signing.
-// Dacă RESEND_WEBHOOK_SECRET este setat, verificăm semnătura.
+// Webhook-ul mutează date (opt-out contacte) pe baza unui POST neautentificat
+// — fără semnătură, oricine știe URL-ul ar putea dezabona forțat contacte
+// arbitrare. De aceea verificarea e OBLIGATORIE și „fail-closed": dacă
+// secretul nu e configurat, respingem TOATE cererile (vezi handler).
 async function verifySignature(req: Request, body: string): Promise<boolean> {
-  if (!RESEND_WEBHOOK_SECRET) return true // skip dacă nu e configurat
+  if (!RESEND_WEBHOOK_SECRET) return false // fail-closed: fără secret, refuzăm
 
   const svixId        = req.headers.get('svix-id')
   const svixTimestamp = req.headers.get('svix-timestamp')
@@ -56,9 +59,16 @@ serve(async (req) => {
     })
 
   try {
+    // Fail-closed: dacă secretul de webhook nu e configurat, nu putem verifica
+    // semnătura → refuzăm (altfel oricine ar putea falsifica evenimente).
+    if (!RESEND_WEBHOOK_SECRET) {
+      console.error('Resend webhook: RESEND_WEBHOOK_SECRET neconfigurat — refuz cererea.')
+      return json({ error: 'Webhook not configured' }, 503)
+    }
+
     const rawBody = await req.text()
 
-    // Verificare semnătură
+    // Verificare semnătură (obligatorie)
     const valid = await verifySignature(req, rawBody)
     if (!valid) {
       console.error('Resend webhook: invalid signature')

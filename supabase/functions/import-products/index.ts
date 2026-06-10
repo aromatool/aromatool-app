@@ -5,13 +5,38 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 // Secret partajat pentru rulările din cron (setat ca secret al funcției).
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
-// Endpoint catalog Young Living (override-abil prin secret dacă se schimbă).
-const YL_CATALOG_URL =
-  Deno.env.get('YL_CATALOG_URL') ??
-  'https://www.youngliving.com/api/shopping/product-catalog/ro-RO/RO/2'
-const COUNTRY = 'RO'
+// Baza endpoint-ului catalog Young Living (override-abilă prin secret).
+// URL final = {base}/{culture}/{country}/2.
+const YL_CATALOG_BASE =
+  Deno.env.get('YL_CATALOG_BASE') ??
+  'https://www.youngliving.com/api/shopping/product-catalog'
+// Override COMPLET pentru RO/cron (compat înapoi). Ignorat dacă requestul
+// trimite explicit o țară (import multi-țară din Admin).
+const YL_CATALOG_URL_OVERRIDE = Deno.env.get('YL_CATALOG_URL') ?? ''
 // Compania pentru care rulează acest importer (slug în tabela companies).
 const COMPANY_SLUG = 'young-living'
+
+// Țări suportate (zona EUR) + cultura folosită la fetch.
+// ⚠️ Cultura determină LIMBA numelor, independent de țară (care dă prețul).
+// Pentru unele țări YL NU are traduceri în limba locală și întoarce numele
+// gol (it-IT, fr-BE/nl-BE, en-IE, pt-PT → toate goale). Pentru ele folosim
+// `en-GB` ca fallback (umple numele, prețul rămâne al țării respective).
+// Numele YL sunt oricum brand-uri ("Thieves") + variantă ("15 ml").
+// Requestul poate trimite explicit `culture` ca să suprascrie.
+const CULTURE_BY_COUNTRY: Record<string, string> = {
+  RO: 'ro-RO',
+  DE: 'de-DE',
+  FR: 'fr-FR',
+  IT: 'en-GB', // it-IT → nume goale
+  ES: 'es-ES',
+  NL: 'nl-NL',
+  BE: 'en-GB', // fr-BE / nl-BE → nume goale
+  AT: 'de-AT',
+  IE: 'en-GB', // en-IE → nume goale
+  PT: 'en-GB', // pt-PT → nume goale
+  FI: 'fi-FI',
+  GB: 'en-GB', // UK — prețuri în GBP (vezi moneda din răspuns)
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,6 +52,22 @@ interface YlItem {
   wholesaleDisplayPrice?: number
   isNFR?: boolean
   canPurchase?: boolean
+  // YL trimite moneda fie ca string ("GBP"), fie ca obiect { code, symbol }.
+  currency?: string | { code?: string; symbol?: string }
+}
+
+// Moneda implicită per țară (fallback dacă răspunsul YL nu o expune).
+const CURRENCY_BY_COUNTRY: Record<string, string> = {
+  RO: 'EUR', DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR',
+  BE: 'EUR', AT: 'EUR', IE: 'EUR', PT: 'EUR', FI: 'EUR',
+  GB: 'GBP',
+}
+
+function extractCurrency(it: YlItem): string | null {
+  const c = it.currency
+  if (!c) return null
+  if (typeof c === 'string') return c.trim().toUpperCase() || null
+  return (c.code ?? '').trim().toUpperCase() || null
 }
 
 serve(async (req) => {
@@ -41,6 +82,27 @@ serve(async (req) => {
     })
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+  // ── ȚARA țintă (din body; default RO pentru cron/compat) ─────
+  let reqBody: { country?: string; culture?: string } = {}
+  try {
+    const txt = await req.text()
+    if (txt) reqBody = JSON.parse(txt)
+  } catch {
+    // fără body / body invalid → import RO implicit
+  }
+
+  const country = (reqBody.country ?? 'RO').toUpperCase()
+  if (!CULTURE_BY_COUNTRY[country]) {
+    return json({ error: `Țară nesuportată: ${country}` }, 400)
+  }
+  const culture = reqBody.culture ?? CULTURE_BY_COUNTRY[country]
+  // URL-ul: override-ul din env se folosește DOAR pentru RO/cron (fără țară
+  // explicită); altfel construim dinamic din cultură + țară.
+  const catalogUrl =
+    YL_CATALOG_URL_OVERRIDE && !reqBody.country
+      ? YL_CATALOG_URL_OVERRIDE
+      : `${YL_CATALOG_BASE}/${culture}/${country}/2`
 
   // ── COMPANIE țintă ──────────────────────────────────────────
   const { data: companyRow } = await supabase
@@ -87,8 +149,8 @@ serve(async (req) => {
     .insert({
       triggered_by: triggeredBy,
       status: 'running',
-      source_url: YL_CATALOG_URL,
-      country_code: COUNTRY,
+      source_url: catalogUrl,
+      country_code: country,
     })
     .select('id')
     .single()
@@ -96,7 +158,7 @@ serve(async (req) => {
 
   try {
     // ── FETCH CATALOG YL ──────────────────────────────────────
-    const resp = await fetch(YL_CATALOG_URL, {
+    const resp = await fetch(catalogUrl, {
       headers: {
         Accept: 'application/json',
         'User-Agent': 'Mozilla/5.0 (compatible; AromaTool/1.0; +https://aromatool-app.vercel.app)',
@@ -115,28 +177,52 @@ serve(async (req) => {
     // ── FILTRARE + MAPARE ─────────────────────────────────────
     // Catalog vandabil = produse care se pot cumpăra acum (canPurchase),
     // nu sunt NFR și au preț > 0. (~700 produse, nu tot catalogul de 3100.)
-    const mapped = items
-      .filter(
-        (it) =>
-          it &&
-          it.canPurchase === true &&
-          it.isNFR === false &&
-          Number(it.wholesaleDisplayPrice) > 0 &&
-          !!it.partNumber,
-      )
+    const sellable = items.filter(
+      (it) =>
+        it &&
+        it.canPurchase === true &&
+        it.isNFR === false &&
+        Number(it.wholesaleDisplayPrice) > 0 &&
+        !!it.partNumber,
+    )
+
+    const mapped = sellable
       .map((it) => ({
         name: String(it.name ?? '').trim(),
         sku: String(it.partNumber).trim(),
-        // YL trimite punctele și prețul ×100 (ex: 12220 = 122.20 €)
+        // YL trimite punctele și prețul ×100 (ex: 12220 = 122.20)
         points: Number(it.pointValue ?? it.loyaltyPoints ?? 0) / 100,
         price_eur: Number(it.wholesaleDisplayPrice) / 100,
       }))
       .filter((p) => p.name && p.sku)
 
+    // Moneda catalogului: din răspunsul YL (primul item cu monedă),
+    // altfel fallback pe maparea per țară (GB → GBP, restul → EUR).
+    const currency =
+      sellable.map(extractCurrency).find((c) => !!c) ??
+      CURRENCY_BY_COUNTRY[country] ??
+      'EUR'
+
+    // Gardă: dacă majoritatea produselor vandabile au numele gol, cultura
+    // aleasă nu are traduceri pentru această țară (ex: it-IT, fr-BE, pt-PT).
+    // Mai bine oprim importul decât să salvăm un catalog fără nume.
+    if (sellable.length > 0 && mapped.length < sellable.length * 0.5) {
+      throw new Error(
+        `Cultura "${culture}" nu are nume pentru ${country} ` +
+          `(${mapped.length}/${sellable.length} produse cu nume). ` +
+          `Încearcă altă cultură (ex: en-GB).`,
+      )
+    }
+
     // ── UPSERT + DEZACTIVARE prin RPC (logica e în SQL) ───────
     const { data: result, error: rpcErr } = await supabase.rpc(
       'import_company_products',
-      { p_company: companyId, p_country: COUNTRY, p_items: mapped },
+      {
+        p_company: companyId,
+        p_country: country,
+        p_items: mapped,
+        p_currency: currency,
+      },
     )
     if (rpcErr) throw rpcErr
 
@@ -157,7 +243,7 @@ serve(async (req) => {
         .eq('id', jobId)
     }
 
-    return json({ ok: true, total, imported, deactivated, skipped })
+    return json({ ok: true, country, currency, total, imported, deactivated, skipped })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     if (jobId) {

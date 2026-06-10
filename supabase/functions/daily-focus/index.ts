@@ -2,6 +2,28 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // SURSA UNICĂ DE ADEVĂR — aceeași logică Focus Today ca Dashboard-ul.
 import { getFocusToday } from '../../../src/lib/focusToday.ts'
+// Textele acțiunilor vin din aceeași sursă i18n ca UI-ul (deocamdată RO).
+import roActions from '../../../src/i18n/locales/ro/actions.json' with { type: 'json' }
+
+// Mini-traducător server-side compatibil cu semnătura TFunction folosită de
+// recommendedAction.ts. Citește din ro/actions.json și interpolează {{param}}.
+// deno-lint-ignore no-explicit-any
+function tServer(key: string, params?: Record<string, unknown>): any {
+  const path = key.split('.')
+  // Cheile sunt de forma „actions.title.x", iar conținutul ro/actions.json
+  // stă la RĂDĂCINĂ (fără wrapper „actions" — vezi fixul de i18n). Mapăm
+  // namespace-ul „actions" pe întreg fișierul, ca în i18next (out[ns]=mod).
+  // deno-lint-ignore no-explicit-any
+  let v: any = { actions: roActions as any }
+  for (const p of path) v = v?.[p]
+  let s = typeof v === 'string' ? v : key
+  if (params) {
+    for (const [k, val] of Object.entries(params)) {
+      s = s.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), String(val))
+    }
+  }
+  return s
+}
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -160,12 +182,8 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
     if (userError || !user) return json({ error: 'Unauthorized' }, 401)
-    const { data: profile } = await supabase
-      .from('profiles').select('is_admin').eq('id', user.id).single()
-    if (!profile?.is_admin) {
-      return json({ error: 'Doar administratorii pot rula manual.' }, 403)
-    }
-    // Admin → rulare de test, doar pentru contul propriu, ignorând ora.
+    // Orice user autentificat poate rula o probă, DOAR pentru contul propriu
+    // (emailul pleacă exclusiv către el însuși), ignorând ora aleasă.
     trigger = 'manual'
     testUserId = user.id
   }
@@ -211,6 +229,7 @@ serve(async (req) => {
         (contacts ?? []) as never,
         (offers ?? []) as never,
         (fuLog ?? []) as never,
+        tServer as never,
         5,
       )
 
