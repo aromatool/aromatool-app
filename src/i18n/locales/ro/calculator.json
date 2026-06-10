@@ -19,6 +19,11 @@
   "qtyPlaceholder": "Cant.",
   "discPlaceholder": "Disc%",
   "addToCart": "Adaugă în coș",
+  "invalidPrice": "Introduceți un preț valid (număr ≥ 0).",
+  "emailLanguage": "Limba emailului",
+  "langRo": "Română",
+  "langEn": "Engleză",
+  "close": "Închide",
   "perPiece": "/buc",
   "totals": {
     "subtotal": "Subtotal",
@@ -79,6 +84,7 @@
     "manualRateActive": "Curs manual activ",
     "displayCurrency": "Moneda de afișare",
     "ratesVsEur": "Cursuri față de EUR",
+    "ratesVsBase": "Cursuri față de {{base}}",
     "loading": "Se încarcă...",
     "active": "Activ",
     "save": "Salvează",
@@ -87,7 +93,7 @@
     "editRate": "Editează cursul",
     "resetRate": "Resetează la cursul implicit",
     "rateSaved": "Curs salvat!",
-    "hintBefore": "Cursuri față de EUR. Apasă",
+    "hintBefore": "Apasă",
     "hintAfter": "pentru a seta un curs manual.",
     "names": {
       "RON": "Leu românesc",
@@ -149,6 +155,8 @@
     "PT": "🇵🇹 Portugalia",
     "FI": "🇫🇮 Finlanda",
     "GB": "🇬🇧 UK",
+    "MD": "🇲🇩 Moldova",
+    "UA": "🇺🇦 Ucraina",
     "US": "🇺🇸 SUA"
   }
 }

@@ -122,6 +122,8 @@
   "countryPT": "🇵🇹 Portugal (EN names)",
   "countryFI": "🇫🇮 Finland (FI names)",
   "countryGB": "🇬🇧 UK (EN names · £ GBP prices)",
+  "countryMD": "🇲🇩 Moldova (RO names · VAT-free prices)",
+  "countryUA": "🇺🇦 Ukraine (EN names · VAT-free prices)",
   "syncing": "Syncing…",
   "syncCatalog": "Sync the {{country}} catalog",
   "errorsDesc": "The latest errors from the automated systems (Daily Focus and catalog import). If the list is empty, everything ran clean.",

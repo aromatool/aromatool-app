@@ -184,8 +184,10 @@ export const useCartStore = create<CartStore>()(
         state.catalogCountry === catalogCountry
           ? { catalogCountry }
           // La schimbarea catalogului resetăm și moneda de bază — se va
-          // re-deriva din primul produs adăugat din noul catalog.
-          : { catalogCountry, items: [], catalogCurrency: 'EUR' }
+          // re-deriva din primul produs adăugat din noul catalog. Golim și
+          // cursurile manuale: ele sunt „per moneda catalogului", deci nu mai
+          // au sens pe alt catalog (altă bază).
+          : { catalogCountry, items: [], catalogCurrency: 'EUR', customRates: {} }
       )),
       setCatalogCurrency: (catalogCurrency) => set({ catalogCurrency }),
       setOfferLang: (offerLang) => set({ offerLang }),

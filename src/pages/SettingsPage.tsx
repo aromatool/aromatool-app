@@ -88,10 +88,10 @@ export default function SettingsPage() {
         window.location.href = data.url as string;
         return;
       }
-      throw new Error("Nu am primit linkul portalului.");
+      throw new Error(t("settings.subscription.portalNoLink"));
     } catch (e) {
       setPortalError(
-        e instanceof Error ? e.message : "Eroare la deschiderea portalului.",
+        e instanceof Error ? e.message : t("settings.subscription.portalOpenError"),
       );
     } finally {
       setPortalLoading(false);
@@ -128,22 +128,20 @@ export default function SettingsPage() {
       if (fnErr) throw fnErr;
       if (data?.error) throw new Error(data.error);
       if (data?.sent > 0) {
-        setFocusTestMsg("Ți-am trimis o probă pe email. Verifică inbox-ul.");
+        setFocusTestMsg(t("settings.focus.testSent"));
       } else if (data?.failed > 0) {
         const detail = data?.errors?.[0]?.error;
         setFocusTestErr(
           detail
-            ? `Trimiterea a eșuat: ${detail}`
-            : "Trimiterea a eșuat. Verifică configurarea de email."
+            ? t("settings.focus.testFailedDetail", { detail })
+            : t("settings.focus.testFailed")
         );
       } else {
-        setFocusTestMsg(
-          "Nu ai contacte care necesită atenție azi, deci nu s-a trimis nimic (e normal)."
-        );
+        setFocusTestMsg(t("settings.focus.testNoContacts"));
       }
     } catch (e) {
       setFocusTestErr(
-        e instanceof Error ? e.message : "Nu am putut rula proba. Încearcă din nou."
+        e instanceof Error ? e.message : t("settings.focus.testError")
       );
     } finally {
       setFocusTesting(false);
@@ -161,18 +159,18 @@ export default function SettingsPage() {
     setPwError("");
     setPwSuccess(false);
     if (pw1.length < 6) {
-      setPwError("Parola trebuie să aibă minim 6 caractere.");
+      setPwError(t("settings.password.tooShort"));
       return;
     }
     if (pw1 !== pw2) {
-      setPwError("Parolele nu coincid.");
+      setPwError(t("settings.password.mismatch"));
       return;
     }
     setPwSaving(true);
     const { error: pwErr } = await updatePassword(pw1);
     setPwSaving(false);
     if (pwErr) {
-      setPwError("Eroare la schimbarea parolei. Încearcă din nou.");
+      setPwError(t("settings.password.changeError"));
     } else {
       setPw1("");
       setPw2("");
@@ -253,9 +251,7 @@ export default function SettingsPage() {
     );
     if (fnErr || data?.error) {
       setDeleting(false);
-      setDeleteError(
-        "Nu am putut șterge contul. Încearcă din nou sau scrie-ne.",
-      );
+      setDeleteError(t("settings.danger.deleteError"));
       return;
     }
     // Cont șters — deconectăm și ieșim.
@@ -325,7 +321,7 @@ export default function SettingsPage() {
       .eq("id", user!.id);
 
     if (updateError) {
-      setError("Eroare la salvare. Încearcă din nou.");
+      setError(t("settings.saveError"));
     } else {
       // Update auth metadata too
       await supabase.auth.updateUser({
@@ -373,7 +369,7 @@ export default function SettingsPage() {
           marginBottom: "24px",
         }}
       >
-        Setări cont
+        {t("settings.title")}
       </div>
 
       {/* Profile info */}
@@ -396,18 +392,18 @@ export default function SettingsPage() {
             marginBottom: "16px",
           }}
         >
-          👤 Profil distribuitor
+          {t("settings.profile.heading")}
         </div>
 
         <div style={{ display: "grid", gap: "14px" }}>
           <div>
-            <label style={labelStyle}>Numele tău</label>
+            <label style={labelStyle}>{t("settings.profile.nameLabel")}</label>
             <input
               value={profile.full_name}
               onChange={(e) =>
                 setProfile((p) => ({ ...p, full_name: e.target.value }))
               }
-              placeholder="Nume Prenume"
+              placeholder={t("settings.profile.namePlaceholder")}
               style={inputStyle}
             />
           </div>
@@ -420,7 +416,7 @@ export default function SettingsPage() {
             }}
           >
             <div>
-              <label style={labelStyle}>Telefon (WhatsApp)</label>
+              <label style={labelStyle}>{t("settings.profile.phoneLabel")}</label>
               <PhoneInput
                 value={profile.phone}
                 defaultCountry={profile.country_code}
@@ -435,37 +431,37 @@ export default function SettingsPage() {
               <div
                 style={{ fontSize: "11px", color: C.muted, marginTop: "4px" }}
               >
-                Apare în emailurile trimise clienților
+                {t("settings.profile.appearsInEmails")}
               </div>
             </div>
 
             <div>
-              <label style={labelStyle}>Email contact</label>
+              <label style={labelStyle}>{t("settings.profile.emailLabel")}</label>
               <input
                 value={profile.contact_email}
                 onChange={(e) =>
                   setProfile((p) => ({ ...p, contact_email: e.target.value }))
                 }
-                placeholder="email@tau.com"
+                placeholder={t("settings.profile.emailPlaceholder")}
                 style={inputStyle}
               />
               <div
                 style={{ fontSize: "11px", color: C.muted, marginTop: "4px" }}
               >
-                Apare în emailurile trimise clienților
+                {t("settings.profile.appearsInEmails")}
               </div>
             </div>
           </div>
 
           <div>
-            <label style={labelStyle}>Semnătură email</label>
+            <label style={labelStyle}>{t("settings.profile.signatureLabel")}</label>
             <textarea
               value={profile.email_signature}
               onChange={(e) =>
                 setProfile((p) => ({ ...p, email_signature: e.target.value }))
               }
               rows={3}
-              placeholder={"Cu drag,\nMaria Popescu\nDistribuitor independent Young Living"}
+              placeholder={t("settings.profile.signaturePlaceholder")}
               style={{
                 ...inputStyle,
                 resize: "vertical",
@@ -474,8 +470,7 @@ export default function SettingsPage() {
               }}
             />
             <div style={{ fontSize: "11px", color: C.muted, marginTop: "4px" }}>
-              Apare la finalul emailurilor trimise clienților (ofertă și
-              follow-up). Lasă gol pentru mesajul standard.
+              {t("settings.profile.signatureHint")}
             </div>
           </div>
 
@@ -487,7 +482,7 @@ export default function SettingsPage() {
             }}
           >
             <div>
-              <label style={labelStyle}>Țara</label>
+              <label style={labelStyle}>{t("settings.profile.countryLabel")}</label>
               <select
                 value={profile.country_code}
                 onChange={(e) =>
@@ -522,7 +517,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label style={labelStyle}>Zile până la reminder follow-up</label>
+            <label style={labelStyle}>{t("settings.profile.followupDaysLabel")}</label>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <input
                 type="number"
@@ -540,8 +535,7 @@ export default function SettingsPage() {
               <span
                 style={{ fontSize: "12px", color: C.muted, lineHeight: 1.4 }}
               >
-                zile — influențează când reapar contactele în Agenda din
-                Dashboard, dacă nu au primit o ofertă în acest interval
+                {t("settings.profile.followupDaysHint")}
               </span>
             </div>
           </div>
@@ -577,7 +571,7 @@ export default function SettingsPage() {
                     color: C.dark,
                   }}
                 >
-                  🌿 Daily Focus Email
+                  {t("settings.focus.title")}
                 </div>
                 <div
                   style={{
@@ -587,8 +581,7 @@ export default function SettingsPage() {
                     lineHeight: 1.4,
                   }}
                 >
-                  În fiecare dimineață primești pe email contactele care merită
-                  atenția ta azi. Dacă nu e nimic de făcut, nu primești nimic.
+                  {t("settings.focus.desc")}
                 </div>
               </div>
               <button
@@ -628,7 +621,7 @@ export default function SettingsPage() {
 
             {profile.daily_focus_enabled && (
               <div style={{ marginTop: "12px" }}>
-                <label style={labelStyle}>Ora trimiterii</label>
+                <label style={labelStyle}>{t("settings.focus.hourLabel")}</label>
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "12px" }}
                 >
@@ -653,7 +646,7 @@ export default function SettingsPage() {
                       lineHeight: 1.4,
                     }}
                   >
-                    ora locală ({Intl.DateTimeFormat().resolvedOptions().timeZone})
+                    {t("settings.focus.localTime", { tz: Intl.DateTimeFormat().resolvedOptions().timeZone })}
                   </span>
                 </div>
 
@@ -679,7 +672,7 @@ export default function SettingsPage() {
                     }}
                   >
                     <i className="ti ti-send" style={{ fontSize: "15px" }} />
-                    {focusTesting ? "Se trimite..." : "Trimite-mi o probă acum"}
+                    {focusTesting ? t("settings.focus.sending") : t("settings.focus.sendTest")}
                   </button>
                   <div
                     style={{
@@ -689,8 +682,7 @@ export default function SettingsPage() {
                       lineHeight: 1.4,
                     }}
                   >
-                    Trimite imediat emailul Daily Focus pe adresa ta de login, ca
-                    să vezi cum arată (ignoră ora aleasă).
+                    {t("settings.focus.testHint")}
                   </div>
                   {focusTestMsg && (
                     <div
@@ -750,7 +742,7 @@ export default function SettingsPage() {
               color: C.green,
             }}
           >
-            ✅ Salvat cu succes!
+            ✅ {t("settings.savedSuccess")}
           </div>
         )}
 
@@ -773,7 +765,7 @@ export default function SettingsPage() {
             cursor: saving ? "not-allowed" : "pointer",
           }}
         >
-          {saving ? "Se salvează..." : "Salvează modificările"}
+          {saving ? t("settings.saving") : t("settings.saveChanges")}
         </button>
       </div>
 
@@ -797,7 +789,7 @@ export default function SettingsPage() {
             marginBottom: "16px",
           }}
         >
-          🔐 Cont
+          {t("settings.account.heading")}
         </div>
 
         <div
@@ -809,7 +801,7 @@ export default function SettingsPage() {
             borderBottom: `1px solid ${C.border}`,
           }}
         >
-          <span style={{ fontSize: "13px", color: C.muted }}>Email login</span>
+          <span style={{ fontSize: "13px", color: C.muted }}>{t("settings.account.emailLogin")}</span>
           <span style={{ fontSize: "13px", color: C.dark, fontWeight: 500 }}>
             {user?.email}
           </span>
@@ -823,7 +815,7 @@ export default function SettingsPage() {
             padding: "10px 0",
           }}
         >
-          <span style={{ fontSize: "13px", color: C.muted }}>Cont creat</span>
+          <span style={{ fontSize: "13px", color: C.muted }}>{t("settings.account.created")}</span>
           <span style={{ fontSize: "13px", color: C.dark }}>
             {user?.created_at
               ? new Date(user.created_at).toLocaleDateString(uiLocale(i18n.language))
@@ -842,13 +834,13 @@ export default function SettingsPage() {
           }}
         >
           <Link to="/legal/terms" style={{ color: C.primary }}>
-            Termeni
+            {t("settings.account.terms")}
           </Link>
           <Link to="/legal/privacy" style={{ color: C.primary }}>
-            Confidențialitate
+            {t("settings.account.privacy")}
           </Link>
           <Link to="/legal/cookies" style={{ color: C.primary }}>
-            Cookie-uri
+            {t("settings.account.cookies")}
           </Link>
         </div>
       </div>
@@ -873,7 +865,7 @@ export default function SettingsPage() {
             marginBottom: "16px",
           }}
         >
-          💳 Abonament
+          {t("settings.subscription.heading")}
         </div>
 
         {upgradeResult === "success" && (
@@ -888,7 +880,7 @@ export default function SettingsPage() {
               color: C.green,
             }}
           >
-            ✅ Mulțumim! Abonamentul tău este activ.
+            ✅ {t("settings.subscription.thanksActive")}
           </div>
         )}
 
@@ -910,29 +902,29 @@ export default function SettingsPage() {
           <div>
             <div style={{ fontSize: "14px", fontWeight: 600, color: C.dark }}>
               {sub.isAdmin
-                ? "Cont administrator"
+                ? t("settings.subscription.adminAccount")
                 : sub.freeAccess
-                  ? "Acces gratuit"
+                  ? t("settings.subscription.freeAccess")
                   : sub.isActive
                     ? PLAN.name
                     : sub.isTrialing
-                      ? "Perioadă gratuită"
-                      : "Fără abonament"}
+                      ? t("settings.subscription.trial")
+                      : t("settings.subscription.none")}
             </div>
             <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>
               {sub.isAdmin
-                ? "Acces complet, fără abonament."
+                ? t("settings.subscription.adminDesc")
                 : sub.freeAccess
-                  ? "Acces oferit de echipă, fără plată."
+                  ? t("settings.subscription.freeDesc")
                   : sub.isActive
-                    ? "Abonament activ."
+                    ? t("settings.subscription.activeDesc")
                     : sub.isPastDue
-                      ? "Plata a eșuat — actualizează metoda de plată."
+                      ? t("settings.subscription.pastDue")
                       : sub.isTrialing
                         ? sub.daysLeft === 1
-                          ? "Expiră mâine."
-                          : `${sub.daysLeft} zile rămase.`
-                        : "Perioada gratuită s-a încheiat."}
+                          ? t("settings.subscription.expiresTomorrow")
+                          : t("settings.subscription.daysLeft", { days: sub.daysLeft })
+                        : t("settings.subscription.trialEnded")}
             </div>
           </div>
           <span
@@ -946,7 +938,7 @@ export default function SettingsPage() {
               whiteSpace: "nowrap",
             }}
           >
-            {sub.hasAccess ? "Acces activ" : "Acces blocat"}
+            {sub.hasAccess ? t("settings.subscription.accessActive") : t("settings.subscription.accessBlocked")}
           </span>
         </div>
 
@@ -985,7 +977,7 @@ export default function SettingsPage() {
               cursor: portalLoading ? "not-allowed" : "pointer",
             }}
           >
-            {portalLoading ? "Se deschide..." : "Gestionează abonamentul"}
+            {portalLoading ? t("settings.subscription.opening") : t("settings.subscription.manage")}
           </button>
         ) : (
           <>
@@ -1018,7 +1010,7 @@ export default function SettingsPage() {
                 cursor: upgradeLoading ? "not-allowed" : "pointer",
               }}
             >
-              {upgradeLoading ? "Se deschide..." : "Abonează-te"}
+              {upgradeLoading ? t("settings.subscription.opening") : t("settings.subscription.subscribe")}
             </button>
             <div
               style={{
@@ -1028,7 +1020,7 @@ export default function SettingsPage() {
                 marginTop: "10px",
               }}
             >
-              Ai un cod de lansare? Îl introduci la pasul de plată.
+              {t("settings.subscription.launchCode")}
             </div>
           </>
         )}
@@ -1054,7 +1046,7 @@ export default function SettingsPage() {
             marginBottom: "6px",
           }}
         >
-          📦 Datele tale
+          {t("settings.data.heading")}
         </div>
         <div
           style={{
@@ -1064,7 +1056,7 @@ export default function SettingsPage() {
             lineHeight: 1.5,
           }}
         >
-          Descarcă o copie a datelor tale oricând.
+          {t("settings.data.desc")}
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <button
@@ -1084,7 +1076,7 @@ export default function SettingsPage() {
               cursor: exporting ? "not-allowed" : "pointer",
             }}
           >
-            ⬇️ Export contacte (CSV)
+            {t("settings.data.exportCsv")}
           </button>
           <button
             onClick={exportAccountJson}
@@ -1103,7 +1095,7 @@ export default function SettingsPage() {
               cursor: exporting ? "not-allowed" : "pointer",
             }}
           >
-            ⬇️ Toate datele (JSON)
+            {t("settings.data.exportJson")}
           </button>
         </div>
       </div>
@@ -1128,28 +1120,28 @@ export default function SettingsPage() {
             marginBottom: "16px",
           }}
         >
-          🔑 Schimbă parola
+          {t("settings.password.heading")}
         </div>
 
         <div style={{ display: "grid", gap: "14px" }}>
           <div>
-            <label style={labelStyle}>Parolă nouă</label>
+            <label style={labelStyle}>{t("settings.password.newLabel")}</label>
             <input
               type="password"
               value={pw1}
               onChange={(e) => setPw1(e.target.value)}
-              placeholder="Minim 6 caractere"
+              placeholder={t("settings.password.newPlaceholder")}
               autoComplete="new-password"
               style={inputStyle}
             />
           </div>
           <div>
-            <label style={labelStyle}>Confirmă parola</label>
+            <label style={labelStyle}>{t("settings.password.confirmLabel")}</label>
             <input
               type="password"
               value={pw2}
               onChange={(e) => setPw2(e.target.value)}
-              placeholder="Repetă parola nouă"
+              placeholder={t("settings.password.confirmPlaceholder")}
               autoComplete="new-password"
               style={inputStyle}
             />
@@ -1184,7 +1176,7 @@ export default function SettingsPage() {
               color: C.green,
             }}
           >
-            ✅ Parola a fost schimbată!
+            ✅ {t("settings.password.changed")}
           </div>
         )}
 
@@ -1208,7 +1200,7 @@ export default function SettingsPage() {
             cursor: pwSaving || !pw1 || !pw2 ? "not-allowed" : "pointer",
           }}
         >
-          {pwSaving ? "Se schimbă..." : "Schimbă parola"}
+          {pwSaving ? t("settings.password.changing") : t("settings.password.submit")}
         </button>
       </div>
 
@@ -1231,11 +1223,11 @@ export default function SettingsPage() {
             marginBottom: "16px",
           }}
         >
-          ⚠️ Zona de pericol
+          {t("settings.danger.heading")}
         </div>
         <button
           onClick={() => {
-            if (confirm("Ești sigur că vrei să ieși din cont?")) signOut();
+            if (confirm(t("settings.danger.signOutConfirm"))) signOut();
           }}
           style={{
             width: "100%",
@@ -1251,7 +1243,7 @@ export default function SettingsPage() {
             marginBottom: "20px",
           }}
         >
-          🚪 Ieși din cont
+          {t("settings.danger.signOut")}
         </button>
 
         {/* Ștergere definitivă cont */}
@@ -1262,7 +1254,7 @@ export default function SettingsPage() {
           }}
         >
           <div style={{ fontSize: "13px", fontWeight: 600, color: C.dark }}>
-            Șterge definitiv contul
+            {t("settings.danger.deleteTitle")}
           </div>
           <div
             style={{
@@ -1273,18 +1265,18 @@ export default function SettingsPage() {
               marginBottom: "12px",
             }}
           >
-            Se șterg definitiv toate contactele, ofertele, resursele și datele
-            tale. Acțiunea nu poate fi anulată. (Facturile se păstrează conform
-            legii contabile.)
+            {t("settings.danger.deleteDesc")}
           </div>
 
           <label style={{ ...labelStyle, color: C.red }}>
-            Scrie <strong>STERGE</strong> ca să confirmi
+            {t("settings.danger.deleteConfirmPre")}{" "}
+            <strong>{t("settings.danger.deleteKeyword")}</strong>{" "}
+            {t("settings.danger.deleteConfirmPost")}
           </label>
           <input
             value={deleteConfirm}
             onChange={(e) => setDeleteConfirm(e.target.value)}
-            placeholder="STERGE"
+            placeholder={t("settings.danger.deleteKeyword")}
             style={{
               ...inputStyle,
               border: "1.5px solid rgba(201,79,106,0.35)",
@@ -1306,19 +1298,17 @@ export default function SettingsPage() {
           <button
             onClick={() => {
               if (
-                confirm(
-                  "Ești absolut sigur? Toate datele tale vor fi șterse definitiv.",
-                )
+                confirm(t("settings.danger.deleteFinalConfirm"))
               )
                 deleteAccount();
             }}
-            disabled={deleteConfirm.trim() !== "STERGE" || deleting}
+            disabled={deleteConfirm.trim() !== t("settings.danger.deleteKeyword") || deleting}
             style={{
               marginTop: "12px",
               width: "100%",
               padding: "12px",
               background:
-                deleteConfirm.trim() === "STERGE" && !deleting
+                deleteConfirm.trim() === t("settings.danger.deleteKeyword") && !deleting
                   ? C.red
                   : "#E5D5DA",
               border: "none",
@@ -1328,12 +1318,12 @@ export default function SettingsPage() {
               fontSize: "13px",
               fontWeight: 600,
               cursor:
-                deleteConfirm.trim() === "STERGE" && !deleting
+                deleteConfirm.trim() === t("settings.danger.deleteKeyword") && !deleting
                   ? "pointer"
                   : "not-allowed",
             }}
           >
-            {deleting ? "Se șterge contul..." : "🗑️ Șterge contul definitiv"}
+            {deleting ? t("settings.danger.deleting") : t("settings.danger.deleteBtn")}
           </button>
         </div>
       </div>

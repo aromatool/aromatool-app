@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import { useProducts, useExchangeRate, useProductCountries } from "../hooks/useProducts";
 import { useCartStore } from "../hooks/useCartStore";
 import { useSendEmail, buildEmailHtml } from "../hooks/useSendEmail";
@@ -32,11 +34,12 @@ const C = {
 
 // ── SEARCH SECTION ────────────────────────────────────────
 function SearchSection() {
+  const { t: tr } = useTranslation();
   const [query, setQuery] = useState("");
   const catalogCountry = useCartStore((s) => s.catalogCountry);
   const { data: products, isLoading, error } = useProducts(catalogCountry);
   const { data: rateData } = useExchangeRate();
-  const { addItem, items, setExchangeRate, currency } = useCartStore();
+  const { addItem, items, setExchangeRate, currency, catalogCurrency, setCatalogCurrency } = useCartStore();
   const { convertFromBase, formatAmount } = useExchangeRates();
   const activeCurrency = currency || "RON";
 
@@ -44,6 +47,18 @@ function SearchSection() {
   useEffect(() => {
     if (rateData?.rate) setExchangeRate(rateData.rate);
   }, [rateData?.rate]);
+
+  // Sincronizează moneda de bază a catalogului din produsele încărcate, chiar
+  // ÎNAINTE de a adăuga ceva în coș. Altfel, cu coșul gol, baza rămâne pe
+  // default (EUR) iar cursul manual (ancorat la moneda catalogului) nu s-ar
+  // reflecta în lista de produse. Doar când coșul e gol — la coș plin baza e
+  // deja fixată de addItem și nu o suprascriem (nu amestecăm cataloage).
+  useEffect(() => {
+    if (products && products.length > 0 && items.length === 0) {
+      const c = products[0].currency || "EUR";
+      if (c !== catalogCurrency) setCatalogCurrency(c);
+    }
+  }, [products, items.length, catalogCurrency, setCatalogCurrency]);
 
   const results = useMemo(() => {
     if (!products) return [];
@@ -79,7 +94,7 @@ function SearchSection() {
           }}
         />
         <div style={{ fontSize: "13px", color: C.muted }}>
-          Se încarcă produsele...
+          {tr("calculator.loadingProducts")}
         </div>
       </div>
     );
@@ -100,7 +115,7 @@ function SearchSection() {
           style={{ fontSize: "20px", color: C.red, display: "block", marginBottom: "6px" }}
         />
         <div style={{ fontSize: "13px", color: C.red, marginBottom: "8px" }}>
-          Eroare la încărcarea produselor
+          {tr("calculator.loadError")}
         </div>
         <div
           style={{
@@ -110,7 +125,7 @@ function SearchSection() {
             wordBreak: "break-all",
           }}
         >
-          {error ? (error as Error).message : "Date indisponibile"}
+          {error ? (error as Error).message : tr("calculator.dataUnavailable")}
         </div>
         <button
           onClick={() => window.location.reload()}
@@ -125,7 +140,7 @@ function SearchSection() {
             fontFamily: "'DM Sans', sans-serif",
           }}
         >
-          Reîncearcă
+          {tr("calculator.retry")}
         </button>
       </div>
     );
@@ -149,7 +164,7 @@ function SearchSection() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Caută după nume sau cod..."
+          placeholder={tr("calculator.searchPlaceholder")}
           style={{
             width: "100%",
             padding: "11px 40px 11px 38px",
@@ -202,7 +217,7 @@ function SearchSection() {
               fontSize: "13px",
             }}
           >
-            Niciun rezultat
+            {tr("calculator.noResults")}
           </div>
         ) : (
           results.map((p: Product) => {
@@ -245,7 +260,7 @@ function SearchSection() {
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", color: C.muted }}>
                       <i className="ti ti-star" style={{ fontSize: "11px" }} />
-                      {p.points} pct
+                      {p.points} {tr("calculator.points")}
                     </span>
                   </div>
                 </div>
@@ -303,6 +318,7 @@ function SearchSection() {
 
 // ── CART SECTION ──────────────────────────────────────────
 function CartSection() {
+  const { t: tr } = useTranslation();
   const {
     items,
     transport,
@@ -332,7 +348,7 @@ function CartSection() {
     getTotalPoints,
     getCount,
   } = useCartStore();
-  const { convertFromBase, formatAmount, getRate } = useExchangeRates();
+  const { convertFromBase, formatAmount, effectiveRate } = useExchangeRates();
   // Moneda de bază a ofertei (în care sunt stocate prețurile `price_eur`).
   const baseCurrency = catalogCurrency || "EUR";
 
@@ -369,10 +385,10 @@ function CartSection() {
   }, [sendSuccess, setSendSuccess]);
 
   const activeCurrency = currency || "RON";
-  // Factor de conversie bază → afișare (NErotunjit — cursurile sunt „per EUR”,
-  // deci base→display = rate(display)/rate(base)). Pentru baza EUR e identic
-  // cu vechiul getRate(display), deci compatibil înapoi.
-  const displayRate = getRate(activeCurrency) / (getRate(baseCurrency) || 1);
+  // Factor de conversie bază → afișare (NErotunjit). Ține cont de cursul manual
+  // (interpretat „per 1 unitate din moneda catalogului"). Acest factor merge și
+  // în email și în oferta salvată (exchange_rate).
+  const displayRate = effectiveRate(baseCurrency, activeCurrency);
   // Limba emailului către client. Implicit = limba contactului (din prefill)
   // sau, în lipsa ei, limba pieței catalogului (RO → română; restul → engleză).
   // Liderul o poate schimba din selectorul de mai jos.
@@ -398,14 +414,16 @@ function CartSection() {
         return `• ${i.name}${qty}${disc} — ${formatAmount(lineTotalDisplay, activeCurrency)}`;
       })
       .join("\n");
-    const salut = clientName ? `Bună ${clientName}! 🌿` : "Bună! 🌿";
-    let msg = `${salut}\n\nOferta ta personalizată:\n\n${produse}`;
+    const salut = clientName
+      ? i18n.t("calculator.offerText.greetingNamed", { lng: offerLang, name: clientName })
+      : i18n.t("calculator.offerText.greeting", { lng: offerLang });
+    let msg = `${salut}\n\n${i18n.t("calculator.offerText.intro", { lng: offerLang })}\n\n${produse}`;
     if (transport > 0)
-      msg += `\n\n🚚 Transport: ${formatAmount(convertFromBase(transport, baseCurrency, activeCurrency), activeCurrency)}`;
-    msg += `\n${"─".repeat(25)}\n💚 Total: ${formatAmount(total, activeCurrency)}`;
+      msg += `\n\n${i18n.t("calculator.offerText.transport", { lng: offerLang, amount: formatAmount(convertFromBase(transport, baseCurrency, activeCurrency), activeCurrency) })}`;
+    msg += `\n${"─".repeat(25)}\n${i18n.t("calculator.offerText.total", { lng: offerLang, amount: formatAmount(total, activeCurrency) })}`;
     if (notes) msg += `\n\n📝 ${notes}`;
     if (enrollLink)
-      msg += `\n\n🔗 Link înscriere Young Living:\n${enrollLink}`;
+      msg += `\n\n${i18n.t("calculator.offerText.enrollLink", { lng: offerLang })}\n${enrollLink}`;
     return msg;
   }
 
@@ -470,7 +488,7 @@ function CartSection() {
             }}
           >
             <i className="ti ti-circle-check" style={{ fontSize: "18px" }} />
-            Oferta a fost trimisă către {successEmail}!
+            {tr("calculator.offerSentTo", { email: successEmail })}
           </div>
         )}
         <div
@@ -495,10 +513,10 @@ function CartSection() {
               marginBottom: "4px",
             }}
           >
-            Coșul e gol
+            {tr("calculator.cartEmpty")}
           </div>
           <div style={{ fontSize: "13px", color: C.muted }}>
-            Caută produse și adaugă-le
+            {tr("calculator.cartEmptyHint")}
           </div>
         </div>
       </>
@@ -614,7 +632,7 @@ function CartSection() {
                   marginLeft: "auto",
                 }}
               >
-                <span style={{ fontSize: "12px", color: C.muted }}>Disc.</span>
+                <span style={{ fontSize: "12px", color: C.muted }}>{tr("calculator.discountShort")}</span>
                 <input
                   type="number"
                   min={0}
@@ -652,12 +670,12 @@ function CartSection() {
             >
               <div>
                 <span style={{ fontSize: "11px", color: C.muted }}>
-                  {formatAmount(priceInCurrency, activeCurrency)}/buc
+                  {formatAmount(priceInCurrency, activeCurrency)}{tr("calculator.perPiece")}
                   {item.disc > 0 ? ` · −${item.disc}%` : ""}
                 </span>
                 {showEurSecondary && (
                   <div style={{ fontSize: "10px", color: C.muted }}>
-                    {formatAmount(priceEur, itemBase)}/buc
+                    {formatAmount(priceEur, itemBase)}{tr("calculator.perPiece")}
                   </div>
                 )}
               </div>
@@ -697,7 +715,7 @@ function CartSection() {
       >
         <i className="ti ti-truck" style={{ fontSize: "15px", color: C.muted }} />
         <span style={{ fontSize: "13px", color: C.muted, flex: 1 }}>
-          Cost transport
+          {tr("calculator.transportCost")}
         </span>
         <input
           type="number"
@@ -760,7 +778,7 @@ function CartSection() {
         }}
       >
         <i className={`ti ti-${showCustom ? "chevron-up" : "plus"}`} style={{ fontSize: "14px" }} />
-        {showCustom ? "Ascunde" : "Adaugă produs special"}
+        {showCustom ? tr("calculator.hide") : tr("calculator.addSpecialProduct")}
       </button>
 
       {showCustom && (
@@ -776,13 +794,12 @@ function CartSection() {
           <div
             style={{ fontSize: "11px", color: C.muted, marginBottom: "8px" }}
           >
-            Adaugă un produs care nu e în listă — introdu prețul în{" "}
-            <strong>{activeCurrency}</strong>
+            {tr("calculator.customProductHint", { currency: activeCurrency })}
           </div>
           <input
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
-            placeholder="Numele produsului"
+            placeholder={tr("calculator.productNamePlaceholder")}
             style={{
               width: "100%",
               marginBottom: "8px",
@@ -802,7 +819,7 @@ function CartSection() {
               type="number"
               value={customPrice}
               onChange={(e) => setCustomPrice(e.target.value)}
-              placeholder={`Preț ${activeCurrency}`}
+              placeholder={tr("calculator.pricePlaceholder", { currency: activeCurrency })}
               style={{
                 flex: 1,
                 padding: "8px 10px",
@@ -819,7 +836,7 @@ function CartSection() {
               type="number"
               value={customQty}
               onChange={(e) => setCustomQty(e.target.value)}
-              placeholder="Cant."
+              placeholder={tr("calculator.qtyPlaceholder")}
               min={1}
               style={{
                 width: "64px",
@@ -837,7 +854,7 @@ function CartSection() {
               type="number"
               value={customDisc}
               onChange={(e) => setCustomDisc(e.target.value)}
-              placeholder="Disc%"
+              placeholder={tr("calculator.discPlaceholder")}
               style={{
                 width: "70px",
                 padding: "8px 10px",
@@ -857,7 +874,7 @@ function CartSection() {
               const priceInCurrency = parseFloat(customPrice);
               // Validare preț: trebuie să fie un număr finit ≥ 0 (C3).
               if (!Number.isFinite(priceInCurrency) || priceInCurrency < 0) {
-                alert("Introduceți un preț valid (număr ≥ 0).");
+                alert(tr("calculator.invalidPrice"));
                 return;
               }
               // Stocăm prețul în moneda de bază a ofertei (catalogul curent).
@@ -892,7 +909,7 @@ function CartSection() {
             }}
           >
             <i className="ti ti-plus" style={{ fontSize: "14px" }} />
-            Adaugă în coș
+            {tr("calculator.addToCart")}
           </button>
         </div>
       )}
@@ -908,25 +925,25 @@ function CartSection() {
         }}
       >
         {[
-          { label: "Subtotal", value: formatAmount(subtotal, activeCurrency) },
+          { label: tr("calculator.totals.subtotal"), value: formatAmount(subtotal, activeCurrency) },
           ...(discountEur > 0
             ? [
                 {
-                  label: "Reduceri",
+                  label: tr("calculator.totals.discounts"),
                   value: `−${formatAmount(discount, activeCurrency)}`,
                   red: true,
                 },
               ]
             : []),
           ...(activeCurrency !== baseCurrency
-            ? [{ label: `Total ${baseCurrency}`, value: formatAmount(totalEur, baseCurrency) }]
+            ? [{ label: tr("calculator.totals.total", { currency: baseCurrency }), value: formatAmount(totalEur, baseCurrency) }]
             : []),
-          { label: "Puncte ER", value: `${Math.round(totalPoints)} pct` },
-          { label: "Produse", value: `${count}` },
+          { label: tr("calculator.totals.points"), value: `${Math.round(totalPoints)} ${tr("calculator.points")}` },
+          { label: tr("calculator.totals.products"), value: `${count}` },
           ...(transport > 0
             ? [
                 {
-                  label: "Transport",
+                  label: tr("calculator.totals.transport"),
                   value:
                     activeCurrency !== baseCurrency
                       ? `${formatAmount(convertFromBase(transport, baseCurrency, activeCurrency), activeCurrency)} · ${formatAmount(transport, baseCurrency)}`
@@ -969,7 +986,7 @@ function CartSection() {
               color: C.dark,
             }}
           >
-            Total de plată
+            {tr("calculator.totalToPay")}
           </span>
           <div style={{ textAlign: "right" }}>
             <div
@@ -1015,13 +1032,13 @@ function CartSection() {
           }}
         >
           <i className="ti ti-mail" style={{ fontSize: "13px" }} />
-          Trimite oferta clientului
+          {tr("calculator.sendOfferToClient")}
         </div>
         <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
           <input
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
-            placeholder="Numele clientului"
+            placeholder={tr("calculator.clientNamePlaceholder")}
             style={{
               flex: 1,
               padding: "10px 12px",
@@ -1037,7 +1054,7 @@ function CartSection() {
           <input
             value={clientPhone}
             onChange={(e) => setClientPhone(e.target.value)}
-            placeholder="Telefon"
+            placeholder={tr("calculator.phonePlaceholder")}
             style={{
               flex: 1,
               padding: "10px 12px",
@@ -1054,7 +1071,7 @@ function CartSection() {
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notițe personalizate (opțional)..."
+          placeholder={tr("calculator.notesPlaceholder")}
           rows={3}
           style={{
             width: "100%",
@@ -1092,7 +1109,7 @@ function CartSection() {
             }}
           >
             <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
-            + Adaugă resursă
+            {tr("calculator.addResource")}
             {selectedResourceIds.length > 0 && ` (${selectedResourceIds.length})`}
           </button>
 
@@ -1117,7 +1134,7 @@ function CartSection() {
                     padding: "12px",
                   }}
                 >
-                  Nu ai resurse încă. Adaugă-le din pagina „Resurse".
+                  {tr("calculator.noResources")}
                 </div>
               ) : (
                 resources.map((r) => {
@@ -1219,7 +1236,7 @@ function CartSection() {
                     </span>
                     <button
                       onClick={() => toggleResource(id)}
-                      title="Elimină"
+                      title={tr("calculator.removeResource")}
                       style={{
                         background: "none",
                         border: "none",
@@ -1247,7 +1264,7 @@ function CartSection() {
               marginBottom: "4px",
             }}
           >
-            Limba emailului
+            {tr("calculator.emailLanguage")}
           </label>
           <select
             value={offerLang}
@@ -1264,8 +1281,8 @@ function CartSection() {
               cursor: "pointer",
             }}
           >
-            <option value="ro">Română</option>
-            <option value="en">Engleză</option>
+            <option value="ro">{tr("calculator.langRo")}</option>
+            <option value="en">{tr("calculator.langEn")}</option>
           </select>
         </div>
 
@@ -1274,7 +1291,7 @@ function CartSection() {
             type="email"
             value={clientEmail}
             onChange={(e) => setClientEmail(e.target.value)}
-            placeholder="email@client.com"
+            placeholder={tr("calculator.emailPlaceholder")}
             style={{
               flex: 1,
               padding: "10px 12px",
@@ -1338,8 +1355,8 @@ function CartSection() {
             }}
           >
             {sending
-              ? <><i className="ti ti-loader-2" style={{ fontSize: "14px" }} /> Se trimite...</>
-              : <><i className="ti ti-send" style={{ fontSize: "14px" }} /> Trimite</>
+              ? <><i className="ti ti-loader-2" style={{ fontSize: "14px" }} /> {tr("calculator.sending")}</>
+              : <><i className="ti ti-send" style={{ fontSize: "14px" }} /> {tr("calculator.send")}</>
             }
           </button>
         </div>
@@ -1367,7 +1384,7 @@ function CartSection() {
           }}
         >
           <i className="ti ti-eye" style={{ fontSize: "14px" }} />
-          Previzualizează emailul înainte de trimitere
+          {tr("calculator.previewBeforeSend")}
         </button>
 
         {clientEmail.includes("@noemail.local") && (
@@ -1386,7 +1403,7 @@ function CartSection() {
             }}
           >
             <i className="ti ti-alert-triangle" style={{ fontSize: "14px", flexShrink: 0, marginTop: "1px" }} />
-            Acest contact nu are email. Adaugă un email valid ca să poți trimite oferta.
+            {tr("calculator.noEmailWarning")}
           </div>
         )}
 
@@ -1432,7 +1449,7 @@ function CartSection() {
               }}
             >
               <i className="ti ti-circle-check" style={{ fontSize: "18px" }} />
-              Oferta a fost trimisă către {successEmail || clientEmail}!
+              {tr("calculator.offerSentTo", { email: successEmail || clientEmail })}
             </div>
             <button
               onClick={() => setSendSuccess(false)}
@@ -1454,7 +1471,7 @@ function CartSection() {
               }}
             >
               <i className="ti ti-plus" style={{ fontSize: "14px" }} />
-              Creează ofertă nouă
+              {tr("calculator.createNewOffer")}
             </button>
           </div>
         )}
@@ -1494,7 +1511,7 @@ function CartSection() {
           }}
         >
           <i className="ti ti-message-2-share" style={{ fontSize: "15px" }} />
-          Oferta ca mesaj text
+          {tr("calculator.offerAsText")}
           <i
             className={showOfferText ? "ti ti-chevron-up" : "ti ti-chevron-down"}
             style={{ fontSize: "14px", marginLeft: "auto", opacity: 0.6 }}
@@ -1529,7 +1546,7 @@ function CartSection() {
                   letterSpacing: "0.06em",
                 }}
               >
-                Editează, apoi copiază pe orice canal
+                {tr("calculator.editThenCopy")}
               </span>
               <button
                 onClick={() => setOfferText(buildOfferText())}
@@ -1548,7 +1565,7 @@ function CartSection() {
                 }}
               >
                 <i className="ti ti-refresh" style={{ fontSize: "13px" }} />
-                Regenerează din coș
+                {tr("calculator.regenerateFromCart")}
               </button>
             </div>
             <textarea
@@ -1597,11 +1614,11 @@ function CartSection() {
                   className={offerTextCopied ? "ti ti-check" : "ti ti-copy"}
                   style={{ fontSize: "15px" }}
                 />
-                {offerTextCopied ? "Text copiat!" : "Copiază textul ofertei"}
+                {offerTextCopied ? tr("calculator.textCopied") : tr("calculator.copyOfferText")}
               </button>
               <button
                 onClick={sendOfferWhatsApp}
-                title="Trimite pe WhatsApp"
+                title={tr("calculator.enroll.sendWhatsApp")}
                 style={{
                   flex: 1,
                   padding: "10px",
@@ -1620,7 +1637,7 @@ function CartSection() {
                 }}
               >
                 <i className="ti ti-brand-whatsapp" style={{ fontSize: "16px" }} />
-                WhatsApp
+                {tr("calculator.whatsapp")}
               </button>
             </div>
           </div>
@@ -1656,7 +1673,7 @@ function CartSection() {
           onMouseLeave={(e) => (e.currentTarget.style.color = C.muted)}
         >
           <i className="ti ti-trash" style={{ fontSize: "14px" }} />
-          Golește coșul
+          {tr("calculator.clearCart")}
         </button>
       </div>
 
@@ -1721,7 +1738,7 @@ function CartSection() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <i className="ti ti-eye" style={{ fontSize: '18px', color: 'white' }} />
                   <span style={{ color: 'white', fontFamily: "'DM Sans', sans-serif", fontSize: '15px', fontWeight: 600 }}>
-                    Preview email ofertă
+                    {tr("calculator.previewEmailTitle")}
                   </span>
                 </div>
                 <button
@@ -1735,13 +1752,13 @@ function CartSection() {
                   }}
                 >
                   <i className="ti ti-x" style={{ fontSize: '14px' }} />
-                  Închide
+                  {tr("calculator.close")}
                 </button>
               </div>
               {/* Iframe email */}
               <iframe
                 srcDoc={previewHtml}
-                title="Preview email"
+                title={tr("calculator.previewEmailFrame")}
                 style={{
                   flex: 1, border: 'none',
                   borderRadius: '16px',
@@ -1774,10 +1791,13 @@ const COUNTRY_LABELS: Record<string, string> = {
   PT: "🇵🇹 Portugalia",
   FI: "🇫🇮 Finlanda",
   GB: "🇬🇧 UK",
+  MD: "🇲🇩 Moldova",
+  UA: "🇺🇦 Ucraina",
   US: "🇺🇸 SUA",
 };
 
 function CatalogSelector() {
+  const { t: tr } = useTranslation();
   const catalogCountry = useCartStore((s) => s.catalogCountry);
   const setCatalogCountry = useCartStore((s) => s.setCatalogCountry);
   const itemCount = useCartStore((s) => s.items.length);
@@ -1818,7 +1838,7 @@ function CatalogSelector() {
     >
       <i className="ti ti-map-pin" style={{ fontSize: 17, color: C.primary }} />
       <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
-        Catalog produse
+        {tr("calculator.catalog.label")}
       </div>
       <select
         value={catalogCountry}
@@ -1839,7 +1859,7 @@ function CatalogSelector() {
       >
         {options.map((code) => (
           <option key={code} value={code}>
-            {COUNTRY_LABELS[code] || code}
+            {tr(`calculator.countries.${code}`, { defaultValue: COUNTRY_LABELS[code] || code })}
           </option>
         ))}
       </select>
@@ -1849,6 +1869,7 @@ function CatalogSelector() {
 
 // ── MAIN PAGE ─────────────────────────────────────────────
 export default function CalculatorPage() {
+  const { t: tr } = useTranslation();
   const {
     getCount, items, clientName, clearCart,
     setClientName, setClientEmail, setClientPhone, setPrefillContactId, setOfferLang,
@@ -1912,12 +1933,13 @@ export default function CalculatorPage() {
           <i className="ti ti-shopping-cart" style={{ fontSize: 18, color: C.amber, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
-              Ai o ofertă în curs —{" "}
-              {count} {count === 1 ? "produs" : "produse"}
-              {clientName ? ` pentru ${clientName}` : ""}
+              {tr("calculator.draftBanner.title", {
+                count,
+                forName: clientName ? tr("calculator.draftBanner.forName", { name: clientName }) : "",
+              })}
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-              Continuă de unde ai rămas sau începe o ofertă nouă.
+              {tr("calculator.draftBanner.subtitle")}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -1939,7 +1961,7 @@ export default function CalculatorPage() {
               }}
             >
               <i className="ti ti-arrow-right" style={{ fontSize: 14 }} />
-              Continuă oferta
+              {tr("calculator.draftBanner.continue")}
             </button>
             <button
               onClick={handleNewOffer}
@@ -1959,7 +1981,7 @@ export default function CalculatorPage() {
               }}
             >
               <i className="ti ti-plus" style={{ fontSize: 14 }} />
-              Ofertă nouă
+              {tr("calculator.draftBanner.newOffer")}
             </button>
           </div>
         </div>
@@ -1988,7 +2010,7 @@ export default function CalculatorPage() {
             }}
           >
             <i className="ti ti-search" style={{ fontSize: "17px", color: C.primary }} />
-            Caută produse
+            {tr("calculator.searchTitle")}
           </div>
           <SearchSection />
         </div>
@@ -2008,7 +2030,7 @@ export default function CalculatorPage() {
             }}
           >
             <i className="ti ti-shopping-cart" style={{ fontSize: "17px", color: C.primary }} />
-            Coș
+            {tr("calculator.cartTitle")}
             {count > 0 && (
               <span
                 style={{
@@ -2045,12 +2067,12 @@ export default function CalculatorPage() {
             {
               key: "search",
               icon: "ti-search",
-              label: "Caută",
+              label: tr("calculator.tabSearch"),
             },
             {
               key: "cart",
               icon: "ti-shopping-cart",
-              label: `Coș${count > 0 ? ` (${count})` : ""}`,
+              label: tr("calculator.tabCart", { count: count > 0 ? ` (${count})` : "" }),
             },
           ].map((tab) => (
             <button

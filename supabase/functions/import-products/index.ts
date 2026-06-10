@@ -36,6 +36,8 @@ const CULTURE_BY_COUNTRY: Record<string, string> = {
   PT: 'en-GB', // pt-PT → nume goale
   FI: 'fi-FI',
   GB: 'en-GB', // UK — prețuri în GBP (vezi moneda din răspuns)
+  MD: 'ro-RO', // Moldova — prețuri fără TVA (0%), nume în română
+  UA: 'en-GB', // Ucraina — prețuri fără TVA (0%), nume în engleză
 }
 
 const corsHeaders = {
@@ -61,6 +63,7 @@ const CURRENCY_BY_COUNTRY: Record<string, string> = {
   RO: 'EUR', DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR',
   BE: 'EUR', AT: 'EUR', IE: 'EUR', PT: 'EUR', FI: 'EUR',
   GB: 'GBP',
+  MD: 'EUR', UA: 'EUR',
 }
 
 function extractCurrency(it: YlItem): string | null {

@@ -122,6 +122,8 @@
   "countryPT": "🇵🇹 Portugalia (nume EN)",
   "countryFI": "🇫🇮 Finlanda (nume FI)",
   "countryGB": "🇬🇧 UK (nume EN · prețuri £ GBP)",
+  "countryMD": "🇲🇩 Moldova (nume RO · prețuri fără TVA)",
+  "countryUA": "🇺🇦 Ucraina (nume EN · prețuri fără TVA)",
   "syncing": "Se sincronizează…",
   "syncCatalog": "Sincronizează catalogul {{country}}",
   "errorsDesc": "Ultimele erori din sistemele automate (Daily Focus și import catalog). Dacă lista e goală, totul a rulat curat.",

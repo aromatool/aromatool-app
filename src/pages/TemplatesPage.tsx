@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { EMAIL_HEADER_HTML } from "../lib/emailLogo";
@@ -24,37 +25,23 @@ const C = {
   redbg: "#FFF0F4",
 };
 
+// Variabilele inserabile — eticheta descriptivă vine din i18n (templates.variables.<id>).
 const VARIABLES = [
-  { key: "{{nume}}", desc: "Numele clientului" },
-  { key: "{{zile}}", desc: "Zile de la ultima ofertă" },
-  { key: "{{produse}}", desc: "Lista produselor din ofertă" },
-  { key: "{{total}}", desc: "Totalul ofertei" },
-  { key: "{{distribuitor}}", desc: "Numele tău" },
-  { key: "{{telefon}}", desc: "Telefonul tău" },
+  { key: "{{nume}}", id: "nume" },
+  { key: "{{zile}}", id: "zile" },
+  { key: "{{produse}}", id: "produse" },
+  { key: "{{total}}", id: "total" },
+  { key: "{{distribuitor}}", id: "distribuitor" },
+  { key: "{{telefon}}", id: "telefon" },
 ];
 
 // Tab-uri pe ACȚIUNE (legate de Recommended Action), nu pe status/zile.
+// Label/desc vin din i18n (templates.tabs.<key>.label / .desc).
 const TABS = [
-  {
-    key: "needs_offer",
-    label: "📨 Prima ofertă",
-    desc: "Mesaje pentru trimiterea primei oferte",
-  },
-  {
-    key: "needs_followup",
-    label: "🔄 Follow-up",
-    desc: "Mesaje de revenire după ofertă",
-  },
-  {
-    key: "reactivate",
-    label: "🌱 Reactivare",
-    desc: "Mesaje pentru contacte adormite",
-  },
-  {
-    key: "discuss_business",
-    label: "🤝 Business",
-    desc: "Mesaje despre oportunitatea de business",
-  },
+  { key: "needs_offer" },
+  { key: "needs_followup" },
+  { key: "reactivate" },
+  { key: "discuss_business" },
 ];
 
 interface Template {
@@ -129,6 +116,7 @@ function SystemMessageCard({
   userName: string;
   onPersonalize: (t: Template) => void;
 }) {
+  const { t: tr } = useTranslation();
   const { user } = useAuth();
   const meta = user?.user_metadata ?? {};
   const body = parseBody(template.body_html);
@@ -166,7 +154,7 @@ function SystemMessageCard({
                 fontWeight: 600,
               }}
             >
-              Sistem
+              {tr("templates.system")}
             </span>
           </div>
           <div style={{ fontSize: "11px", color: C.muted, marginTop: "3px" }}>
@@ -175,13 +163,13 @@ function SystemMessageCard({
         </div>
         <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
           <button onClick={() => setShowPreview(!showPreview)} style={ghostBtn}>
-            {showPreview ? "Ascunde" : "👁"}
+            {showPreview ? tr("templates.hide") : "👁"}
           </button>
           <button
             onClick={() => onPersonalize(template)}
             style={{ ...ghostBtn, color: C.primary, borderColor: C.border2 }}
           >
-            Personalizează
+            {tr("templates.personalize")}
           </button>
         </div>
       </div>
@@ -226,6 +214,7 @@ function TemplateEditor({
   onDelete: (id: string) => void;
   userName: string;
 }) {
+  const { t: tr } = useTranslation();
   const { user } = useAuth();
   const { resources } = useResources();
   const body = parseBody(template.body_html);
@@ -321,7 +310,7 @@ function TemplateEditor({
               fontWeight: 600,
             }}
           >
-            Al meu
+            {tr("templates.mine")}
           </span>
         </div>
         <div
@@ -342,7 +331,7 @@ function TemplateEditor({
               fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            {template.active ? "✓ Activ" : "✗ Oprit"}
+            {template.active ? tr("templates.active") : tr("templates.inactive")}
           </button>
           <button
             onClick={() => onDelete(template.id)}
@@ -356,7 +345,7 @@ function TemplateEditor({
               cursor: "pointer",
               fontFamily: "'DM Sans', sans-serif",
             }}
-            title="Șterge mesaj"
+            title={tr("templates.deleteTitle")}
           >
             🗑
           </button>
@@ -371,53 +360,53 @@ function TemplateEditor({
         <div style={{ padding: "0 16px 16px", borderTop: `1px solid ${C.border}` }}>
           <div style={{ marginTop: "14px" }}>
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Nume mesaj (doar pentru tine)</label>
+              <label style={labelStyle}>{tr("templates.nameLabel")}</label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="ex: Follow-up cald — varianta mea"
+                placeholder={tr("templates.namePlaceholderEdit")}
                 style={inputStyle}
               />
             </div>
 
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Subiect email</label>
+              <label style={labelStyle}>{tr("templates.subjectLabel")}</label>
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Subiectul emailului..."
+                placeholder={tr("templates.subjectPlaceholder")}
                 style={inputStyle}
               />
             </div>
 
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Titlu principal</label>
+              <label style={labelStyle}>{tr("templates.headlineLabel")}</label>
               <input
                 value={editBody.headline}
                 onChange={(e) =>
                   setEditBody((p) => ({ ...p, headline: e.target.value }))
                 }
-                placeholder="ex: Ai văzut oferta mea?"
+                placeholder={tr("templates.headlinePlaceholderEdit")}
                 style={inputStyle}
               />
             </div>
 
             <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>Mesajul principal</label>
+              <label style={labelStyle}>{tr("templates.bodyLabel")}</label>
               <textarea
                 value={editBody.intro}
                 rows={4}
                 onChange={(e) =>
                   setEditBody((p) => ({ ...p, intro: e.target.value }))
                 }
-                placeholder="ex: Bună {{nume}}, revin cu oferta trimisă acum {{zile}} zile..."
+                placeholder={tr("templates.bodyPlaceholderEdit")}
                 style={{ ...inputStyle, resize: "vertical" }}
               />
             </div>
 
             {/* ── MATERIALE IMPLICITE ── */}
             <div style={{ marginBottom: "14px" }}>
-              <label style={labelStyle}>Materiale atașate implicit</label>
+              <label style={labelStyle}>{tr("templates.attachLabel")}</label>
               <div
                 style={{
                   fontSize: "11px",
@@ -426,8 +415,7 @@ function TemplateEditor({
                   lineHeight: 1.5,
                 }}
               >
-                Apar automat ca butoane în email când trimiți acest mesaj
-                (le poți ajusta la trimitere).
+                {tr("templates.attachHint")}
               </div>
               <button
                 onClick={() => setShowResPicker((s) => !s)}
@@ -447,7 +435,7 @@ function TemplateEditor({
                 }}
               >
                 <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
-                Alege materiale
+                {tr("templates.chooseMaterials")}
                 {attachedIds.length > 0 && ` (${attachedIds.length})`}
               </button>
 
@@ -472,7 +460,7 @@ function TemplateEditor({
                         padding: "12px",
                       }}
                     >
-                      Nu ai resurse încă. Adaugă-le din pagina „Resurse".
+                      {tr("templates.noResources")}
                     </div>
                   ) : (
                     resources.map((r) => {
@@ -565,7 +553,7 @@ function TemplateEditor({
                         {r.title}
                         <button
                           onClick={() => toggleAttach(id)}
-                          aria-label="Scoate"
+                          aria-label={tr("templates.removeAria")}
                           style={{
                             background: "none",
                             border: "none",
@@ -602,7 +590,7 @@ function TemplateEditor({
                   cursor: "pointer",
                 }}
               >
-                {saving ? "Se salvează..." : saved ? "✅ Salvat!" : "Salvează mesajul"}
+                {saving ? tr("templates.saving") : saved ? tr("templates.saved") : tr("templates.saveMessage")}
               </button>
               <button
                 onClick={() => setShowPreview(!showPreview)}
@@ -617,7 +605,7 @@ function TemplateEditor({
                   cursor: "pointer",
                 }}
               >
-                {showPreview ? "Ascunde" : "👁 Preview"}
+                {showPreview ? tr("templates.hide") : tr("templates.preview")}
               </button>
             </div>
 
@@ -652,11 +640,12 @@ function TemplateEditor({
 }
 
 export default function TemplatesPage() {
+  const { t: tr } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("needs_offer");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("Distribuitorul tău");
+  const [userName, setUserName] = useState(tr("templates.defaultUserName"));
   const [showNewForm, setShowNewForm] = useState(false);
   const [addingSaving, setAddingSaving] = useState(false);
   const emptyNew = {
@@ -737,7 +726,7 @@ export default function TemplatesPage() {
   function personalize(t: Template) {
     const body = parseBody(t.body_html);
     setNewTemplate({
-      title: `${t.title || t.subject} (varianta mea)`,
+      title: `${t.title || t.subject} (${tr("templates.personalizedSuffix")})`,
       subject: t.subject,
       headline: body.headline,
       intro: body.intro,
@@ -766,7 +755,7 @@ export default function TemplatesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Ștergi acest mesaj?")) return;
+    if (!confirm(tr("templates.deleteConfirm"))) return;
     await supabase.from("followup_templates").delete().eq("id", id);
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   }
@@ -774,7 +763,6 @@ export default function TemplatesPage() {
   const tabTemplates = templates.filter((t) => t.trigger_action === activeTab);
   const systemMsgs = tabTemplates.filter((t) => t.user_id === null);
   const personalMsgs = tabTemplates.filter((t) => t.user_id !== null);
-  const currentTab = TABS.find((t) => t.key === activeTab)!;
 
   if (loading)
     return (
@@ -807,11 +795,10 @@ export default function TemplatesPage() {
             marginBottom: "6px",
           }}
         >
-          Mesaje
+          {tr("templates.title")}
         </div>
         <div style={{ fontSize: "13px", color: C.muted }}>
-          Mesaje recomandate în funcție de ce ai de făcut cu fiecare contact.
-          Folosește-le ca atare sau creează-ți propriile variante.
+          {tr("templates.subtitle")}
         </div>
       </div>
 
@@ -834,14 +821,14 @@ export default function TemplatesPage() {
             letterSpacing: "0.07em",
           }}
         >
-          Variabile disponibile — click pentru a copia
+          {tr("templates.variablesTitle")}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "6px" }}>
           {VARIABLES.map((v) => (
             <button
               key={v.key}
               onClick={() => navigator.clipboard.writeText(v.key)}
-              title={`Click să copiezi · ${v.desc}`}
+              title={tr("templates.variableCopyTitle", { desc: tr(`templates.variables.${v.id}`) })}
               style={{
                 padding: "4px 12px",
                 background: "white",
@@ -859,7 +846,7 @@ export default function TemplatesPage() {
           ))}
         </div>
         <div style={{ fontSize: "10px", color: C.muted }}>
-          Se înlocuiesc automat la trimitere — în subiect, titlu, mesaj și buton.
+          {tr("templates.variablesHint")}
         </div>
       </div>
 
@@ -898,7 +885,7 @@ export default function TemplatesPage() {
               textAlign: "center",
             }}
           >
-            {tab.label}
+            {tr(`templates.tabs.${tab.key}.label`)}
           </button>
         ))}
       </div>
@@ -912,7 +899,7 @@ export default function TemplatesPage() {
           marginBottom: "14px",
         }}
       >
-        <div style={{ fontSize: "12px", color: C.muted }}>{currentTab.desc}</div>
+        <div style={{ fontSize: "12px", color: C.muted }}>{tr(`templates.tabs.${activeTab}.desc`)}</div>
         <button
           onClick={() => setShowNewForm(!showNewForm)}
           style={{
@@ -927,7 +914,7 @@ export default function TemplatesPage() {
             cursor: "pointer",
           }}
         >
-          {showNewForm ? "✕ Anulează" : "+ Mesaj nou"}
+          {showNewForm ? tr("templates.cancel") : tr("templates.newMessage")}
         </button>
       </div>
 
@@ -950,54 +937,54 @@ export default function TemplatesPage() {
               marginBottom: "14px",
             }}
           >
-            ✨ Mesaj nou — {currentTab.label}
+            {tr("templates.newFormTitle", { tab: tr(`templates.tabs.${activeTab}.label`) })}
           </div>
 
           <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Nume mesaj (doar pentru tine)</label>
+            <label style={labelStyle}>{tr("templates.nameLabel")}</label>
             <input
               value={newTemplate.title}
               onChange={(e) =>
                 setNewTemplate((p) => ({ ...p, title: e.target.value }))
               }
-              placeholder="ex: Follow-up cald"
+              placeholder={tr("templates.namePlaceholderNew")}
               style={inputStyle}
             />
           </div>
 
           <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Subiect email</label>
+            <label style={labelStyle}>{tr("templates.subjectLabel")}</label>
             <input
               value={newTemplate.subject}
               onChange={(e) =>
                 setNewTemplate((p) => ({ ...p, subject: e.target.value }))
               }
-              placeholder="Subiectul emailului..."
+              placeholder={tr("templates.subjectPlaceholder")}
               style={inputStyle}
             />
           </div>
 
           <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Titlu principal</label>
+            <label style={labelStyle}>{tr("templates.headlineLabel")}</label>
             <input
               value={newTemplate.headline}
               onChange={(e) =>
                 setNewTemplate((p) => ({ ...p, headline: e.target.value }))
               }
-              placeholder="ex: O ofertă specială pentru tine"
+              placeholder={tr("templates.headlinePlaceholderNew")}
               style={inputStyle}
             />
           </div>
 
           <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>Mesajul principal</label>
+            <label style={labelStyle}>{tr("templates.bodyLabel")}</label>
             <textarea
               value={newTemplate.intro}
               rows={3}
               onChange={(e) =>
                 setNewTemplate((p) => ({ ...p, intro: e.target.value }))
               }
-              placeholder="ex: Bună {{nume}}, am ceva special pentru tine..."
+              placeholder={tr("templates.bodyPlaceholderNew")}
               style={{ ...inputStyle, resize: "vertical" }}
             />
           </div>
@@ -1018,7 +1005,7 @@ export default function TemplatesPage() {
               cursor: "pointer",
             }}
           >
-            {addingSaving ? "Se salvează..." : "+ Adaugă mesaj"}
+            {addingSaving ? tr("templates.saving") : tr("templates.addMessage")}
           </button>
         </div>
       )}
@@ -1026,7 +1013,7 @@ export default function TemplatesPage() {
       {/* Personal messages */}
       {personalMsgs.length > 0 && (
         <>
-          <div style={sectionLabel}>Mesajele mele</div>
+          <div style={sectionLabel}>{tr("templates.myMessages")}</div>
           {personalMsgs.map((t) => (
             <TemplateEditor
               key={t.id}
@@ -1043,7 +1030,7 @@ export default function TemplatesPage() {
       {/* System messages */}
       {systemMsgs.length > 0 && (
         <>
-          <div style={sectionLabel}>Mesaje AromaTool (sugestii)</div>
+          <div style={sectionLabel}>{tr("templates.systemMessages")}</div>
           {systemMsgs.map((t) => (
             <SystemMessageCard
               key={t.id}
@@ -1074,10 +1061,10 @@ export default function TemplatesPage() {
               marginBottom: "6px",
             }}
           >
-            Niciun mesaj pentru această acțiune
+            {tr("templates.emptyTitle")}
           </div>
           <div style={{ fontSize: "12px", color: C.muted }}>
-            Apasă „+ Mesaj nou" ca să creezi primul mesaj.
+            {tr("templates.emptyHint")}
           </div>
         </div>
       )}

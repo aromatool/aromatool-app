@@ -1675,6 +1675,8 @@ export default function AdminPage() {
               <option value="PT">{t("admin.countryPT")}</option>
               <option value="FI">{t("admin.countryFI")}</option>
               <option value="GB">{t("admin.countryGB")}</option>
+              <option value="MD">{t("admin.countryMD")}</option>
+              <option value="UA">{t("admin.countryUA")}</option>
             </select>
           </div>
 

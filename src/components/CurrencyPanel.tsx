@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCartStore } from "../hooks/useCartStore";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 
@@ -24,31 +25,30 @@ const CURRENCY_FLAGS: Record<string, string> = {
   CZK: "🇨🇿",
 };
 
-const CURRENCY_NAMES: Record<string, string> = {
-  RON: "Leu românesc",
-  EUR: "Euro",
-  USD: "Dolar american",
-  GBP: "Liră sterlină",
-  CHF: "Franc elvețian",
-  HUF: "Forint",
-  PLN: "Zlot polonez",
-  CZK: "Coroană cehă",
-};
-
 const ALL_CURRENCIES = ["RON", "EUR", "USD", "GBP", "CHF", "HUF", "PLN", "CZK"];
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  RON: "RON", EUR: "€", USD: "$", GBP: "£",
+  CHF: "CHF", HUF: "Ft", PLN: "zł", CZK: "Kč",
+};
+
 export default function CurrencyPanel() {
+  const { t: tr } = useTranslation();
   const {
     currency,
     setCurrency,
     customRates = {},
     setCustomRate,
+    catalogCurrency,
   } = useCartStore();
-  const { rates, isLoading } = useExchangeRates();
+  const { isLoading, base, effectiveRate } = useExchangeRates();
   const [isOpen, setIsOpen] = useState(false);
   const [editingRate, setEditingRate] = useState<string | null>(null);
   const [rateInput, setRateInput] = useState("");
   const [saved, setSaved] = useState(false);
+  // Moneda de bază a catalogului curent — cursurile se afișează „față de" ea.
+  const baseCurrency = catalogCurrency || base || "EUR";
+  const baseSym = CURRENCY_SYMBOLS[baseCurrency] || baseCurrency;
 
   function saveCustomRate(curr: string) {
     const val = parseFloat(rateInput);
@@ -66,10 +66,9 @@ export default function CurrencyPanel() {
   }
 
   const activeCurrency = currency || "RON";
-  const activeRate = (customRates || {})[activeCurrency];
-  const baseRate = rates[activeCurrency] || 0;
-  const displayRate = activeRate && activeRate > 0 ? activeRate : baseRate;
-  const isCustomActive = activeRate && activeRate > 0;
+  // Curs efectiv bază → afișare (câtă monedă de afișare la 1 unitate de bază).
+  const displayRate = effectiveRate(baseCurrency, activeCurrency);
+  const isCustomActive = ((customRates || {})[activeCurrency] || 0) > 0;
 
   return (
     <div style={{ marginBottom: "8px" }}>
@@ -99,13 +98,13 @@ export default function CurrencyPanel() {
           }}
         >
           <i className="ti ti-coins" style={{ fontSize: "15px", color: C.primary }} />
-          Monedă & cursuri
+          {tr("calculator.currency.toggle")}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "13px", fontWeight: 600, color: C.primary }}>
             {CURRENCY_FLAGS[activeCurrency] || ""} {activeCurrency}
           </span>
-          {activeCurrency !== "EUR" && displayRate > 0 && (
+          {activeCurrency !== baseCurrency && displayRate > 0 && (
             <span
               style={{
                 fontSize: "11px",
@@ -120,9 +119,9 @@ export default function CurrencyPanel() {
               }}
             >
               {isCustomActive && (
-                <i className="ti ti-pencil" style={{ fontSize: "11px" }} title="Curs manual activ" />
+                <i className="ti ti-pencil" style={{ fontSize: "11px" }} title={tr("calculator.currency.manualRateActive")} />
               )}
-              1€ = {displayRate.toFixed(4)}
+              1{baseSym} = {displayRate.toFixed(4)}
             </span>
           )}
           <i
@@ -154,7 +153,7 @@ export default function CurrencyPanel() {
                 marginBottom: "8px",
               }}
             >
-              Moneda de afișare
+              {tr("calculator.currency.displayCurrency")}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
               {ALL_CURRENCIES.map((curr) => (
@@ -195,28 +194,28 @@ export default function CurrencyPanel() {
                 alignItems: "center",
               }}
             >
-              <span>Cursuri față de EUR</span>
+              <span>{tr("calculator.currency.ratesVsBase", { base: baseCurrency })}</span>
               {isLoading ? (
                 <span
                   style={{ fontSize: "10px", color: C.muted, fontWeight: 400 }}
                 >
-                  Se încarcă...
+                  {tr("calculator.currency.loading")}
                 </span>
               ) : (
                 <span
                   style={{ fontSize: "10px", color: C.green, fontWeight: 400, display: "flex", alignItems: "center", gap: "3px" }}
                 >
-                  <i className="ti ti-circle-check-filled" style={{ fontSize: "12px" }} /> Activ
+                  <i className="ti ti-circle-check-filled" style={{ fontSize: "12px" }} /> {tr("calculator.currency.active")}
                 </span>
               )}
             </div>
 
-            {ALL_CURRENCIES.filter((c) => c !== "EUR").map((curr) => {
-              const baseRate = rates[curr] || 0;
+            {ALL_CURRENCIES.filter((c) => c !== baseCurrency).map((curr) => {
               const safeCustomRates = customRates || {};
               const customRate = safeCustomRates[curr] || 0;
               const hasCustom = customRate > 0;
-              const activeRate = hasCustom ? customRate : baseRate;
+              // Curs efectiv afișat: câtă `curr` la 1 unitate de bază.
+              const activeRate = effectiveRate(baseCurrency, curr);
               const isEditing = editingRate === curr;
 
               return (
@@ -241,7 +240,7 @@ export default function CurrencyPanel() {
                     {CURRENCY_FLAGS[curr]} {curr}
                   </span>
                   <span style={{ fontSize: "11px", color: C.muted, flex: 1 }}>
-                    {CURRENCY_NAMES[curr]}
+                    {tr(`calculator.currency.names.${curr}`)}
                   </span>
 
                   {isEditing ? (
@@ -256,7 +255,7 @@ export default function CurrencyPanel() {
                         type="number"
                         value={rateInput}
                         onChange={(e) => setRateInput(e.target.value)}
-                        placeholder={String(baseRate.toFixed(4))}
+                        placeholder={String(activeRate.toFixed(4))}
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Enter") saveCustomRate(curr);
@@ -288,7 +287,7 @@ export default function CurrencyPanel() {
                           display: "flex",
                           alignItems: "center",
                         }}
-                        title="Salvează"
+                        title={tr("calculator.currency.save")}
                       >
                         <i className="ti ti-check" />
                       </button>
@@ -306,7 +305,7 @@ export default function CurrencyPanel() {
                           display: "flex",
                           alignItems: "center",
                         }}
-                        title="Anulează"
+                        title={tr("calculator.currency.cancel")}
                       >
                         <i className="ti ti-x" />
                       </button>
@@ -339,13 +338,13 @@ export default function CurrencyPanel() {
                             border: `1px solid ${C.border2}`,
                           }}
                         >
-                          custom
+                          {tr("calculator.currency.custom")}
                         </span>
                       )}
                       <button
                         onClick={() => {
                           setEditingRate(curr);
-                          setRateInput(String(activeRate || ""));
+                          setRateInput(activeRate > 0 ? activeRate.toFixed(4) : "");
                         }}
                         style={{
                           background: "none",
@@ -357,7 +356,7 @@ export default function CurrencyPanel() {
                           display: "flex",
                           alignItems: "center",
                         }}
-                        title="Editează cursul"
+                        title={tr("calculator.currency.editRate")}
                       >
                         <i className="ti ti-pencil" />
                       </button>
@@ -374,7 +373,7 @@ export default function CurrencyPanel() {
                             display: "flex",
                             alignItems: "center",
                           }}
-                          title="Resetează la cursul implicit"
+                          title={tr("calculator.currency.resetRate")}
                         >
                           <i className="ti ti-refresh" />
                         </button>
@@ -389,7 +388,7 @@ export default function CurrencyPanel() {
               <div
                 style={{ marginTop: "8px", fontSize: "11px", color: C.green, display: "flex", alignItems: "center", gap: "4px" }}
               >
-                <i className="ti ti-circle-check-filled" style={{ fontSize: "13px" }} /> Curs salvat!
+                <i className="ti ti-circle-check-filled" style={{ fontSize: "13px" }} /> {tr("calculator.currency.rateSaved")}
               </div>
             )}
             <div
@@ -403,9 +402,9 @@ export default function CurrencyPanel() {
                 gap: "4px",
               }}
             >
-              Cursuri față de EUR. Apasă
+              {tr("calculator.currency.hintBefore")}
               <i className="ti ti-pencil" style={{ fontSize: "12px" }} />
-              pentru a seta un curs manual.
+              {tr("calculator.currency.hintAfter")}
             </div>
           </div>
         </div>

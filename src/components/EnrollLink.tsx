@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 const C = {
   primary: "#5C7A5C",
@@ -35,6 +36,7 @@ export default function EnrollLink({
   onLinkGenerated,
   country,
 }: EnrollLinkProps) {
+  const { t: tr } = useTranslation();
   const [sponsorId, setSponsorId] = useState("");
   const [enrollerId, setEnrollerId] = useState("");
   const [copied, setCopied] = useState(false);
@@ -86,8 +88,10 @@ export default function EnrollLink({
   function sendWhatsApp() {
     if (!enrollLink || !clientPhone) return;
     const waNum = clientPhone.replace(/[^0-9]/g, "").replace(/^0/, "40");
-    const name = clientName ? `Bună ${clientName}! 🌿` : "Bună! 🌿";
-    const msg = `${name}\n\nIată linkul tău de înscriere Young Living:\n${enrollLink}\n\nPrin acest link te înscrii direct în echipa mea. Dacă ai întrebări, scrie-mi!`;
+    const name = clientName
+      ? tr("calculator.enroll.waGreetingNamed", { name: clientName })
+      : tr("calculator.enroll.waGreeting");
+    const msg = `${name}\n\n${tr("calculator.enroll.waBody", { link: enrollLink })}`;
     window.open(
       `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`,
       "_blank",
@@ -122,10 +126,10 @@ export default function EnrollLink({
             style={{ fontSize: "15px" }}
           />
           {isOpen
-            ? "Ascunde link înscriere"
+            ? tr("calculator.enroll.hideLink")
             : saved
-              ? "Link înscriere adăugat"
-              : "Adaugă link înscriere"}
+              ? tr("calculator.enroll.linkAdded")
+              : tr("calculator.enroll.addLink")}
           <i
             className={isOpen ? "ti ti-chevron-up" : "ti ti-chevron-down"}
             style={{ fontSize: "14px", marginLeft: "auto", opacity: 0.6 }}
@@ -150,12 +154,12 @@ export default function EnrollLink({
                 lineHeight: 1.5,
               }}
             >
-              Completează ID-urile sub care vrei să înscrii clientul
+              {tr("calculator.enroll.fillIdsCompact")}
             </div>
 
             <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Sponsor ID</label>
+                <label style={labelStyle}>{tr("calculator.enroll.sponsorId")}</label>
                 <input
                   value={sponsorId}
                   onChange={(e) =>
@@ -166,7 +170,7 @@ export default function EnrollLink({
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Enroller ID</label>
+                <label style={labelStyle}>{tr("calculator.enroll.enrollerId")}</label>
                 <input
                   value={enrollerId}
                   onChange={(e) =>
@@ -178,13 +182,13 @@ export default function EnrollLink({
                 <div
                   style={{ fontSize: "10px", color: C.muted, marginTop: "2px" }}
                 >
-                  Gol = același cu Sponsor ID
+                  {tr("calculator.enroll.emptyEqualsSponsor")}
                 </div>
               </div>
             </div>
             <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Țara</label>
+                <label style={labelStyle}>{tr("calculator.enroll.country")}</label>
                 <select
                   value={countryCode}
                   onChange={(e) => {
@@ -193,15 +197,15 @@ export default function EnrollLink({
                   }}
                   style={{ ...inputStyle, appearance: "none" }}
                 >
-                  <option value="RO">🇷🇴 România</option>
-                  <option value="DE">🇩🇪 Germania</option>
-                  <option value="FR">🇫🇷 Franța</option>
-                  <option value="GB">🇬🇧 UK</option>
-                  <option value="US">🇺🇸 SUA</option>
+                  <option value="RO">{tr("calculator.enroll.countries.RO")}</option>
+                  <option value="DE">{tr("calculator.enroll.countries.DE")}</option>
+                  <option value="FR">{tr("calculator.enroll.countries.FR")}</option>
+                  <option value="GB">{tr("calculator.enroll.countries.GB")}</option>
+                  <option value="US">{tr("calculator.enroll.countries.US")}</option>
                 </select>
               </div>
               <div style={{ flex: 1 }}>
-                <label style={labelStyle}>Limba</label>
+                <label style={labelStyle}>{tr("calculator.enroll.language")}</label>
                 <select
                   value={culture}
                   onChange={(e) => setCulture(e.target.value)}
@@ -228,7 +232,7 @@ export default function EnrollLink({
                     marginBottom: "5px",
                   }}
                 >
-                  Link generat — previzualizare
+                  {tr("calculator.enroll.linkPreview")}
                 </div>
                 <div
                   style={{
@@ -272,7 +276,7 @@ export default function EnrollLink({
                         fontFamily: "'DM Sans', sans-serif",
                       }}
                     >
-                      Linkul va fi inclus în email
+                      {tr("calculator.enroll.linkWillBeIncluded")}
                     </span>
                     <button
                       onClick={removeLink}
@@ -287,7 +291,7 @@ export default function EnrollLink({
                         padding: 0,
                       }}
                     >
-                      Scoate
+                      {tr("calculator.enroll.remove")}
                     </button>
                   </div>
                 ) : (
@@ -312,7 +316,7 @@ export default function EnrollLink({
                     }}
                   >
                     <i className="ti ti-plus" style={{ fontSize: "15px" }} />
-                    Adaugă linkul în email
+                    {tr("calculator.enroll.addLinkToEmail")}
                   </button>
                 )}
 
@@ -337,7 +341,7 @@ export default function EnrollLink({
                     }}
                   >
                     <i className={copied ? "ti ti-check" : "ti ti-copy"} style={{ fontSize: "14px" }} />
-                    {copied ? "Copiat!" : "Copiază"}
+                    {copied ? tr("calculator.enroll.copied") : tr("calculator.enroll.copy")}
                   </button>
 
                   {clientPhone && (
@@ -364,7 +368,7 @@ export default function EnrollLink({
                         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                         <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.851L.057 23.928l6.231-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818c-1.983 0-3.83-.543-5.41-1.485l-.387-.23-4.015 1.053 1.072-3.916-.251-.4A9.788 9.788 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.422 0 9.818 4.396 9.818 9.818 0 5.422-4.396 9.818-9.818 9.818z"/>
                       </svg>
-                      WhatsApp
+                      {tr("calculator.enroll.whatsapp")}
                     </button>
                   )}
                 </div>
@@ -397,7 +401,7 @@ export default function EnrollLink({
           marginBottom: "12px",
         }}
       >
-        🔗 Link înscriere Young Living
+        {tr("calculator.enroll.title")}
       </div>
 
       <div
@@ -408,8 +412,9 @@ export default function EnrollLink({
           lineHeight: 1.5,
         }}
       >
-        Setează ID-urile sub care vrei să înscrii
-        {clientName ? ` pe ${clientName}` : " clientul"} în echipa ta
+        {clientName
+          ? tr("calculator.enroll.setIdsForName", { name: clientName })
+          : tr("calculator.enroll.setIdsForClient")}
       </div>
 
       <div
@@ -421,7 +426,7 @@ export default function EnrollLink({
         }}
       >
         <div>
-          <label style={labelStyle}>Sponsor ID</label>
+          <label style={labelStyle}>{tr("calculator.enroll.sponsorId")}</label>
           <input
             value={sponsorId}
             onChange={(e) => setSponsorId(e.target.value.replace(/\D/g, ""))}
@@ -430,16 +435,16 @@ export default function EnrollLink({
           />
         </div>
         <div>
-          <label style={labelStyle}>Enroller ID</label>
+          <label style={labelStyle}>{tr("calculator.enroll.enrollerId")}</label>
           <input
             value={enrollerId}
             onChange={(e) => setEnrollerId(e.target.value.replace(/\D/g, ""))}
-            placeholder="Gol = Sponsor"
+            placeholder={tr("calculator.enroll.enrollerEmptyPlaceholder")}
             style={inputStyle}
           />
         </div>
         <div>
-          <label style={labelStyle}>Țara</label>
+          <label style={labelStyle}>{tr("calculator.enroll.country")}</label>
           <select
             value={countryCode}
             onChange={(e) => {
@@ -455,15 +460,15 @@ export default function EnrollLink({
             }}
             style={{ ...inputStyle, appearance: "none" }}
           >
-            <option value="RO">🇷🇴 România</option>
-            <option value="DE">🇩🇪 Germania</option>
-            <option value="FR">🇫🇷 Franța</option>
-            <option value="GB">🇬🇧 UK</option>
-            <option value="US">🇺🇸 SUA</option>
+            <option value="RO">{tr("calculator.enroll.countries.RO")}</option>
+            <option value="DE">{tr("calculator.enroll.countries.DE")}</option>
+            <option value="FR">{tr("calculator.enroll.countries.FR")}</option>
+            <option value="GB">{tr("calculator.enroll.countries.GB")}</option>
+            <option value="US">{tr("calculator.enroll.countries.US")}</option>
           </select>
         </div>
         <div>
-          <label style={labelStyle}>Limba</label>
+          <label style={labelStyle}>{tr("calculator.enroll.language")}</label>
           <select
             value={culture}
             onChange={(e) => setCulture(e.target.value)}
@@ -502,7 +507,7 @@ export default function EnrollLink({
                 letterSpacing: "0.06em",
               }}
             >
-              Link generat
+              {tr("calculator.enroll.linkGenerated")}
             </div>
             {enrollLink}
           </div>
@@ -528,7 +533,7 @@ export default function EnrollLink({
               }}
             >
               <i className={copied ? "ti ti-check" : "ti ti-copy"} style={{ fontSize: "15px" }} />
-              {copied ? "Copiat!" : "Copiază linkul"}
+              {copied ? tr("calculator.enroll.copied") : tr("calculator.enroll.copyLink")}
             </button>
 
             {clientPhone && (
@@ -556,7 +561,7 @@ export default function EnrollLink({
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
                   <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.532 5.851L.057 23.928l6.231-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818c-1.983 0-3.83-.543-5.41-1.485l-.387-.23-4.015 1.053 1.072-3.916-.251-.4A9.788 9.788 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.422 0 9.818 4.396 9.818 9.818 0 5.422-4.396 9.818-9.818 9.818z"/>
                 </svg>
-                Trimite pe WhatsApp
+                {tr("calculator.enroll.sendWhatsApp")}
               </button>
             )}
           </div>
@@ -571,7 +576,7 @@ export default function EnrollLink({
             fontStyle: "italic",
           }}
         >
-          Completează Sponsor ID pentru a genera linkul
+          {tr("calculator.enroll.fillSponsorToGenerate")}
         </div>
       )}
     </div>

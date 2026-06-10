@@ -22,7 +22,11 @@ const FALLBACK_RATES: RateMap = {
 }
 
 export function useExchangeRates() {
-  const { customRates } = useCartStore()
+  const { customRates, catalogCurrency } = useCartStore()
+  // Moneda de bază a catalogului curent. Cursurile MANUALE sunt exprimate
+  // „per 1 unitate din această monedă" (ex: pe catalog UK, customRates['RON']
+  // = câți RON la 1 £). Cursurile LIVE rămân „per EUR".
+  const base = catalogCurrency || 'EUR'
 
   const { data: liveRates, isLoading } = useQuery({
     queryKey: ['live-exchange-rates'],
@@ -50,14 +54,14 @@ export function useExchangeRates() {
     retry: false,
   })
 
-  // Merge fallback/live rates with custom overrides
+  // Cursurile LIVE (per EUR). Cursurile MANUALE NU se mai amestecă aici, fiindcă
+  // au altă ancoră (per moneda catalogului, nu per EUR) — se aplică separat în
+  // `effectiveRate` de mai jos.
   const rates: RateMap = {
     EUR: 1,
     ...(liveRates || FALLBACK_RATES),
-    ...Object.fromEntries(
-      Object.entries(customRates || {}).filter(([, v]) => v && v > 0)
-    ),
   }
+  const safeCustom = customRates || {}
 
   function getRate(currency: string): number {
     const r = rates[currency]
@@ -69,14 +73,26 @@ export function useExchangeRates() {
     return NaN
   }
 
-  // Conversie generală între două monede. Cursurile sunt exprimate „per EUR”
-  // (rates[X] = câte X la 1 EUR), deci trecem prin EUR ca pivot:
-  //   amount[base] → EUR: amount / getRate(base)
-  //   EUR → target:       × getRate(target)
-  function convertFromBase(amount: number, base: string, target: string): number {
-    if (base === target) return parseFloat(amount.toFixed(2))
-    const inEur = amount / getRate(base)
-    return parseFloat((inEur * getRate(target)).toFixed(2))
+  // Cursul EFECTIV (nerotunjit) de la `from` la `to` (câte `to` la 1 `from`).
+  // Regulă: dacă userul a setat un curs manual pentru moneda care NU e baza
+  // catalogului, acela are prioritate și e interpretat „per 1 unitate de bază".
+  //   from = bază, to are custom  → câte `to` la 1 bază       = custom[to]
+  //   to   = bază, from are custom → inversul                 = 1 / custom[from]
+  //   altfel                       → curs live prin EUR        = rate(to)/rate(from)
+  function effectiveRate(from: string, to: string): number {
+    if (from === to) return 1
+    const cTo = safeCustom[to]
+    const cFrom = safeCustom[from]
+    if (from === base && typeof cTo === 'number' && cTo > 0) return cTo
+    if (to === base && typeof cFrom === 'number' && cFrom > 0) return 1 / cFrom
+    return getRate(to) / getRate(from)
+  }
+
+  // Conversie între moneda de bază a catalogului și moneda de afișare
+  // (în ambele sensuri). Aplică `effectiveRate` și rotunjește la 2 zecimale.
+  function convertFromBase(amount: number, from: string, target: string): number {
+    if (from === target) return parseFloat(amount.toFixed(2))
+    return parseFloat((amount * effectiveRate(from, target)).toFixed(2))
   }
 
   // Caz special, păstrat pentru compat: baza e EUR.
@@ -98,5 +114,5 @@ export function useExchangeRates() {
     return `${formatted} ${symbol}`
   }
 
-  return { rates, liveRates, isLoading, getRate, convertFromBase, convertFromEur, formatAmount, CURRENCIES }
+  return { rates, liveRates, isLoading, base, getRate, effectiveRate, convertFromBase, convertFromEur, formatAmount, CURRENCIES }
 }
