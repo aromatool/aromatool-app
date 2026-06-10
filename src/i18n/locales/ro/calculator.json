@@ -69,7 +69,8 @@
   },
   "draftBanner": {
     "title_one": "Ai o ofertă în curs — {{count}} produs{{forName}}",
-    "title_other": "Ai o ofertă în curs — {{count}} produse{{forName}}",
+    "title_few": "Ai o ofertă în curs — {{count}} produse{{forName}}",
+    "title_other": "Ai o ofertă în curs — {{count}} de produse{{forName}}",
     "forName": " pentru {{name}}",
     "subtitle": "Continuă de unde ai rămas sau începe o ofertă nouă.",
     "continue": "Continuă oferta",

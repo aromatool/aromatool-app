@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { useProducts, useExchangeRate, useProductCountries } from "../hooks/useProducts";
 import { useCartStore } from "../hooks/useCartStore";
-import { useSendEmail, buildEmailHtml } from "../hooks/useSendEmail";
+import { useSendEmail, buildEmailHtml, round2, computeOfferTotals } from "../hooks/useSendEmail";
 import { useResources } from "../hooks/useResources";
 import EnrollLink from "../components/EnrollLink";
 import CurrencyPanel from "../components/CurrencyPanel";
@@ -407,8 +407,11 @@ function CartSection() {
   function buildOfferText(): string {
     const produse = items
       .map((i) => {
-        const lineTotalEur = i.price_eur * i.qty * (1 - i.disc / 100);
-        const lineTotalDisplay = convertFromBase(lineTotalEur, baseCurrency, activeCurrency);
+        // Rotunjim linia în EUR ÎNAINTE de conversie — identic cu emailul și cu
+        // oferta salvată (penny rounding), ca textul WhatsApp să arate exact
+        // aceleași sume ca emailul.
+        const lineTotalEur = round2(i.price_eur * i.qty * (1 - i.disc / 100));
+        const lineTotalDisplay = round2(lineTotalEur * displayRate);
         const disc = i.disc > 0 ? ` (-${i.disc}%)` : "";
         const qty = i.qty > 1 ? ` x${i.qty}` : "";
         return `• ${i.name}${qty}${disc} — ${formatAmount(lineTotalDisplay, activeCurrency)}`;
@@ -465,7 +468,12 @@ function CartSection() {
   // Converted to display currency (din moneda de bază a ofertei)
   const subtotal = convertFromBase(subtotalEur, baseCurrency, activeCurrency);
   const discount = convertFromBase(discountEur, baseCurrency, activeCurrency);
-  const total = convertFromBase(totalEur, baseCurrency, activeCurrency);
+  // Totalul afișat folosește ACEEAȘI sursă unică (penny rounding) ca emailul și
+  // oferta salvată: Σ(linii rotunjite) + transport rotunjit. Astfel panoul,
+  // textul WhatsApp, previzualizarea, emailul și suma stocată sunt identice.
+  const offerTotals = computeOfferTotals(items, transport, displayRate);
+  const total = offerTotals.totalDisplay;
+  const totalEurRounded = offerTotals.totalEur;
 
   if (items.length === 0)
     return (
@@ -531,7 +539,9 @@ function CartSection() {
       {items.map((item) => {
         const priceEur = item.price_eur;
         const itemBase = item.currency || baseCurrency;
-        const lineTotalEur = priceEur * item.qty * (1 - item.disc / 100);
+        // Rotunjim linia în EUR înainte de conversie (penny rounding) — la fel ca
+        // emailul, textul și oferta salvată, ca sumele afișate să fie identice.
+        const lineTotalEur = round2(priceEur * item.qty * (1 - item.disc / 100));
         const priceInCurrency = convertFromBase(priceEur, itemBase, activeCurrency);
         const lineTotalInCurrency = convertFromBase(lineTotalEur, itemBase, activeCurrency);
         const showEurSecondary = activeCurrency !== itemBase;
@@ -729,8 +739,8 @@ function CartSection() {
           placeholder="0"
           onChange={(e) => {
             const valueInCurrency = parseFloat(e.target.value) || 0;
-            // Stocăm transportul în moneda de bază a ofertei.
-            const valueInBase = convertFromBase(valueInCurrency, activeCurrency, baseCurrency);
+            // Stocăm transportul în moneda de bază la precizie completă (fără round-trip drift).
+            const valueInBase = valueInCurrency * effectiveRate(activeCurrency, baseCurrency);
             setTransport(valueInBase);
           }}
           style={{
@@ -936,7 +946,7 @@ function CartSection() {
               ]
             : []),
           ...(activeCurrency !== baseCurrency
-            ? [{ label: tr("calculator.totals.total", { currency: baseCurrency }), value: formatAmount(totalEur, baseCurrency) }]
+            ? [{ label: tr("calculator.totals.total", { currency: baseCurrency }), value: formatAmount(totalEurRounded, baseCurrency) }]
             : []),
           { label: tr("calculator.totals.points"), value: `${Math.round(totalPoints)} ${tr("calculator.points")}` },
           { label: tr("calculator.totals.products"), value: `${count}` },
@@ -1001,7 +1011,7 @@ function CartSection() {
             </div>
             {activeCurrency !== baseCurrency && (
               <div style={{ fontSize: "11px", color: C.muted }}>
-                {formatAmount(totalEur, baseCurrency)}
+                {formatAmount(totalEurRounded, baseCurrency)}
               </div>
             )}
           </div>

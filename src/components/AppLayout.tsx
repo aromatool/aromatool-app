@@ -603,11 +603,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <style>{`
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .desktop-nav { display: none !important; }
           .main-content { padding: 16px 16px 90px !important; }
         }
-        @media (min-width: 769px) {
+        @media (min-width: 1025px) {
           .mobile-nav { display: none !important; }
           .mobile-nav-backdrop { display: none !important; }
         }

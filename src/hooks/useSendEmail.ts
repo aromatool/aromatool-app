@@ -47,12 +47,12 @@ function fmtCurrency(amount: number, currency: string): string {
 // Rotunjire la bani (2 zecimale). Folosită ca să facem TOTALUL = suma liniilor
 // AFIȘATE, nu rotunjirea sumei brute (altfel totalul putea diferi de adunarea
 // manuală a clientului cu 1-2 bani — „penny rounding").
-const round2 = (n: number) => Math.round(n * 100) / 100
+export const round2 = (n: number) => Math.round(n * 100) / 100
 
 // Sursa unică pentru totaluri consistente: total = Σ(linii rotunjite) + transport
 // rotunjit. Folosit ATÂT la randarea emailului CÂT ȘI la salvarea ofertei, ca
 // suma stocată să fie identică cu cea pe care o vede clientul.
-function computeOfferTotals(
+export function computeOfferTotals(
   items: CartItem[],
   transport: number,
   rate: number

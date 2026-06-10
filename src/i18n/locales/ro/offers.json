@@ -12,6 +12,7 @@
   "emptyNoOffersHint": "Adaugă produse în coș și trimite prima ofertă",
   "total": "total",
   "offerCount_one": "{{count}} ofertă",
+  "offerCount_few": "{{count}} oferte",
   "offerCount_other": "{{count}} oferte",
   "previousOffers": "+ {{count}} oferte anterioare",
   "statusProspect": "Prospect",

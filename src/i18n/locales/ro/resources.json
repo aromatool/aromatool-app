@@ -16,6 +16,7 @@
   "emptyState": "Încă nu ai resurse. Încarcă primul material.",
   "usageInfo": "{{type}} · {{size}} · folosit în {{count}} {{label}} · adăugat {{date}}",
   "usageEmail_one": "email",
+  "usageEmail_few": "emailuri",
   "usageEmail_other": "emailuri",
   "rename": "Redenumește",
   "delete": "Șterge",

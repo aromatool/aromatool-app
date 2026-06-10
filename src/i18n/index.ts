@@ -64,6 +64,11 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+// Sincronizează atributul <html lang> cu limba inițială (accesibilitate / SEO).
+if (typeof document !== "undefined") {
+  document.documentElement.lang = detectUiLang();
+}
+
 // Schimbă limba UI-ului și o persistă local.
 export function setUiLang(lang: Lang) {
   try {
@@ -72,6 +77,9 @@ export function setUiLang(lang: Lang) {
     // ignorăm — schimbarea rămâne măcar pe sesiunea curentă
   }
   i18n.changeLanguage(lang);
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = lang;
+  }
 }
 
 export default i18n;
