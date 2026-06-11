@@ -39,7 +39,11 @@ select cron.schedule(
           'Content-Type',  'application/json',
           'x-cron-secret', '0d207efca20435419bf9a8e1eb151de14e4eba29c710cce01308c73c6b447ea8'
         ),
-        body    := jsonb_build_object('country', c)
+        body    := jsonb_build_object('country', c),
+        -- pg_net are timeout implicit de 5s; unele cataloage durează mai mult,
+        -- iar răspunsul scurt-circuitat apărea ca „Timeout of 5000 ms" în
+        -- net._http_response. 30s acoperă feed-urile mari fără a bloca coada.
+        timeout_milliseconds := 30000
       );
     end loop;
   end
