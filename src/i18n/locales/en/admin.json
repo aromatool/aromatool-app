@@ -130,6 +130,15 @@
   "countryUA": "🇺🇦 Ukraine (EN names · VAT-free prices)",
   "syncing": "Syncing…",
   "syncCatalog": "Sync the {{country}} catalog",
+  "catalogBreakdown": "Per-country status",
+  "catalogBreakdownHint": "Last import for each catalog (manual or automatic). The automatic sync runs daily at 05:15.",
+  "colCountry": "Country",
+  "colProducts": "Products",
+  "colFailed": "Failed",
+  "colWhen": "When",
+  "colStatus": "Status",
+  "statusRunning": "running",
+  "statusNever": "never synced",
   "errorsDesc": "The latest errors from the automated systems (Daily Focus and catalog import). If the list is empty, everything ran clean.",
   "noErrors": "No recent errors. 🌿"
 }

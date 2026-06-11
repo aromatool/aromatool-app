@@ -34,6 +34,12 @@ const IMPORT_COUNTRIES = [
   "RO", "DE", "FR", "IT", "ES", "NL", "BE", "AT", "IE", "PT", "FI", "GB", "MD", "UA",
 ];
 
+// Steag + cod scurt pentru tabelul de status pe țară.
+const COUNTRY_FLAGS: Record<string, string> = {
+  RO: "🇷🇴", DE: "🇩🇪", FR: "🇫🇷", IT: "🇮🇹", ES: "🇪🇸", NL: "🇳🇱", BE: "🇧🇪",
+  AT: "🇦🇹", IE: "🇮🇪", PT: "🇵🇹", FI: "🇫🇮", GB: "🇬🇧", MD: "🇲🇩", UA: "🇺🇦",
+};
+
 interface Overview {
   total_users: number;
   total_contacts: number;
@@ -70,6 +76,16 @@ interface FeedbackRow {
 }
 
 interface ImportJob {
+  status: string;
+  records_total: number | null;
+  records_imported: number | null;
+  records_failed: number | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+interface CountryJob {
+  country_code: string;
   status: string;
   records_total: number | null;
   records_imported: number | null;
@@ -207,6 +223,7 @@ export default function AdminPage() {
 
   // ── Catalog produse ──────────────────────────────────────
   const [lastJob, setLastJob] = useState<ImportJob | null>(null);
+  const [countryJobs, setCountryJobs] = useState<Record<string, CountryJob>>({});
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState("");
   const [syncError, setSyncError] = useState("");
@@ -293,6 +310,7 @@ export default function AdminPage() {
           setTrialDays(td.data);
           setTrialInput(String(td.data));
         }
+        await loadCountryJobs();
       }
       setLoading(false);
     })();
@@ -311,6 +329,25 @@ export default function AdminPage() {
       .limit(1)
       .maybeSingle();
     if (data) setLastJob(data as ImportJob);
+    await loadCountryJobs();
+  }
+
+  // Ultimul job per țară (manual sau cron). Luăm ultimele 200 rânduri ordonate
+  // descrescător și păstrăm prima apariție = cea mai recentă pentru fiecare țară.
+  async function loadCountryJobs() {
+    const { data } = await supabase
+      .from("product_import_jobs")
+      .select(
+        "country_code, status, records_total, records_imported, records_failed, created_at, completed_at"
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (!data) return;
+    const latest: Record<string, CountryJob> = {};
+    for (const row of data as CountryJob[]) {
+      if (row.country_code && !latest[row.country_code]) latest[row.country_code] = row;
+    }
+    setCountryJobs(latest);
   }
 
   async function syncProducts() {
@@ -1838,6 +1875,139 @@ export default function AdminPage() {
               {syncError}
             </div>
           )}
+
+          {/* ── Status detaliat pe țară ───────────────────────── */}
+          <div style={{ marginTop: "20px" }}>
+            <div
+              style={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: T.espresso,
+                marginBottom: "4px",
+              }}
+            >
+              {t("admin.catalogBreakdown")}
+            </div>
+            <div
+              style={{
+                fontSize: "12px",
+                color: T.muted,
+                marginBottom: "10px",
+                lineHeight: 1.5,
+              }}
+            >
+              {t("admin.catalogBreakdownHint")}
+            </div>
+            <div
+              style={{
+                border: `1px solid ${T.border}`,
+                borderRadius: "12px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1.4fr 0.8fr 0.8fr 1.4fr 0.9fr",
+                  gap: "8px",
+                  padding: "9px 14px",
+                  background: T.cream,
+                  borderBottom: `1px solid ${T.border}`,
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: T.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                <div>{t("admin.colCountry")}</div>
+                <div style={{ textAlign: "right" }}>{t("admin.colProducts")}</div>
+                <div style={{ textAlign: "right" }}>{t("admin.colFailed")}</div>
+                <div>{t("admin.colWhen")}</div>
+                <div style={{ textAlign: "right" }}>{t("admin.colStatus")}</div>
+              </div>
+              {IMPORT_COUNTRIES.map((code, idx) => {
+                const job = countryJobs[code];
+                const statusColor =
+                  job?.status === "done"
+                    ? T.green
+                    : job?.status === "failed"
+                      ? T.red
+                      : T.muted;
+                const statusLabel = !job
+                  ? t("admin.statusNever")
+                  : job.status === "done"
+                    ? t("admin.statusDone")
+                    : job.status === "failed"
+                      ? t("admin.statusFailed")
+                      : job.status === "running"
+                        ? t("admin.statusRunning")
+                        : job.status;
+                return (
+                  <div
+                    key={code}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.4fr 0.8fr 0.8fr 1.4fr 0.9fr",
+                      gap: "8px",
+                      padding: "9px 14px",
+                      alignItems: "center",
+                      fontSize: "12.5px",
+                      color: T.espresso,
+                      borderBottom:
+                        idx === IMPORT_COUNTRIES.length - 1
+                          ? "none"
+                          : `1px solid ${T.border}`,
+                      background: job ? T.white : T.cream,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600 }}>
+                      <span style={{ marginRight: "6px" }}>
+                        {COUNTRY_FLAGS[code] ?? "🏳️"}
+                      </span>
+                      {code}
+                    </div>
+                    <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                      {job?.records_imported != null ? job.records_imported : "—"}
+                    </div>
+                    <div
+                      style={{
+                        textAlign: "right",
+                        fontVariantNumeric: "tabular-nums",
+                        color: job?.records_failed ? T.red : T.muted,
+                      }}
+                    >
+                      {job?.records_failed != null ? job.records_failed : "—"}
+                    </div>
+                    <div style={{ color: T.muted }}>
+                      {job
+                        ? new Date(job.created_at).toLocaleString(
+                            uiLocale(i18n.language),
+                            {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )
+                        : "—"}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          fontSize: "11.5px",
+                          color: statusColor,
+                        }}
+                      >
+                        {statusLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 

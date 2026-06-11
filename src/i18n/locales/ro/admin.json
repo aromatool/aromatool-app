@@ -130,6 +130,15 @@
   "countryUA": "🇺🇦 Ucraina (nume EN · prețuri fără TVA)",
   "syncing": "Se sincronizează…",
   "syncCatalog": "Sincronizează catalogul {{country}}",
+  "catalogBreakdown": "Status pe țară",
+  "catalogBreakdownHint": "Ultimul import pentru fiecare catalog (manual sau automat). Sincronizarea automată rulează zilnic la 05:15.",
+  "colCountry": "Țară",
+  "colProducts": "Produse",
+  "colFailed": "Eșuate",
+  "colWhen": "Când",
+  "colStatus": "Status",
+  "statusRunning": "în curs",
+  "statusNever": "nesincronizat",
   "errorsDesc": "Ultimele erori din sistemele automate (Daily Focus și import catalog). Dacă lista e goală, totul a rulat curat.",
   "noErrors": "Nicio eroare recentă. 🌿"
 }
