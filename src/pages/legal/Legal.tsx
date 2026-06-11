@@ -23,7 +23,7 @@ export const COMPANY = {
   privacyEmail: "[privacy@aromatool.com]",
   appName: "AromaTool",
   appUrl: "aromatool.com",
-  lastUpdated: "8 iunie 2026",
+  lastUpdated: "11 iunie 2026",
 };
 
 const T = {
@@ -170,156 +170,115 @@ const ul: React.CSSProperties = {
   gap: "4px",
 };
 
+// Randează o listă de bullet-uri dintr-o cheie i18n care întoarce un array
+// (t(key, { returnObjects: true })). Folosit de secțiunile din Termeni.
+function Bullets({ items }: { items: string[] }) {
+  return (
+    <ul style={ul}>
+      {items.map((it, i) => (
+        <li key={i}>{it}</li>
+      ))}
+    </ul>
+  );
+}
+
 // ════════════════════════════════════════════════════════════
 // 1. PRIVACY POLICY
 // ════════════════════════════════════════════════════════════
 export function PrivacyPage() {
   const { t } = useTranslation();
+  const appName = COMPANY.appName;
+  // Helper pentru listele din Confidențialitate (chei care întorc array-uri).
+  const items = (key: string) =>
+    t(key, { returnObjects: true }) as unknown as string[];
   return (
     <LegalLayout
       t={t}
       title={t("legal.privacyTitle")}
-      intro={t("legal.privacyIntro", { appName: COMPANY.appName })}
+      intro={t("legal.privacyIntro", { appName })}
     >
+      {/* S1 — Operatorul de date */}
       <Section title={t("legal.privacyS1Title")}>
         {t("legal.privacyS1Body", {
           legalName: COMPANY.legalName,
           cui: COMPANY.cui,
           address: COMPANY.address,
-          appName: COMPANY.appName,
+          appName,
           appUrl: COMPANY.appUrl,
         })}
         <strong>{COMPANY.privacyEmail}</strong>.
       </Section>
 
+      {/* S2 — Rolurile (operator / persoană împuternicită) */}
       <Section title={t("legal.privacyS2Title")}>
-        <ul style={ul}>
-          <li>
-            {t("legal.privacyS2Li1Pre")}
-            <strong>{t("legal.privacyS2Li1Bold1")}</strong>
-            {t("legal.privacyS2Li1Mid")}
-            <strong>{t("legal.privacyS2Li1Bold2")}</strong>
-            {t("legal.privacyS2Li1Post")}
-          </li>
-          <li>
-            {t("legal.privacyS2Li2Pre")}
-            <strong>{t("legal.privacyS2Li2Bold1")}</strong>
-            {t("legal.privacyS2Li2Mid")}
-            <strong>{t("legal.privacyS2Li2Bold2")}</strong>
-            {t("legal.privacyS2Li2Mid2")}
-            <strong>{t("legal.privacyS2Li2Bold3")}</strong>
-            {t("legal.privacyS2Li2Post")}
-          </li>
-        </ul>
+        {t("legal.privacyS2Intro", { appName })}
+        <Bullets items={items("legal.privacyS2Items")} />
       </Section>
 
+      {/* S3 — Ce date colectăm */}
       <Section title={t("legal.privacyS3Title")}>
-        <ul style={ul}>
-          <li>
-            <strong>{t("legal.privacyS3Li1Bold")}</strong>
-            {t("legal.privacyS3Li1Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS3Li2Bold")}</strong>
-            {t("legal.privacyS3Li2Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS3Li3Bold")}</strong>
-            {t("legal.privacyS3Li3Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS3Li4Bold")}</strong>
-            {t("legal.privacyS3Li4Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS3Li5Bold")}</strong>
-            {t("legal.privacyS3Li5Body")}
-          </li>
-        </ul>
+        <Bullets items={items("legal.privacyS3Items")} />
       </Section>
 
+      {/* S4 — Temeiul și scopurile prelucrării */}
       <Section title={t("legal.privacyS4Title")}>
-        <ul style={ul}>
-          <li>
-            <strong>{t("legal.privacyS4Li1Bold")}</strong>
-            {t("legal.privacyS4Li1Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS4Li2Bold")}</strong>
-            {t("legal.privacyS4Li2Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS4Li3Bold")}</strong>
-            {t("legal.privacyS4Li3Body")}
-          </li>
-        </ul>
+        <Bullets items={items("legal.privacyS4Items")} />
       </Section>
 
+      {/* S5 — Comunicări email și tracking */}
       <Section title={t("legal.privacyS5Title")}>
-        {t("legal.privacyS5Intro")}
-        <ul style={ul}>
-          <li>
-            <strong>{t("legal.privacyS5Li1Bold")}</strong>
-            {t("legal.privacyS5Li1Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS5Li2Bold")}</strong>
-            {t("legal.privacyS5Li2Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS5Li3Bold")}</strong>
-            {t("legal.privacyS5Li3Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS5Li4Bold")}</strong>
-            {t("legal.privacyS5Li4Body")}
-          </li>
-        </ul>
+        {t("legal.privacyS5Body", { appName })}
       </Section>
 
+      {/* S6 — Date sensibile (categorii speciale) */}
       <Section title={t("legal.privacyS6Title")}>
-        <ul style={ul}>
-          <li>
-            <strong>{t("legal.privacyS6Li1Bold")}</strong>
-            {t("legal.privacyS6Li1Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS6Li2Bold")}</strong>
-            {t("legal.privacyS6Li2Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS6Li3Bold")}</strong>
-            {t("legal.privacyS6Li3Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS6Li4Bold")}</strong>
-            {t("legal.privacyS6Li4Body")}
-          </li>
-          <li>
-            <strong>{t("legal.privacyS6Li5Bold")}</strong>
-            {t("legal.privacyS6Li5Body")}
-          </li>
-        </ul>
+        {t("legal.privacyS6Body", { appName })}
       </Section>
 
+      {/* S7 — Sub-procesatori */}
       <Section title={t("legal.privacyS7Title")}>
-        {t("legal.privacyS7Body1")}
-        <strong>{COMPANY.privacyEmail}</strong>
-        {t("legal.privacyS7Body2")}
-        <strong>{t("legal.privacyS7Authority")}</strong>
-        {t("legal.privacyS7Body3")}
+        {t("legal.privacyS7Intro")}
+        <Bullets items={items("legal.privacyS7Items")} />
+        {t("legal.privacyS7Closing")}
       </Section>
 
+      {/* S8 — Transferuri internaționale */}
       <Section title={t("legal.privacyS8Title")}>
         {t("legal.privacyS8Body")}
       </Section>
 
+      {/* S9 — Păstrarea datelor */}
       <Section title={t("legal.privacyS9Title")}>
-        {t("legal.privacyS9Body")}
+        <Bullets items={items("legal.privacyS9Items")} />
       </Section>
 
+      {/* S10 — Drepturile tale */}
       <Section title={t("legal.privacyS10Title")}>
-        {t("legal.privacyS10Body")}
+        {t("legal.privacyS10Body1")}
+        <strong>{COMPANY.privacyEmail}</strong>
+        {t("legal.privacyS10Body2")}
+        <strong>{t("legal.privacyS10Authority")}</strong>
+        {t("legal.privacyS10Body3")}
+      </Section>
+
+      {/* S11 — Securitate */}
+      <Section title={t("legal.privacyS11Title")}>
+        {t("legal.privacyS11Body")}
+      </Section>
+
+      {/* S12 — Incidente de securitate */}
+      <Section title={t("legal.privacyS12Title")}>
+        {t("legal.privacyS12Body")}
+      </Section>
+
+      {/* S13 — Minori */}
+      <Section title={t("legal.privacyS13Title")}>
+        {t("legal.privacyS13Body")}
+      </Section>
+
+      {/* S14 — Modificări */}
+      <Section title={t("legal.privacyS14Title")}>
+        {t("legal.privacyS14Body")}
       </Section>
     </LegalLayout>
   );
@@ -330,18 +289,22 @@ export function PrivacyPage() {
 // ════════════════════════════════════════════════════════════
 export function TermsPage() {
   const { t } = useTranslation();
+  const appName = COMPANY.appName;
+  // Helper pentru listele din Termeni (chei care întorc array-uri).
+  const items = (key: string) =>
+    t(key, { returnObjects: true }) as unknown as string[];
   return (
     <LegalLayout
       t={t}
       title={t("legal.termsTitle")}
-      intro={t("legal.termsIntro", { appName: COMPANY.appName })}
+      intro={t("legal.termsIntro", { appName })}
     >
       <Section title={t("legal.termsS1Title")}>
-        {t("legal.termsS1Body", { appName: COMPANY.appName })}
+        {t("legal.termsS1Body", { appName })}
       </Section>
 
       <Section title={t("legal.termsS2Title")}>
-        {t("legal.termsS2Body")}
+        {t("legal.termsS2Body", { appName })}
       </Section>
 
       <Section title={t("legal.termsS3Title")}>
@@ -349,56 +312,76 @@ export function TermsPage() {
       </Section>
 
       <Section title={t("legal.termsS4Title")}>
-        {t("legal.termsS4Pre")}
-        <strong>{t("legal.termsS4Bold")}</strong>
-        {t("legal.termsS4Post")}
-        <ul style={ul}>
-          <li>{t("legal.termsS4Li1")}</li>
-          <li>{t("legal.termsS4Li2")}</li>
-          <li>
-            {t("legal.termsS4Li3Pre")}
-            <strong>{t("legal.termsS4Li3Bold")}</strong>
-            {t("legal.termsS4Li3Post")}
-          </li>
-        </ul>
+        {t("legal.termsS4Intro", { appName })}
+        <Bullets items={items("legal.termsS4Items")} />
         {t("legal.termsS4Closing")}
       </Section>
 
       <Section title={t("legal.termsS5Title")}>
         {t("legal.termsS5Intro")}
-        <ul style={ul}>
-          <li>{t("legal.termsS5Li1")}</li>
-          <li>{t("legal.termsS5Li2")}</li>
-          <li>{t("legal.termsS5Li3")}</li>
-          <li>{t("legal.termsS5Li4")}</li>
-          <li>{t("legal.termsS5Li5")}</li>
-        </ul>
+        <Bullets items={items("legal.termsS5Items")} />
       </Section>
 
       <Section title={t("legal.termsS6Title")}>
-        {t("legal.termsS6Intro", { appName: COMPANY.appName })}
-        <ul style={ul}>
-          <li>{t("legal.termsS6Li1")}</li>
-          <li>{t("legal.termsS6Li2")}</li>
-          <li>{t("legal.termsS6Li3")}</li>
-          <li>{t("legal.termsS6Li4")}</li>
-        </ul>
+        {t("legal.termsS6Body", { appName })}
       </Section>
 
       <Section title={t("legal.termsS7Title")}>
-        {t("legal.termsS7Body", { appName: COMPANY.appName })}
+        {t("legal.termsS7Body", { appName })}
       </Section>
 
       <Section title={t("legal.termsS8Title")}>
-        {t("legal.termsS8Body")}
+        {t("legal.termsS8Intro", { appName })}
+        <Bullets items={items("legal.termsS8Items")} />
       </Section>
 
       <Section title={t("legal.termsS9Title")}>
-        {t("legal.termsS9Body")}
+        {t("legal.termsS9Body", { appName })}
       </Section>
 
       <Section title={t("legal.termsS10Title")}>
-        {t("legal.termsS10Body")}
+        {t("legal.termsS10Intro")}
+        <Bullets items={items("legal.termsS10Items")} />
+      </Section>
+
+      <Section title={t("legal.termsS11Title")}>
+        {t("legal.termsS11Body", { appName })}
+      </Section>
+
+      <Section title={t("legal.termsS12Title")}>
+        {t("legal.termsS12Body", { appName })}
+      </Section>
+
+      <Section title={t("legal.termsS13Title")}>
+        {t("legal.termsS13Body", { appName })}
+      </Section>
+
+      <Section title={t("legal.termsS14Title")}>
+        {t("legal.termsS14Body", { appName })}
+      </Section>
+
+      <Section title={t("legal.termsS15Title")}>
+        {t("legal.termsS15Body", { appName })}
+      </Section>
+
+      <Section title={t("legal.termsS16Title")}>
+        {t("legal.termsS16Body")}
+      </Section>
+
+      <Section title={t("legal.termsS17Title")}>
+        {t("legal.termsS17Body")}
+      </Section>
+
+      <Section title={t("legal.termsS18Title")}>
+        {t("legal.termsS18Body", { appName })}
+      </Section>
+
+      <Section title={t("legal.termsS19Title")}>
+        {t("legal.termsS19Body")}
+      </Section>
+
+      <Section title={t("legal.termsS20Title")}>
+        {t("legal.termsS20Body")}
         <strong>{COMPANY.contactEmail}</strong>.
       </Section>
     </LegalLayout>

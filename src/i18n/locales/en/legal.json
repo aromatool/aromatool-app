@@ -7,112 +7,173 @@
   "navCookies": "Cookies",
 
   "privacyTitle": "Privacy Policy",
-  "privacyIntro": "This policy explains what personal data {{appName}} processes and how. Please read it carefully.",
+  "privacyIntro": "This policy explains what personal data {{appName}} processes, why, and your rights. Please read it carefully.",
+
   "privacyS1Title": "1. Who we are (the controller)",
-  "privacyS1Body": "{{legalName}}, {{cui}}, with its registered office at {{address}}, operates the {{appName}} application ({{appUrl}}). For any question regarding personal data, you can write to us at ",
-  "privacyS2Title": "2. Our roles",
-  "privacyS2Li1Pre": "For ",
-  "privacyS2Li1Bold1": "your account data",
-  "privacyS2Li1Mid": " (name, email, phone) we are the ",
-  "privacyS2Li1Bold2": "controller",
-  "privacyS2Li1Post": ".",
-  "privacyS2Li2Pre": "For ",
-  "privacyS2Li2Bold1": "the contact data you enter",
-  "privacyS2Li2Mid": " into the application, you are the ",
-  "privacyS2Li2Bold2": "controller",
-  "privacyS2Li2Mid2": ", and we are the ",
-  "privacyS2Li2Bold3": "processor",
-  "privacyS2Li2Post": ", and we process this data only to provide you the service, according to your instructions and the Terms.",
+  "privacyS1Body": "{{legalName}}, {{cui}}, with its registered office at {{address}}, operates the {{appName}} application ({{appUrl}}). We have not appointed a Data Protection Officer, as we are not legally required to; for any question about personal data or to exercise your rights, contact our privacy point of contact at ",
+
+  "privacyS2Title": "2. Our roles (controller and processor)",
+  "privacyS2Intro": "Our role depends on the data:",
+  "privacyS2Items": [
+    "For your account data (name, email, phone) we are the controller and decide how it is processed.",
+    "For the contact data you enter into the application, you are the controller and we are the processor — we process it only to provide you the service, on your documented instructions. Our processor commitments under Article 28 GDPR are set out in the Terms and Conditions."
+  ],
+
   "privacyS3Title": "3. What data we collect",
-  "privacyS3Li1Bold": "Account data:",
-  "privacyS3Li1Body": " name, email, phone, email signature, preferences (country, language, Daily Focus time).",
-  "privacyS3Li2Bold": "Data you enter about contacts:",
-  "privacyS3Li2Body": " name, email, phone, notes, source, activity history, offers.",
-  "privacyS3Li3Bold": "Email usage data:",
-  "privacyS3Li3Body": " sends, opens and clicks (email tracking), to show you the status of your messages.",
-  "privacyS3Li4Bold": "Payment data:",
-  "privacyS3Li4Body": " processed by Stripe; we do not store card details.",
-  "privacyS3Li5Bold": "Strictly necessary technical data:",
-  "privacyS3Li5Body": " a session cookie for authentication.",
+  "privacyS3Items": [
+    "Account data: name, email, phone, email signature, preferences (country, language, Daily Focus time).",
+    "Data you enter about contacts: name, email, phone, notes, source, activity history, offers.",
+    "Email communication data: whether messages were delivered, opened or clicked, with timestamps and limited technical data (see section 5).",
+    "Payment data: processed by Stripe; we do not store card details.",
+    "Strictly necessary technical data: a session cookie for authentication, plus security and log data."
+  ],
+
   "privacyS4Title": "4. Legal basis and purposes",
-  "privacyS4Li1Bold": "Performance of the contract",
-  "privacyS4Li1Body": " — providing the application and your account.",
-  "privacyS4Li2Bold": "Legitimate interest",
-  "privacyS4Li2Body": " — running the CRM, security, abuse prevention.",
-  "privacyS4Li3Bold": "Legal obligation",
-  "privacyS4Li3Body": " — keeping invoices (accounting legislation).",
-  "privacyS5Title": "5. Providers (sub-processors)",
-  "privacyS5Intro": "We use trusted providers to operate the service:",
-  "privacyS5Li1Bold": "Supabase",
-  "privacyS5Li1Body": " — database, authentication, file storage.",
-  "privacyS5Li2Bold": "Vercel",
-  "privacyS5Li2Body": " — web application hosting.",
-  "privacyS5Li3Bold": "Resend",
-  "privacyS5Li3Body": " — sending emails (USA, with standard contractual clauses for international transfer).",
-  "privacyS5Li4Bold": "Stripe",
-  "privacyS5Li4Body": " — payment processing (USA, with standard contractual clauses).",
-  "privacyS6Title": "6. How long we keep data (retention)",
-  "privacyS6Li1Bold": "Deleted account:",
-  "privacyS6Li1Body": " we delete the data within a maximum of 30 days; backups expire within a maximum of 90 days.",
-  "privacyS6Li2Bold": "Deleted contact:",
-  "privacyS6Li2Body": " immediate deletion.",
-  "privacyS6Li3Bold": "Deleted resources (files):",
-  "privacyS6Li3Body": " immediate deletion from storage.",
-  "privacyS6Li4Bold": "Email logs:",
-  "privacyS6Li4Body": " kept for a maximum of 12 months.",
-  "privacyS6Li5Bold": "Invoices:",
-  "privacyS6Li5Body": " kept according to accounting law (up to 10 years) — this legal obligation prevails over a deletion request.",
-  "privacyS7Title": "7. Your rights",
-  "privacyS7Body1": "You have the right of access, rectification, erasure, restriction, portability and objection. You can exercise them directly in the application (export, delete account, delete contact) or by writing to us at ",
-  "privacyS7Body2": ". We respond within a maximum of 30 days. You also have the right to lodge a complaint with ",
-  "privacyS7Authority": "ANSPDCP",
-  "privacyS7Body3": " (the Romanian National Supervisory Authority for Personal Data Processing).",
-  "privacyS8Title": "8. Email tracking",
-  "privacyS8Body": "For emails sent through the application we may record whether they were delivered, opened or whether links were clicked, to show you the status. Recipients can unsubscribe anytime via the link in the email.",
-  "privacyS9Title": "9. Security",
-  "privacyS9Body": "We use per-user data isolation (Row Level Security), private storage with restricted access, encrypted connections and least-privilege access. No system is 100% secure, but we treat security as a priority.",
-  "privacyS10Title": "10. Changes",
-  "privacyS10Body": "We may update this policy. We'll notify you of significant changes, and the date of the last update appears in the header.",
+  "privacyS4Items": [
+    "Performance of the contract — providing the application and your account.",
+    "Legitimate interest — running the CRM, security, abuse prevention, and the email-status features (balanced against the rights of those affected).",
+    "Consent — where we rely on it for an optional feature; you can withdraw consent at any time.",
+    "Legal obligation — keeping invoices (accounting legislation)."
+  ],
+
+  "privacyS5Title": "5. Email communications and tracking",
+  "privacyS5Body": "When you send emails through {{appName}}, our email provider (Resend) delivers them and can record whether a message was delivered, opened (via a small tracking pixel) and whether links were clicked, together with timestamps and limited technical data such as IP address and device/browser type. We show you this status so you can follow up. For this processing you, the sender, are the controller and decide whether to use it; {{appName}} acts as your processor. You are responsible for having a lawful basis (typically your legitimate interest) and for informing your recipients that their interaction may be measured. Recipients can object to tracking and can unsubscribe at any time through the link included in the emails, and we honour these requests.",
+
+  "privacyS6Title": "6. Special category (sensitive) data",
+  "privacyS6Body": "{{appName}} is not intended for special category data under Article 9 GDPR — such as data about health, diagnoses, treatments, medical conditions, religion, political opinions, ethnicity or sexual orientation. You must not enter such data in notes or any other field. If you do, you do so on your own responsibility and as controller of that data.",
+
+  "privacyS7Title": "7. Providers (sub-processors)",
+  "privacyS7Intro": "We use trusted providers to operate the service, each bound by data-protection obligations equivalent to Article 28 GDPR:",
+  "privacyS7Items": [
+    "Supabase — database, authentication and file storage (hosted in the EU region where available).",
+    "Vercel — web application hosting and delivery.",
+    "Resend — email delivery and email-status data.",
+    "Stripe — payment processing; we do not store card data."
+  ],
+  "privacyS7Closing": "We may change sub-processors as the service evolves. We keep this list up to date and, for material changes, will inform you in advance (for example by email or in the application) so you can object if you have legitimate grounds.",
+
+  "privacyS8Title": "8. International data transfers",
+  "privacyS8Body": "Some providers (in particular Resend and Stripe) may process data outside the European Economic Area, including in the United States. Where data is transferred outside the EEA, we rely on appropriate safeguards under GDPR — such as the European Commission's Standard Contractual Clauses and, where applicable, the EU–US Data Privacy Framework — so that your data receives an essentially equivalent level of protection. You can request more information about these safeguards using the contact details above.",
+
+  "privacyS9Title": "9. How long we keep data (retention)",
+  "privacyS9Items": [
+    "Deleted account: removed from active systems promptly and within a maximum of 30 days; backup copies cycle out within a maximum of 90 days.",
+    "Deleted contact or resource: removed from active systems immediately; backup copies cycle out within a maximum of 90 days.",
+    "Email logs: kept for a maximum of 12 months.",
+    "Invoices: kept according to accounting law (up to 10 years) — this legal obligation prevails over a deletion request."
+  ],
+
+  "privacyS10Title": "10. Your rights",
+  "privacyS10Body1": "You have the right of access, rectification, erasure, restriction, data portability and objection, the right to withdraw consent where processing is based on it, and the right to object to direct marketing. We do not carry out automated decision-making or profiling that produces legal or similarly significant effects on you. You can exercise your rights directly in the application (export, delete account, delete contact) or by writing to us at ",
+  "privacyS10Body2": ". We respond within a maximum of 30 days. You also have the right to lodge a complaint with ",
+  "privacyS10Authority": "ANSPDCP",
+  "privacyS10Body3": " (the Romanian National Supervisory Authority for Personal Data Processing) or your local supervisory authority.",
+
+  "privacyS11Title": "11. Security",
+  "privacyS11Body": "We use per-user data isolation (Row Level Security), private storage with restricted access, encrypted connections and least-privilege access. No system is 100% secure, but we treat security as a priority.",
+
+  "privacyS12Title": "12. Data breaches",
+  "privacyS12Body": "If a personal-data breach occurs, we act without undue delay to contain and assess it. For data where we are the controller, we notify the competent supervisory authority within 72 hours where required, and affected individuals when the breach is likely to result in a high risk to their rights. For the contact data we process on your behalf, we notify you (the controller) without undue delay so you can meet your own obligations.",
+
+  "privacyS13Title": "13. Children",
+  "privacyS13Body": "{{appName}} is intended for business use by adults (18+) and is not directed at children. We do not knowingly collect data from children.",
+
+  "privacyS14Title": "14. Changes",
+  "privacyS14Body": "We may update this policy. We'll notify you of significant changes, and the date of the last update appears in the header.",
 
   "termsTitle": "Terms and Conditions",
-  "termsIntro": "By creating an account and using {{appName}} you agree to these terms.",
+  "termsIntro": "By creating an account and using {{appName}} you agree to these Terms. Please read them carefully.",
+
   "termsS1Title": "1. The service",
-  "termsS1Body": "{{appName}} is a CRM-type application for independent distributors (offer calculator, contact management, follow-up, resources). We may improve or modify the features over time.",
-  "termsS2Title": "2. Your account",
-  "termsS2Body": "You are responsible for keeping your login credentials safe and for the activity in your account. You must be at least 18 years old and provide accurate information.",
+  "termsS1Body": "{{appName}} is an independent software-as-a-service (SaaS) platform that helps you manage contacts, clients, follow-ups, offers, emails and resources in one place. {{appName}} is an independent product and is not affiliated with, endorsed by or operated on behalf of any other company, brand or network. We may add, change or remove features over time to improve the service.",
+
+  "termsS2Title": "2. Eligibility and your account",
+  "termsS2Body": "To use {{appName}} you must be at least 18 years old and able to enter into a binding contract. You are responsible for the accuracy of the information you provide, for keeping your login credentials confidential, and for all activity under your account. Notify us immediately if you suspect unauthorised access.",
+
   "termsS3Title": "3. Subscription and payments",
-  "termsS3Body": "Certain features require a paid subscription, processed through Stripe. Prices and plans are displayed in the application. You can cancel anytime; access continues until the end of the paid period. Invoices are issued according to applicable legislation.",
-  "termsS4Title": "4. Your responsibility regarding contact data (important)",
-  "termsS4Pre": "You enter your contacts' data and are the ",
-  "termsS4Bold": "controller",
-  "termsS4Post": " of this data. You warrant that:",
-  "termsS4Li1": "you have the legal right and, where applicable, the consent to process the data of the people you add;",
-  "termsS4Li2": "you inform those people about the processing and respect their rights (access, deletion, unsubscribe);",
-  "termsS4Li3Pre": "you do not enter ",
-  "termsS4Li3Bold": "sensitive data",
-  "termsS4Li3Post": " (for example information about health, diagnoses or treatments) in notes or other fields.",
-  "termsS4Closing": "You are responsible for the legality of the data entered. We provide you the necessary tools (delete contact, disable email, block communication).",
-  "termsS5Title": "5. Processing data on your behalf (processor clause / DPA)",
-  "termsS5Intro": "When we process your contacts' data, we act as a processor. We commit to:",
-  "termsS5Li1": "process this data only to provide you the service and according to your instructions;",
-  "termsS5Li2": "apply appropriate security measures;",
-  "termsS5Li3": "use sub-processors (Supabase, Vercel, Resend, Stripe) under equivalent protection obligations;",
-  "termsS5Li4": "inform you without undue delay in the event of a security incident affecting your data;",
-  "termsS5Li5": "delete or return the data upon account termination, subject to legal retention obligations.",
-  "termsS6Title": "6. Acceptable use",
-  "termsS6Intro": "You may not use {{appName}} for:",
-  "termsS6Li1": "spam or unsolicited bulk messages;",
-  "termsS6Li2": "purchased contact lists or lists obtained without a legal basis;",
-  "termsS6Li3": "illegal, deceptive content or content that infringes third-party rights;",
-  "termsS6Li4": "attempts to access other users' data.",
-  "termsS7Title": "7. No revenue guarantee",
-  "termsS7Body": "{{appName}} is an organization and communication tool. We do not guarantee sales, revenue or business results. Success depends on your activity.",
-  "termsS8Title": "8. Limitation of liability",
-  "termsS8Body": "The service is provided \"as is\". To the extent permitted by law, we are not liable for indirect losses or loss of profit. Our total liability is limited to the amount you paid in the last 12 months.",
-  "termsS9Title": "9. Termination",
-  "termsS9Body": "You can delete your account anytime from Settings. We may suspend or close accounts that violate these terms.",
-  "termsS10Title": "10. Applicable law",
-  "termsS10Body": "These terms are governed by Romanian law, and any disputes fall under the jurisdiction of the courts in Romania. For questions: ",
+  "termsS3Body": "Certain features require a paid subscription, billed through our payment processor, Stripe. Prices, plans and billing cycles are shown in the application. You can cancel anytime; access continues until the end of the paid period, and fees already paid are non-refundable except where required by law. We may change prices with reasonable prior notice, without affecting the current paid period. Invoices are issued according to applicable law.",
+
+  "termsS4Title": "4. Your data and your responsibility (you are the controller)",
+  "termsS4Intro": "You decide what contact data you enter into {{appName}} and for what purpose, so for that data you act as the data controller. You warrant that:",
+  "termsS4Items": [
+    "you have a lawful basis and, where required, the consent to process the data of the people you add;",
+    "you inform those people about the processing and respect their rights (access, rectification, deletion, objection, unsubscribe);",
+    "you will not enter special category (sensitive) data — such as information about health, diagnoses, treatments, religion or political views — in notes or any other field."
+  ],
+  "termsS4Closing": "You are solely responsible for the lawfulness of the data you enter. We give you the tools you need to comply (export, delete contact, disable email, block communication).",
+
+  "termsS5Title": "5. Processing data on your behalf (data processing terms)",
+  "termsS5Intro": "When we process your contacts' data on your behalf, we act as your processor under Article 28 GDPR. We commit to:",
+  "termsS5Items": [
+    "process this data only to provide the service and according to your documented instructions (these Terms being your initial instructions);",
+    "ensure that persons authorised to process the data are bound by confidentiality;",
+    "apply appropriate technical and organisational security measures;",
+    "engage sub-processors (Supabase, Vercel, Resend, Stripe) under data-protection obligations equivalent to those set out here, and inform you of intended changes;",
+    "assist you, as far as possible, with data-subject requests and with your security, breach-notification and impact-assessment obligations;",
+    "notify you without undue delay after becoming aware of a personal-data breach affecting your data;",
+    "delete or return your data on termination, subject to legal retention obligations;",
+    "make available the information necessary to demonstrate compliance and allow for reasonable audits."
+  ],
+
+  "termsS6Title": "6. Content you upload",
+  "termsS6Body": "{{appName}} lets you upload files such as PDF, JPG and PNG documents, protocols, guides and other resources. You keep ownership of the content you upload and grant us a limited, worldwide, non-exclusive licence to host, store, process and display it solely to operate the service for you. You represent and warrant that you own or hold all necessary rights to the content you upload, that it does not infringe any copyright, trademark, trade secret, privacy or other right of a third party, and that it contains no unlawful, harmful or misleading material. We may remove content we reasonably believe violates these Terms or the rights of others, and may suspend accounts that repeatedly do so.",
+
+  "termsS7Title": "7. Resources and materials shared through the platform",
+  "termsS7Body": "{{appName}} lets you send emails, links and resources to your contacts. You are solely responsible for the content, accuracy and legality of everything you distribute through the platform, including any claims, offers or materials you share. You must not distribute misleading, deceptive or unlawful content, or content that infringes third-party rights. {{appName}} does not review, endorse or take responsibility for the materials you choose to share with your contacts.",
+
+  "termsS8Title": "8. Acceptable use",
+  "termsS8Intro": "You may not use {{appName}} to:",
+  "termsS8Items": [
+    "send spam or unsolicited bulk messages;",
+    "use purchased contact lists or lists obtained without a lawful basis;",
+    "distribute illegal, deceptive, harmful or rights-infringing content;",
+    "access, interfere with or disrupt other users' data or the service's infrastructure;",
+    "upload malware or attempt to circumvent security or usage limits."
+  ],
+
+  "termsS9Title": "9. Our intellectual property",
+  "termsS9Body": "The {{appName}} application — including its software, source code, design, user interface, layout, text, graphics, logos, name and branding — is owned by the platform operator (or its licensors) and is protected by intellectual-property laws. Subject to these Terms and your subscription, we grant you a limited, non-exclusive, non-transferable and revocable right to access and use {{appName}} for your own internal business purposes during the term. All rights not expressly granted are reserved.",
+
+  "termsS10Title": "10. Restrictions",
+  "termsS10Intro": "You may not, and may not allow anyone else to:",
+  "termsS10Items": [
+    "copy, reproduce, republish or resell the application or any part of it;",
+    "reverse engineer, decompile, disassemble or otherwise try to derive the source code;",
+    "extract, scrape or harvest the source code, databases or content of the platform;",
+    "rent, lease, sublicense, distribute or offer the service to third parties as a service;",
+    "remove or alter any proprietary notices, or use our name, logo or branding without written permission;",
+    "use the service to build or assist a competing product."
+  ],
+
+  "termsS11Title": "11. Third-party services",
+  "termsS11Body": "{{appName}} relies on trusted third-party providers, and some features depend on their availability: Supabase (database, authentication and file storage), Vercel (application hosting), Resend (email delivery) and Stripe (payment processing). These providers operate under their own terms and privacy policies. We are not responsible for their acts, omissions, outages or changes, but we use reasonable efforts to choose reputable providers and keep the service running.",
+
+  "termsS12Title": "12. Backups and data recovery",
+  "termsS12Body": "We take reasonable measures to back up data and keep the service reliable. However, no backup or storage system is infallible, and we do not guarantee that data will never be lost, corrupted or temporarily unavailable. To the extent permitted by law, we are not liable for data loss. You are responsible for keeping your own copies of data that is critical to you — {{appName}} provides export tools for this purpose.",
+
+  "termsS13Title": "13. No guarantee of results",
+  "termsS13Body": "{{appName}} is an organisation and communication tool. We do not guarantee any sales, revenue, growth or business results. Outcomes depend on your own activity and on many factors outside our control.",
+
+  "termsS14Title": "14. Service availability",
+  "termsS14Body": "We aim to keep {{appName}} available and reliable, but the service is provided \"as is\" and \"as available\". We do not warrant that it will be uninterrupted, error-free or free of harmful components. We may carry out maintenance, updates or temporary suspensions, and will try to limit disruption where reasonable.",
+
+  "termsS15Title": "15. Limitation of liability",
+  "termsS15Body": "To the maximum extent permitted by law, {{appName}} and the platform operator are not liable for any indirect, incidental, special, consequential or punitive damages, nor for loss of profit, revenue, data, goodwill or business opportunity arising from or related to your use of (or inability to use) the service. Our total aggregate liability for any claim is limited to the amount you paid for the service in the twelve (12) months before the event giving rise to the claim. Nothing in these Terms excludes liability that cannot be excluded by law (such as for fraud, or death or personal injury caused by negligence).",
+
+  "termsS16Title": "16. Indemnification",
+  "termsS16Body": "You agree to indemnify and hold harmless the platform operator from any claims, damages, liabilities and reasonable costs (including legal fees) arising from the content you upload or share, your breach of these Terms, your violation of any law, or your infringement of any third-party right.",
+
+  "termsS17Title": "17. Suspension and termination",
+  "termsS17Body": "You can delete your account at any time from Settings. We may suspend or close accounts that violate these Terms, create legal or security risks, or fail to pay. On termination, your right to use the service ends and we delete or return your data subject to legal retention obligations (see the Privacy Policy).",
+
+  "termsS18Title": "18. Changes to these Terms",
+  "termsS18Body": "We may update these Terms from time to time. For material changes we will give reasonable notice (for example by email or in the application). By continuing to use {{appName}} after the changes take effect, you accept the updated Terms. The date of the last update appears at the top of this page.",
+
+  "termsS19Title": "19. General",
+  "termsS19Body": "If any provision of these Terms is found invalid, the remaining provisions stay in effect. We may transfer these Terms in connection with a merger, acquisition or sale of assets; you may not transfer them without our consent. We are not liable for failures caused by events beyond our reasonable control (force majeure). A failure to enforce a right is not a waiver of it.",
+
+  "termsS20Title": "20. Governing law and contact",
+  "termsS20Body": "These Terms are governed by the laws of Romania, and disputes fall under the jurisdiction of the competent courts in Romania, without prejudice to mandatory consumer-protection rules that may apply where you live. For any question about these Terms, contact us at ",
 
   "cookieTitle": "Cookie Policy",
   "cookieIntro": "{{appName}} uses a minimal set of cookies, strictly necessary for operation.",

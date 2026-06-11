@@ -7,112 +7,173 @@
   "navCookies": "Cookie-uri",
 
   "privacyTitle": "Politica de confidențialitate",
-  "privacyIntro": "Această politică explică ce date personale prelucrează {{appName}} și cum. Te rugăm să o citești cu atenție.",
+  "privacyIntro": "Această politică explică ce date personale prelucrează {{appName}}, de ce și care sunt drepturile tale. Te rugăm să o citești cu atenție.",
+
   "privacyS1Title": "1. Cine suntem (operatorul)",
-  "privacyS1Body": "{{legalName}}, {{cui}}, cu sediul în {{address}}, operează aplicația {{appName}} ({{appUrl}}). Pentru orice întrebare legată de date personale, ne poți scrie la ",
-  "privacyS2Title": "2. Rolurile noastre",
-  "privacyS2Li1Pre": "Pentru ",
-  "privacyS2Li1Bold1": "datele contului tău",
-  "privacyS2Li1Mid": " (nume, email, telefon) suntem ",
-  "privacyS2Li1Bold2": "operator",
-  "privacyS2Li1Post": ".",
-  "privacyS2Li2Pre": "Pentru ",
-  "privacyS2Li2Bold1": "datele contactelor pe care le introduci",
-  "privacyS2Li2Mid": " în aplicație, tu ești ",
-  "privacyS2Li2Bold2": "operatorul",
-  "privacyS2Li2Mid2": ", iar noi suntem ",
-  "privacyS2Li2Bold3": "persoană împuternicită (procesor)",
-  "privacyS2Li2Post": " și prelucrăm aceste date doar pentru a-ți furniza serviciul, conform instrucțiunilor tale și Termenilor.",
+  "privacyS1Body": "{{legalName}}, {{cui}}, cu sediul în {{address}}, operează aplicația {{appName}} ({{appUrl}}). Nu am desemnat un Responsabil cu protecția datelor (DPO), întrucât nu suntem obligați legal; pentru orice întrebare legată de date personale sau pentru a-ți exercita drepturile, contactează punctul nostru de contact pentru confidențialitate la ",
+
+  "privacyS2Title": "2. Rolurile noastre (operator și persoană împuternicită)",
+  "privacyS2Intro": "Rolul nostru depinde de date:",
+  "privacyS2Items": [
+    "Pentru datele contului tău (nume, email, telefon) suntem operator și decidem cum sunt prelucrate.",
+    "Pentru datele contactelor pe care le introduci în aplicație, tu ești operatorul, iar noi suntem persoana împuternicită (procesor) — le prelucrăm doar pentru a-ți furniza serviciul, conform instrucțiunilor tale documentate. Angajamentele noastre ca procesor, conform Articolului 28 GDPR, sunt stabilite în Termeni și condiții."
+  ],
+
   "privacyS3Title": "3. Ce date colectăm",
-  "privacyS3Li1Bold": "Date cont:",
-  "privacyS3Li1Body": " nume, email, telefon, semnătură email, preferințe (țară, limbă, oră Daily Focus).",
-  "privacyS3Li2Bold": "Date introduse de tine despre contacte:",
-  "privacyS3Li2Body": " nume, email, telefon, notițe, sursă, istoric activități, oferte.",
-  "privacyS3Li3Bold": "Date de utilizare email:",
-  "privacyS3Li3Body": " trimiteri, deschideri și click-uri (email tracking), pentru a-ți arăta statusul mesajelor.",
-  "privacyS3Li4Bold": "Date de plată:",
-  "privacyS3Li4Body": " procesate de Stripe; noi nu stocăm datele cardului.",
-  "privacyS3Li5Bold": "Date tehnice strict necesare:",
-  "privacyS3Li5Body": " cookie de sesiune pentru autentificare.",
+  "privacyS3Items": [
+    "Date cont: nume, email, telefon, semnătură email, preferințe (țară, limbă, oră Daily Focus).",
+    "Date introduse de tine despre contacte: nume, email, telefon, notițe, sursă, istoric activități, oferte.",
+    "Date de comunicare prin email: dacă mesajele au fost livrate, deschise sau dacă s-a dat click, cu marcaje de timp și date tehnice limitate (vezi secțiunea 5).",
+    "Date de plată: procesate de Stripe; noi nu stocăm datele cardului.",
+    "Date tehnice strict necesare: cookie de sesiune pentru autentificare, plus date de securitate și de jurnal."
+  ],
+
   "privacyS4Title": "4. Temeiul legal și scopurile",
-  "privacyS4Li1Bold": "Executarea contractului",
-  "privacyS4Li1Body": " — furnizarea aplicației și a contului tău.",
-  "privacyS4Li2Bold": "Interes legitim",
-  "privacyS4Li2Body": " — funcționarea CRM-ului, securitate, prevenirea abuzului.",
-  "privacyS4Li3Bold": "Obligație legală",
-  "privacyS4Li3Body": " — păstrarea facturilor (legislația contabilă).",
-  "privacyS5Title": "5. Furnizori (sub-procesori)",
-  "privacyS5Intro": "Folosim furnizori de încredere pentru a opera serviciul:",
-  "privacyS5Li1Bold": "Supabase",
-  "privacyS5Li1Body": " — bază de date, autentificare, stocare fișiere.",
-  "privacyS5Li2Bold": "Vercel",
-  "privacyS5Li2Body": " — găzduire aplicație web.",
-  "privacyS5Li3Bold": "Resend",
-  "privacyS5Li3Body": " — trimitere emailuri (SUA, cu clauze contractuale standard pentru transfer internațional).",
-  "privacyS5Li4Bold": "Stripe",
-  "privacyS5Li4Body": " — procesare plăți (SUA, cu clauze contractuale standard).",
-  "privacyS6Title": "6. Cât păstrăm datele (retenție)",
-  "privacyS6Li1Bold": "Cont șters:",
-  "privacyS6Li1Body": " ștergem datele în maximum 30 de zile; copiile de siguranță expiră în maximum 90 de zile.",
-  "privacyS6Li2Bold": "Contact șters:",
-  "privacyS6Li2Body": " ștergere imediată.",
-  "privacyS6Li3Bold": "Resurse (fișiere) șterse:",
-  "privacyS6Li3Body": " ștergere imediată din stocare.",
-  "privacyS6Li4Bold": "Loguri email:",
-  "privacyS6Li4Body": " păstrate maximum 12 luni.",
-  "privacyS6Li5Bold": "Facturi:",
-  "privacyS6Li5Body": " păstrate conform legii contabile (până la 10 ani) — această obligație legală prevalează asupra cererii de ștergere.",
-  "privacyS7Title": "7. Drepturile tale",
-  "privacyS7Body1": "Ai dreptul de acces, rectificare, ștergere, restricționare, portabilitate și opoziție. Le poți exercita direct din aplicație (export, ștergere cont, ștergere contact) sau scriindu-ne la ",
-  "privacyS7Body2": ". Răspundem în maximum 30 de zile. Ai și dreptul de a depune o plângere la ",
-  "privacyS7Authority": "ANSPDCP",
-  "privacyS7Body3": " (Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal).",
-  "privacyS8Title": "8. Email tracking",
-  "privacyS8Body": "Pentru emailurile trimise prin aplicație putem înregistra dacă au fost livrate, deschise sau dacă s-a dat click pe linkuri, ca să-ți arătăm statusul. Destinatarii se pot dezabona oricând prin linkul din email.",
-  "privacyS9Title": "9. Securitate",
-  "privacyS9Body": "Folosim izolarea datelor pe utilizator (Row Level Security), stocare privată cu acces restricționat, conexiuni criptate și acces minim necesar. Niciun sistem nu e 100% sigur, dar tratăm securitatea cu prioritate.",
-  "privacyS10Title": "10. Modificări",
-  "privacyS10Body": "Putem actualiza această politică. Te anunțăm la schimbări semnificative, iar data ultimei actualizări apare în antet.",
+  "privacyS4Items": [
+    "Executarea contractului — furnizarea aplicației și a contului tău.",
+    "Interes legitim — funcționarea CRM-ului, securitate, prevenirea abuzului și funcțiile de status al emailurilor (echilibrate cu drepturile persoanelor afectate).",
+    "Consimțământ — acolo unde ne bazăm pe el pentru o funcție opțională; îl poți retrage oricând.",
+    "Obligație legală — păstrarea facturilor (legislația contabilă)."
+  ],
+
+  "privacyS5Title": "5. Comunicări prin email și urmărirea (tracking)",
+  "privacyS5Body": "Când trimiți emailuri prin {{appName}}, furnizorul nostru de email (Resend) le livrează și poate înregistra dacă un mesaj a fost livrat, deschis (printr-un mic pixel de urmărire) și dacă s-a dat click pe linkuri, împreună cu marcaje de timp și date tehnice limitate, precum adresa IP și tipul dispozitivului/browserului. Îți arătăm acest status ca să poți face follow-up. Pentru această prelucrare tu, expeditorul, ești operatorul și decizi dacă o folosești; {{appName}} acționează ca persoană împuternicită. Ești responsabil să ai un temei legal (de regulă interesul tău legitim) și să-ți informezi destinatarii că interacțiunea lor poate fi măsurată. Destinatarii se pot opune urmăririi și se pot dezabona oricând prin linkul inclus în emailuri, iar noi respectăm aceste cereri.",
+
+  "privacyS6Title": "6. Date din categorii speciale (sensibile)",
+  "privacyS6Body": "{{appName}} nu este destinat datelor din categorii speciale conform Articolului 9 GDPR — precum date despre sănătate, diagnostice, tratamente, afecțiuni medicale, religie, opinii politice, etnie sau orientare sexuală. Nu ai voie să introduci astfel de date în notițe sau în orice alt câmp. Dacă o faci, o faci pe propria răspundere și în calitate de operator al acelor date.",
+
+  "privacyS7Title": "7. Furnizori (sub-procesori)",
+  "privacyS7Intro": "Folosim furnizori de încredere pentru a opera serviciul, fiecare ținut de obligații de protecție a datelor echivalente Articolului 28 GDPR:",
+  "privacyS7Items": [
+    "Supabase — bază de date, autentificare și stocare fișiere (găzduit în regiunea UE, unde e disponibil).",
+    "Vercel — găzduirea și livrarea aplicației web.",
+    "Resend — livrarea emailurilor și datele de status ale acestora.",
+    "Stripe — procesarea plăților; noi nu stocăm datele cardului."
+  ],
+  "privacyS7Closing": "Putem schimba sub-procesorii pe măsură ce serviciul evoluează. Menținem această listă actualizată și, pentru schimbări semnificative, te vom informa în prealabil (de exemplu prin email sau în aplicație), ca să te poți opune dacă ai motive legitime.",
+
+  "privacyS8Title": "8. Transferuri internaționale de date",
+  "privacyS8Body": "Unii furnizori (în special Resend și Stripe) pot prelucra date în afara Spațiului Economic European, inclusiv în Statele Unite. Acolo unde datele sunt transferate în afara SEE, ne bazăm pe garanții adecvate conform GDPR — precum Clauzele Contractuale Standard ale Comisiei Europene și, unde se aplică, Cadrul UE–SUA pentru confidențialitatea datelor (Data Privacy Framework) — astfel încât datele tale să beneficieze de un nivel de protecție în esență echivalent. Poți cere mai multe informații despre aceste garanții folosind datele de contact de mai sus.",
+
+  "privacyS9Title": "9. Cât păstrăm datele (retenție)",
+  "privacyS9Items": [
+    "Cont șters: eliminat din sistemele active prompt și în maximum 30 de zile; copiile de siguranță se rotesc în maximum 90 de zile.",
+    "Contact sau resursă ștearsă: eliminat(ă) imediat din sistemele active; copiile de siguranță se rotesc în maximum 90 de zile.",
+    "Loguri email: păstrate maximum 12 luni.",
+    "Facturi: păstrate conform legii contabile (până la 10 ani) — această obligație legală prevalează asupra cererii de ștergere."
+  ],
+
+  "privacyS10Title": "10. Drepturile tale",
+  "privacyS10Body1": "Ai dreptul de acces, rectificare, ștergere, restricționare, portabilitate și opoziție, dreptul de a-ți retrage consimțământul acolo unde prelucrarea se bazează pe el și dreptul de a te opune marketingului direct. Nu efectuăm decizii automate sau profilare care produc efecte juridice ori similar semnificative asupra ta. Îți poți exercita drepturile direct din aplicație (export, ștergere cont, ștergere contact) sau scriindu-ne la ",
+  "privacyS10Body2": ". Răspundem în maximum 30 de zile. Ai și dreptul de a depune o plângere la ",
+  "privacyS10Authority": "ANSPDCP",
+  "privacyS10Body3": " (Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal) sau la autoritatea de supraveghere din țara ta.",
+
+  "privacyS11Title": "11. Securitate",
+  "privacyS11Body": "Folosim izolarea datelor pe utilizator (Row Level Security), stocare privată cu acces restricționat, conexiuni criptate și acces minim necesar. Niciun sistem nu e 100% sigur, dar tratăm securitatea cu prioritate.",
+
+  "privacyS12Title": "12. Breșe de securitate",
+  "privacyS12Body": "Dacă apare o breșă de date cu caracter personal, acționăm fără întârziere nejustificată pentru a o limita și evalua. Pentru datele unde suntem operator, notificăm autoritatea de supraveghere competentă în maximum 72 de ore, acolo unde e cazul, și persoanele afectate atunci când breșa este susceptibilă să genereze un risc ridicat pentru drepturile lor. Pentru datele contactelor pe care le prelucrăm în numele tău, te notificăm pe tine (operatorul) fără întârziere nejustificată, ca să-ți poți îndeplini propriile obligații.",
+
+  "privacyS13Title": "13. Minori",
+  "privacyS13Body": "{{appName}} este destinat utilizării profesionale de către adulți (18+) și nu se adresează minorilor. Nu colectăm cu bună știință date de la copii.",
+
+  "privacyS14Title": "14. Modificări",
+  "privacyS14Body": "Putem actualiza această politică. Te anunțăm la schimbări semnificative, iar data ultimei actualizări apare în antet.",
 
   "termsTitle": "Termeni și condiții",
-  "termsIntro": "Prin crearea unui cont și utilizarea {{appName}} ești de acord cu acești termeni.",
+  "termsIntro": "Prin crearea unui cont și utilizarea {{appName}} ești de acord cu acești Termeni. Te rugăm să îi citești cu atenție.",
+
   "termsS1Title": "1. Serviciul",
-  "termsS1Body": "{{appName}} este o aplicație de tip CRM pentru distribuitori independenți (calculator de oferte, gestionare contacte, follow-up, resurse). Putem îmbunătăți sau modifica funcționalitățile în timp.",
-  "termsS2Title": "2. Contul tău",
-  "termsS2Body": "Ești responsabil pentru păstrarea în siguranță a datelor de autentificare și pentru activitatea din contul tău. Trebuie să ai cel puțin 18 ani și să furnizezi informații corecte.",
+  "termsS1Body": "{{appName}} este o platformă independentă de tip software-as-a-service (SaaS) care te ajută să gestionezi contacte, clienți, follow-up-uri, oferte, emailuri și resurse într-un singur loc. {{appName}} este un produs independent și nu este afiliat, aprobat sau operat în numele vreunei alte companii, brand sau rețele. Putem adăuga, modifica sau elimina funcționalități în timp, pentru a îmbunătăți serviciul.",
+
+  "termsS2Title": "2. Eligibilitate și contul tău",
+  "termsS2Body": "Pentru a folosi {{appName}} trebuie să ai cel puțin 18 ani și capacitatea de a încheia un contract. Ești responsabil pentru acuratețea informațiilor pe care le furnizezi, pentru păstrarea confidențială a datelor de autentificare și pentru toată activitatea din contul tău. Anunță-ne imediat dacă bănuiești un acces neautorizat.",
+
   "termsS3Title": "3. Abonament și plăți",
-  "termsS3Body": "Anumite funcționalități necesită abonament plătit, procesat prin Stripe. Prețurile și planurile sunt afișate în aplicație. Poți anula oricând; accesul continuă până la finalul perioadei plătite. Facturile se emit conform legislației aplicabile.",
-  "termsS4Title": "4. Responsabilitatea ta privind datele contactelor (important)",
-  "termsS4Pre": "Tu introduci datele contactelor tale și ești ",
-  "termsS4Bold": "operatorul",
-  "termsS4Post": " acestor date. Garantezi că:",
-  "termsS4Li1": "ai dreptul legal și, unde e cazul, consimțământul de a prelucra datele persoanelor pe care le adaugi;",
-  "termsS4Li2": "informezi acele persoane despre prelucrare și le respecți drepturile (acces, ștergere, dezabonare);",
-  "termsS4Li3Pre": "nu introduci ",
-  "termsS4Li3Bold": "date sensibile",
-  "termsS4Li3Post": " (de exemplu informații despre sănătate, diagnostice sau tratamente) în notițe sau alte câmpuri.",
-  "termsS4Closing": "Tu ești responsabil pentru legalitatea datelor introduse. Noi îți punem la dispoziție uneltele necesare (ștergere contact, dezactivare email, blocare comunicare).",
-  "termsS5Title": "5. Prelucrarea datelor în numele tău (clauză de procesor / DPA)",
-  "termsS5Intro": "Când prelucrăm datele contactelor tale, acționăm ca persoană împuternicită. Ne angajăm să:",
-  "termsS5Li1": "prelucrăm aceste date doar pentru a-ți furniza serviciul și conform instrucțiunilor tale;",
-  "termsS5Li2": "aplicăm măsuri de securitate adecvate;",
-  "termsS5Li3": "folosim sub-procesori (Supabase, Vercel, Resend, Stripe) sub obligații echivalente de protecție;",
-  "termsS5Li4": "te informăm fără întârziere nejustificată în caz de incident de securitate ce afectează datele tale;",
-  "termsS5Li5": "ștergem sau returnăm datele la încetarea contului, sub rezerva obligațiilor legale de păstrare.",
-  "termsS6Title": "6. Utilizare acceptabilă",
-  "termsS6Intro": "Nu ai voie să folosești {{appName}} pentru:",
-  "termsS6Li1": "spam sau mesaje nesolicitate în masă;",
-  "termsS6Li2": "liste de contacte cumpărate sau obținute fără temei legal;",
-  "termsS6Li3": "conținut ilegal, înșelător sau care încalcă drepturi terțe;",
-  "termsS6Li4": "încercări de a accesa date ale altor utilizatori.",
-  "termsS7Title": "7. Fără garanție de venit",
-  "termsS7Body": "{{appName}} este o unealtă de organizare și comunicare. Nu garantăm vânzări, venituri sau rezultate de business. Succesul depinde de activitatea ta.",
-  "termsS8Title": "8. Limitarea răspunderii",
-  "termsS8Body": "Serviciul este oferit „ca atare\". În limita permisă de lege, nu suntem răspunzători pentru pierderi indirecte sau de profit. Răspunderea noastră totală este limitată la suma plătită de tine în ultimele 12 luni.",
-  "termsS9Title": "9. Încetare",
-  "termsS9Body": "Poți șterge contul oricând din Setări. Putem suspenda sau închide conturi care încalcă acești termeni.",
-  "termsS10Title": "10. Legea aplicabilă",
-  "termsS10Body": "Acești termeni sunt guvernați de legea română, iar eventualele litigii sunt de competența instanțelor din România. Pentru întrebări: ",
+  "termsS3Body": "Anumite funcționalități necesită un abonament plătit, facturat prin procesatorul nostru de plăți, Stripe. Prețurile, planurile și ciclurile de facturare sunt afișate în aplicație. Poți anula oricând; accesul continuă până la finalul perioadei plătite, iar sumele deja plătite nu se rambursează, cu excepția cazurilor prevăzute de lege. Putem modifica prețurile cu o notificare prealabilă rezonabilă, fără a afecta perioada plătită curentă. Facturile se emit conform legislației aplicabile.",
+
+  "termsS4Title": "4. Datele tale și responsabilitatea ta (ești operatorul)",
+  "termsS4Intro": "Tu decizi ce date de contact introduci în {{appName}} și în ce scop, deci pentru acele date acționezi ca operator de date. Garantezi că:",
+  "termsS4Items": [
+    "ai un temei legal și, unde e necesar, consimțământul de a prelucra datele persoanelor pe care le adaugi;",
+    "informezi acele persoane despre prelucrare și le respecți drepturile (acces, rectificare, ștergere, opoziție, dezabonare);",
+    "nu vei introduce date din categorii speciale (sensibile) — precum informații despre sănătate, diagnostice, tratamente, religie sau opinii politice — în notițe sau în orice alt câmp."
+  ],
+  "termsS4Closing": "Ești singurul responsabil pentru legalitatea datelor pe care le introduci. Îți punem la dispoziție uneltele necesare pentru conformitate (export, ștergere contact, dezactivare email, blocare comunicare).",
+
+  "termsS5Title": "5. Prelucrarea datelor în numele tău (clauze de prelucrare a datelor)",
+  "termsS5Intro": "Când prelucrăm datele contactelor tale în numele tău, acționăm ca persoană împuternicită, conform Articolului 28 GDPR. Ne angajăm să:",
+  "termsS5Items": [
+    "prelucrăm aceste date doar pentru a furniza serviciul și conform instrucțiunilor tale documentate (acești Termeni fiind instrucțiunile tale inițiale);",
+    "ne asigurăm că persoanele autorizate să prelucreze datele sunt ținute de o obligație de confidențialitate;",
+    "aplicăm măsuri tehnice și organizatorice de securitate adecvate;",
+    "folosim sub-procesori (Supabase, Vercel, Resend, Stripe) sub obligații de protecție a datelor echivalente cu cele de aici și te informăm despre schimbările intenționate;",
+    "te asistăm, în măsura posibilului, cu cererile persoanelor vizate și cu obligațiile tale de securitate, notificare a breșelor și evaluare a impactului;",
+    "te notificăm fără întârziere nejustificată după ce luăm cunoștință de o breșă de securitate ce afectează datele tale;",
+    "ștergem sau returnăm datele la încetare, sub rezerva obligațiilor legale de păstrare;",
+    "punem la dispoziție informațiile necesare pentru a demonstra conformitatea și permitem audituri rezonabile."
+  ],
+
+  "termsS6Title": "6. Conținutul încărcat de tine",
+  "termsS6Body": "{{appName}} îți permite să încarci fișiere precum documente PDF, JPG și PNG, protocoale, ghiduri și alte resurse. Păstrezi proprietatea asupra conținutului pe care îl încarci și ne acorzi o licență limitată, mondială, neexclusivă de a-l găzdui, stoca, prelucra și afișa exclusiv pentru a opera serviciul pentru tine. Declari și garantezi că deții sau ai toate drepturile necesare asupra conținutului încărcat, că acesta nu încalcă niciun drept de autor, marcă, secret comercial, drept la viață privată sau alt drept al unui terț și că nu conține material ilegal, dăunător sau înșelător. Putem elimina conținutul despre care credem în mod rezonabil că încalcă acești Termeni sau drepturile altora și putem suspenda conturile care fac asta în mod repetat.",
+
+  "termsS7Title": "7. Resurse și materiale distribuite prin platformă",
+  "termsS7Body": "{{appName}} îți permite să trimiți emailuri, linkuri și resurse către contactele tale. Ești singurul responsabil pentru conținutul, acuratețea și legalitatea a tot ceea ce distribui prin platformă, inclusiv orice afirmații, oferte sau materiale pe care le împărtășești. Nu ai voie să distribui conținut înșelător, fraudulos sau ilegal, ori conținut care încalcă drepturi terțe. {{appName}} nu verifică, nu aprobă și nu își asumă responsabilitatea pentru materialele pe care alegi să le distribui contactelor tale.",
+
+  "termsS8Title": "8. Utilizare acceptabilă",
+  "termsS8Intro": "Nu ai voie să folosești {{appName}} pentru a:",
+  "termsS8Items": [
+    "trimite spam sau mesaje nesolicitate în masă;",
+    "folosi liste de contacte cumpărate sau obținute fără temei legal;",
+    "distribui conținut ilegal, înșelător, dăunător sau care încalcă drepturi;",
+    "accesa, perturba sau afecta datele altor utilizatori ori infrastructura serviciului;",
+    "încărca malware sau încerca să eludezi măsurile de securitate ori limitele de utilizare."
+  ],
+
+  "termsS9Title": "9. Proprietatea noastră intelectuală",
+  "termsS9Body": "Aplicația {{appName}} — inclusiv software-ul, codul sursă, designul, interfața, layout-ul, textele, grafica, logo-urile, numele și brandingul — aparține operatorului platformei (sau licențiatorilor săi) și este protejată de legile privind proprietatea intelectuală. Sub rezerva acestor Termeni și a abonamentului tău, îți acordăm un drept limitat, neexclusiv, netransferabil și revocabil de a accesa și folosi {{appName}} pentru propriile tale scopuri interne de business, pe durata contractului. Toate drepturile neacordate expres rămân rezervate.",
+
+  "termsS10Title": "10. Restricții",
+  "termsS10Intro": "Nu ai voie, și nu poți permite nimănui altcuiva, să:",
+  "termsS10Items": [
+    "copieze, reproducă, republice sau revândă aplicația ori orice parte a ei;",
+    "facă inginerie inversă, decompileze, dezasambleze sau încerce altfel să deducă codul sursă;",
+    "extragă, scrapeze sau colecteze codul sursă, bazele de date sau conținutul platformei;",
+    "închirieze, dea în leasing, sublicențieze, distribuie sau ofere serviciul terților ca serviciu;",
+    "elimine sau modifice mențiunile de proprietate ori să folosească numele, logo-ul sau brandingul nostru fără permisiune scrisă;",
+    "folosească serviciul pentru a construi sau sprijini un produs concurent."
+  ],
+
+  "termsS11Title": "11. Servicii terțe",
+  "termsS11Body": "{{appName}} se bazează pe furnizori terți de încredere, iar unele funcționalități depind de disponibilitatea lor: Supabase (bază de date, autentificare și stocare fișiere), Vercel (găzduirea aplicației), Resend (livrarea emailurilor) și Stripe (procesarea plăților). Acești furnizori funcționează conform propriilor termeni și politici de confidențialitate. Nu suntem responsabili pentru acțiunile, omisiunile, întreruperile sau modificările lor, dar depunem eforturi rezonabile pentru a alege furnizori de încredere și a menține serviciul funcțional.",
+
+  "termsS12Title": "12. Backup și recuperarea datelor",
+  "termsS12Body": "Luăm măsuri rezonabile pentru a face backup datelor și a menține serviciul fiabil. Totuși, niciun sistem de backup sau stocare nu este infailibil și nu garantăm că datele nu vor fi niciodată pierdute, corupte sau temporar indisponibile. În limita permisă de lege, nu suntem răspunzători pentru pierderea de date. Ești responsabil să păstrezi propriile copii ale datelor critice pentru tine — {{appName}} pune la dispoziție unelte de export în acest scop.",
+
+  "termsS13Title": "13. Fără garanție de rezultate",
+  "termsS13Body": "{{appName}} este o unealtă de organizare și comunicare. Nu garantăm vânzări, venituri, creștere sau rezultate de business. Rezultatele depind de activitatea ta și de mulți factori aflați în afara controlului nostru.",
+
+  "termsS14Title": "14. Disponibilitatea serviciului",
+  "termsS14Body": "Ne propunem să menținem {{appName}} disponibil și fiabil, însă serviciul este oferit „ca atare\" și „în funcție de disponibilitate\". Nu garantăm că va fi neîntrerupt, fără erori sau lipsit de componente dăunătoare. Putem efectua mentenanță, actualizări sau suspendări temporare și vom încerca să limităm perturbările pe cât e rezonabil.",
+
+  "termsS15Title": "15. Limitarea răspunderii",
+  "termsS15Body": "În măsura maximă permisă de lege, {{appName}} și operatorul platformei nu sunt răspunzători pentru daune indirecte, incidentale, speciale, subsecvente sau punitive, nici pentru pierderea de profit, venit, date, fond comercial sau oportunități de business care decurg din sau sunt legate de utilizarea (ori imposibilitatea de a utiliza) serviciul. Răspunderea noastră totală cumulată pentru orice pretenție este limitată la suma plătită de tine pentru serviciu în cele douăsprezece (12) luni anterioare evenimentului care a generat pretenția. Nimic din acești Termeni nu exclude răspunderea care nu poate fi exclusă prin lege (precum cea pentru fraudă ori pentru deces sau vătămare corporală cauzată din neglijență).",
+
+  "termsS16Title": "16. Despăgubire",
+  "termsS16Body": "Ești de acord să despăgubești și să exonerezi operatorul platformei de orice pretenții, daune, răspunderi și costuri rezonabile (inclusiv onorarii juridice) care decurg din conținutul pe care îl încarci sau distribui, din încălcarea de către tine a acestor Termeni, din încălcarea oricărei legi sau din încălcarea oricărui drept al unui terț.",
+
+  "termsS17Title": "17. Suspendare și încetare",
+  "termsS17Body": "Poți șterge contul oricând din Setări. Putem suspenda sau închide conturi care încalcă acești Termeni, creează riscuri legale ori de securitate sau nu efectuează plata. La încetare, dreptul tău de a folosi serviciul se stinge, iar noi ștergem sau returnăm datele tale, sub rezerva obligațiilor legale de păstrare (vezi Politica de confidențialitate).",
+
+  "termsS18Title": "18. Modificări ale acestor Termeni",
+  "termsS18Body": "Putem actualiza acești Termeni din când în când. Pentru modificări semnificative vom oferi o notificare rezonabilă (de exemplu prin email sau în aplicație). Prin continuarea utilizării {{appName}} după intrarea în vigoare a modificărilor, accepți Termenii actualizați. Data ultimei actualizări apare în partea de sus a acestei pagini.",
+
+  "termsS19Title": "19. Dispoziții generale",
+  "termsS19Body": "Dacă vreo prevedere din acești Termeni este considerată nevalidă, celelalte prevederi rămân în vigoare. Putem transfera acești Termeni în contextul unei fuziuni, achiziții sau vânzări de active; tu nu îi poți transfera fără acordul nostru. Nu suntem răspunzători pentru neîndepliniri cauzate de evenimente aflate în afara controlului nostru rezonabil (forță majoră). Neexercitarea unui drept nu reprezintă o renunțare la acesta.",
+
+  "termsS20Title": "20. Legea aplicabilă și contact",
+  "termsS20Body": "Acești Termeni sunt guvernați de legea română, iar litigiile sunt de competența instanțelor competente din România, fără a aduce atingere normelor imperative de protecție a consumatorilor care s-ar putea aplica acolo unde locuiești. Pentru orice întrebare despre acești Termeni, contactează-ne la ",
 
   "cookieTitle": "Politica de cookie-uri",
   "cookieIntro": "{{appName}} folosește un set minim de cookie-uri, strict necesare funcționării.",

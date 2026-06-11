@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/auth";
+import { setUiLang, type Lang } from "../../i18n";
 
 // ── BLOSSOM SAGE ───────────────────────────────────────────
 const T = {
@@ -25,12 +26,16 @@ const T = {
 type Mode = "login" | "register" | "forgot";
 
 export default function AuthPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const uiLang: Lang = i18n.language?.startsWith("en") ? "en" : "ro";
   const [mode, setMode] = useState<Mode>("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  // Acceptarea Termenilor + Confidențialității la înregistrare (obligatorie,
+  // nebifată implicit → consimțământ activ, conform GDPR).
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,6 +56,7 @@ export default function AuthPage() {
     setSuccess("");
     setPassword("");
     setConfirmPassword("");
+    setAcceptedTerms(false);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,6 +125,11 @@ export default function AuthPage() {
       setLoading(false);
       return;
     }
+    if (!acceptedTerms) {
+      setError(t("auth.errTermsRequired"));
+      setLoading(false);
+      return;
+    }
     const { error } = await signUp(email, password, fullName);
     if (error) setError(error.message);
     else setRegisteredEmail(email.trim());
@@ -155,6 +166,47 @@ export default function AuthPage() {
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
+      {/* Selector limbă — accesibil înainte de login (default RO). */}
+      <div
+        style={{
+          position: "fixed",
+          top: "18px",
+          right: "18px",
+          zIndex: 2,
+          display: "flex",
+          gap: "2px",
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: "10px",
+          padding: "3px",
+          boxShadow: "0 2px 12px rgba(92,122,92,0.10)",
+        }}
+      >
+        {(["ro", "en"] as Lang[]).map((lng) => (
+          <button
+            key={lng}
+            type="button"
+            onClick={() => setUiLang(lng)}
+            aria-pressed={uiLang === lng}
+            style={{
+              padding: "5px 11px",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontWeight: 600,
+              fontFamily: "'DM Sans', sans-serif",
+              letterSpacing: "0.04em",
+              transition: "all 0.2s",
+              background: uiLang === lng ? T.sageLight : "transparent",
+              color: uiLang === lng ? T.sageDark : T.muted,
+            }}
+          >
+            {lng === "ro" ? "RO" : "EN"}
+          </button>
+        ))}
+      </div>
+
       {/* Background decorative elements */}
       <div
         style={{
@@ -470,6 +522,59 @@ export default function AuthPage() {
                   onBlur={(e) => Object.assign(e.target.style, inputStyle)}
                 />
               </div>
+            )}
+
+            {/* Acceptare Termeni + Confidențialitate — doar la register */}
+            {mode === "register" && !recovery && (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  marginBottom: "20px",
+                  cursor: "pointer",
+                  fontSize: "12.5px",
+                  lineHeight: 1.55,
+                  color: T.warm,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    marginTop: "1px",
+                    accentColor: T.sage,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                />
+                <span>
+                  {t("auth.agreePre")}
+                  <Link
+                    to="/legal/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: T.sage, fontWeight: 600 }}
+                  >
+                    {t("auth.agreeTerms")}
+                  </Link>
+                  {t("auth.agreeMid")}
+                  <Link
+                    to="/legal/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: T.sage, fontWeight: 600 }}
+                  >
+                    {t("auth.agreePrivacy")}
+                  </Link>
+                  {t("auth.agreePost")}
+                </span>
+              </label>
             )}
 
             {/* Link „am uitat parola" — doar la login */}

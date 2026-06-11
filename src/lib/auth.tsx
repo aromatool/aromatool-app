@@ -86,7 +86,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: {
         // country_code e citit de handle_new_user (vezi migrația
         // 20260621_signup_country.sql) și salvat în profiles.
-        data: { full_name: fullName, country_code: detectCountry() },
+        // terms_accepted: flag de acceptare a Termenilor + Confidențialității
+        // (bifa obligatorie din AuthPage). Trigger-ul set_signup_terms
+        // (20260704) pune `terms_accepted_at = now()` pe SERVER — momentul
+        // nu vine de la client, deci nu poate fi falsificat.
+        data: {
+          full_name: fullName,
+          country_code: detectCountry(),
+          terms_accepted: true,
+        },
         // Linkul de confirmare duce înapoi în aplicație (trebuie să fie
         // și în Authentication → URL Configuration → Redirect URLs).
         emailRedirectTo: `${window.location.origin}/auth`,
