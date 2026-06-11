@@ -353,6 +353,22 @@ export default function AdminPage() {
     setCountryJobs(latest);
   }
 
+  // Transformă o eroare de la `functions.invoke` într-un mesaj lizibil:
+  // 401/403 = sesiune expirată (cel mai frecvent), altfel încearcă să
+  // citească {error} din corpul răspunsului, altfel mesajul generic.
+  async function explainSyncError(fnError: unknown): Promise<string> {
+    const ctx = (fnError as { context?: Response })?.context;
+    const status = ctx?.status;
+    if (status === 401 || status === 403) return t("admin.sessionExpired");
+    try {
+      const body = await ctx?.clone().json();
+      if (body?.error) return body.error as string;
+    } catch {
+      // corp ne-JSON / lipsă → cădem pe mesajul de mai jos
+    }
+    return fnError instanceof Error ? fnError.message : t("admin.syncFailed");
+  }
+
   async function syncProducts() {
     setSyncing(true);
     setSyncError("");
@@ -362,7 +378,7 @@ export default function AdminPage() {
         await supabase.functions.invoke("import-products", {
           body: { country: importCountry },
         });
-      if (fnError) throw fnError;
+      if (fnError) throw new Error(await explainSyncError(fnError));
       if (data?.error) throw new Error(data.error);
       setSyncResult(
         t("admin.syncResult", { n: data.imported }) +
@@ -403,7 +419,16 @@ export default function AdminPage() {
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
         totalImported += data?.imported ?? 0;
-      } catch {
+      } catch (e) {
+        // Sesiune expirată (401/403): nu are sens să continuăm restul —
+        // toate ar eșua la fel. Oprim și afișăm mesajul de relogare.
+        const status = (e as { context?: Response })?.context?.status;
+        if (status === 401 || status === 403) {
+          setSyncProgress("");
+          setSyncError(t("admin.sessionExpired"));
+          setSyncing(false);
+          return;
+        }
         failed.push(c);
       }
     }

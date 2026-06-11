@@ -22,6 +22,7 @@
   "syncResultDeactivated": ", {{n}} dezactivate",
   "syncResultSkipped": ", {{n}} ignorate (NFR / fără preț)",
   "syncFailed": "Sincronizarea a eșuat.",
+  "sessionExpired": "Sesiune expirată. Reloghează-te și încearcă din nou.",
   "importAll": "Importă toate cataloagele",
   "syncProgress": "Se importă {{country}}… ({{i}}/{{n}})",
   "syncAllResult": "{{imported}} produse importate · {{ok}}/{{total}} cataloage OK",

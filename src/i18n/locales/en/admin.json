@@ -22,6 +22,7 @@
   "syncResultDeactivated": ", {{n}} deactivated",
   "syncResultSkipped": ", {{n}} skipped (NFR / no price)",
   "syncFailed": "Sync failed.",
+  "sessionExpired": "Session expired. Please log in again and retry.",
   "importAll": "Import all catalogs",
   "syncProgress": "Importing {{country}}… ({{i}}/{{n}})",
   "syncAllResult": "{{imported}} products imported · {{ok}}/{{total}} catalogs OK",
