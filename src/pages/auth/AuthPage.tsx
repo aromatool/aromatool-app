@@ -3,27 +3,116 @@ import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/auth";
 import { setUiLang, type Lang } from "../../i18n";
+import LeafMark from "../../components/LeafMark";
 
-// ── BLOSSOM SAGE ───────────────────────────────────────────
+// ── CALM PREMIUM WELLNESS (design system — doar /auth) ──────
 const T = {
-  sage: "#5C7A5C",
-  sageDark: "#4A6A4A",
-  sageLight: "#E8F0E8",
-  sageMid: "#C8D8C8",
-  cream: "#FAFAF7",
-  linen: "#F5EEE8",
-  espresso: "#3D3530",
-  warm: "#6A5A50",
-  muted: "#A89888",
-  border: "#EDE8E0",
-  white: "#FFFFFF",
-  green: "#2E8A58",
+  sage: "#4F6F52", // Primary Green
+  sageDark: "#3F5B42", // Dark Green
+  sageLight: "#EAF0EA", // tentă deschisă (derivată)
+  sageMid: "#CBD8CB", // tentă medie (derivată)
+  cream: "#F8F7F4", // Background
+  linen: "#F1EDE6", // fundal cald (derivat)
+  espresso: "#2B2B2B", // Primary Text
+  warm: "#6F6F6F", // Secondary Text
+  muted: "#9A958C", // text terțiar (derivat)
+  border: "#E7E3DD", // Borders
+  white: "#FFFFFF", // Cards
+  green: "#2E8A58", // success (păstrat)
   greenLight: "#E8F8F0",
   red: "#C94F6A",
   redLight: "#FFF0F4",
 };
 
 type Mode = "login" | "register" | "forgot";
+
+// Numele afișat al limbilor în selector.
+const LANG_LABELS: Record<Lang, string> = {
+  ro: "Română",
+  en: "English",
+};
+
+// ── Iconițe inline (SVG, fără dependență de CDN/webfont) ──
+type IconProps = {
+  size?: number;
+  color?: string;
+  style?: React.CSSProperties;
+};
+
+function StrokeIcon({
+  size = 18,
+  color = "currentColor",
+  style,
+  children,
+}: IconProps & { children: React.ReactNode }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={style}
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function IconGlobe(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="3.6" y1="9" x2="20.4" y2="9" />
+      <line x1="3.6" y1="15" x2="20.4" y2="15" />
+      <path d="M11.5 3a17 17 0 0 0 0 18" />
+      <path d="M12.5 3a17 17 0 0 1 0 18" />
+    </StrokeIcon>
+  );
+}
+
+function IconChevron(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <path d="M6 9l6 6l6 -6" />
+    </StrokeIcon>
+  );
+}
+
+function IconCalendar(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <rect x="4" y="5" width="16" height="16" rx="2" />
+      <line x1="16" y1="3" x2="16" y2="7" />
+      <line x1="8" y1="3" x2="8" y2="7" />
+      <line x1="4" y1="11" x2="20" y2="11" />
+    </StrokeIcon>
+  );
+}
+
+function IconLock(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <circle cx="12" cy="16" r="1" />
+      <path d="M8 11v-4a4 4 0 0 1 8 0v4" />
+    </StrokeIcon>
+  );
+}
+
+function IconShieldCheck(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <path d="M12 3l7 3v5c0 4.5 -3 7.6 -7 9c-4 -1.4 -7 -4.5 -7 -9v-5z" />
+      <path d="M9 12l2 2l4 -4" />
+    </StrokeIcon>
+  );
+}
 
 export default function AuthPage() {
   const { t, i18n } = useTranslation();
@@ -42,6 +131,17 @@ export default function AuthPage() {
   // După register reușit: emailul la care s-a trimis confirmarea (afișează
   // panoul „verifică-ți inboxul" în loc de formularul gol — fără dead-end).
   const [registeredEmail, setRegisteredEmail] = useState("");
+  // Sub 860px ascundem panoul de brand din stânga și stivuim (mobil/tabletă).
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 860px)").matches
+      : false,
+  );
+  // Micro-interacțiuni de hover (inline styles → fără :hover din CSS).
+  const [btnHover, setBtnHover] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  // Dropdown selector de limbă (stil 🌐 globe + nume limbă + chevron).
+  const [langOpen, setLangOpen] = useState(false);
   const { signIn, signUp, user, recovery, resetPassword, updatePassword } =
     useAuth();
   const navigate = useNavigate();
@@ -50,6 +150,13 @@ export default function AuthPage() {
     // Nu redirecționa cât timp userul setează o parolă nouă din link.
     if (user && !recovery) navigate("/app");
   }, [user, recovery, navigate]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 860px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   function resetFields() {
     setError("");
@@ -157,106 +264,529 @@ export default function AuthPage() {
     <div
       style={{
         minHeight: "100vh",
-        background:
-          "linear-gradient(135deg, #FAFAF7 0%, #F0ECE4 45%, #E8F0E8 100%)",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "20px",
-        fontFamily: "'DM Sans', sans-serif",
+        flexDirection: isMobile ? "column" : "row",
+        fontFamily: "'Inter', sans-serif",
+        background:
+          "linear-gradient(135deg, #F8F7F4 0%, #F1EDE6 50%, #EAF0EA 100%)",
       }}
     >
-      {/* Selector limbă — accesibil înainte de login (default RO). */}
-      <div
-        style={{
-          position: "fixed",
-          top: "18px",
-          right: "18px",
-          zIndex: 2,
-          display: "flex",
-          gap: "2px",
-          background: T.white,
-          border: `1px solid ${T.border}`,
-          borderRadius: "10px",
-          padding: "3px",
-          boxShadow: "0 2px 12px rgba(92,122,92,0.10)",
-        }}
-      >
-        {(["ro", "en"] as Lang[]).map((lng) => (
-          <button
-            key={lng}
-            type="button"
-            onClick={() => setUiLang(lng)}
-            aria-pressed={uiLang === lng}
+      {/* Selector limbă — dropdown 🌐 (accesibil înainte de login, default RO). */}
+      <div style={{ position: "fixed", top: "16px", right: "16px", zIndex: 20 }}>
+        <button
+          type="button"
+          onClick={() => setLangOpen((o) => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={langOpen}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "7px 12px",
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            borderRadius: "10px",
+            cursor: "pointer",
+            fontSize: "13px",
+            fontWeight: 500,
+            fontFamily: "'Inter', sans-serif",
+            color: T.espresso,
+            boxShadow: "0 4px 16px rgba(63,91,66,0.10)",
+          }}
+        >
+          <IconGlobe size={16} color={T.sage} />
+          {LANG_LABELS[uiLang]}
+          <IconChevron
+            size={14}
+            color={T.muted}
             style={{
-              padding: "5px 11px",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "12px",
-              fontWeight: 600,
-              fontFamily: "'DM Sans', sans-serif",
-              letterSpacing: "0.04em",
-              transition: "all 0.2s",
-              background: uiLang === lng ? T.sageLight : "transparent",
-              color: uiLang === lng ? T.sageDark : T.muted,
+              transform: langOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 0.2s",
+            }}
+          />
+        </button>
+
+        {langOpen && (
+          <>
+            <div
+              onClick={() => setLangOpen(false)}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 1,
+                background: "transparent",
+              }}
+            />
+            <div
+              role="listbox"
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                right: 0,
+                zIndex: 2,
+                minWidth: "150px",
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: "12px",
+                padding: "4px",
+                boxShadow: "0 10px 30px rgba(61,53,48,0.14)",
+              }}
+            >
+              {(["ro", "en"] as Lang[]).map((lng) => (
+                <button
+                  key={lng}
+                  type="button"
+                  role="option"
+                  aria-selected={uiLang === lng}
+                  onClick={() => {
+                    setUiLang(lng);
+                    setLangOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    padding: "8px 10px",
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: uiLang === lng ? 600 : 500,
+                    fontFamily: "'Inter', sans-serif",
+                    textAlign: "left",
+                    background: uiLang === lng ? T.sageLight : "transparent",
+                    color: uiLang === lng ? T.sageDark : T.warm,
+                  }}
+                >
+                  {LANG_LABELS[lng]}
+                  {uiLang === lng && (
+                    <span style={{ color: T.sage, fontSize: "13px" }}>✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── PANOU BRAND (stânga, doar desktop) ── */}
+      {!isMobile && (
+        <div
+          style={{
+            flex: "0 0 46%",
+            position: "relative",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            gap: "32px",
+            padding: "56px",
+            background:
+              "linear-gradient(160deg, #5D7D5E 0%, #4F6F52 55%, #3F5B42 100%)",
+            color: T.white,
+          }}
+        >
+          {/* cercuri decorative */}
+          <div
+            style={{
+              position: "absolute",
+              top: "-12%",
+              left: "-10%",
+              width: "320px",
+              height: "320px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: "-15%",
+              right: "-8%",
+              width: "380px",
+              height: "380px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)",
+            }}
+          />
+
+          <div style={{ position: "relative", zIndex: 1, maxWidth: "440px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "14px",
+                marginBottom: "40px",
+              }}
+            >
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  background: "rgba(255,255,255,0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <LeafMark size={24} color={T.white} />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: "28px",
+                    fontWeight: 700,
+                    letterSpacing: "-0.5px",
+                    lineHeight: 1.05,
+                  }}
+                >
+                  AromaTool
+                </div>
+                <div
+                  style={{
+                    fontSize: "10px",
+                    color: "rgba(255,255,255,0.75)",
+                    fontStyle: "italic",
+                    letterSpacing: "2px",
+                    marginTop: "3px",
+                  }}
+                >
+                  {t("auth.tagline")}
+                </div>
+              </div>
+            </div>
+
+            <h1
+              style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: "34px",
+                lineHeight: 1.22,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+                margin: "0 0 16px",
+              }}
+            >
+              {t("auth.heroTitle")}
+            </h1>
+            <p
+              style={{
+                fontSize: "15px",
+                lineHeight: 1.7,
+                color: "rgba(255,255,255,0.85)",
+                margin: "0 0 32px",
+              }}
+            >
+              {t("auth.heroSubtitle")}
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                marginBottom: "40px",
+              }}
+            >
+              {[
+                t("auth.heroFeat1"),
+                t("auth.heroFeat2"),
+                t("auth.heroFeat3"),
+              ].map((f, i) => (
+                <div
+                  key={i}
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: "rgba(255,255,255,0.15)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "13px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✓
+                  </div>
+                  <span
+                    style={{ fontSize: "14px", color: "rgba(255,255,255,0.92)" }}
+                  >
+                    {f}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Badge trial — iconiță calendar + 14 zile (durata reală) */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "13px",
+                padding: "12px 18px",
+                borderRadius: "12px",
+                background: "rgba(255,255,255,0.10)",
+                border: "1px solid rgba(255,255,255,0.20)",
+                width: "fit-content",
+              }}
+            >
+              <div
+                style={{
+                  width: "38px",
+                  height: "38px",
+                  borderRadius: "10px",
+                  background: "rgba(255,255,255,0.14)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <IconCalendar size={20} color={T.white} />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: T.white,
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {t("auth.trialBadgeTitle")}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255,255,255,0.72)",
+                    marginTop: "3px",
+                  }}
+                >
+                  {t("auth.trialBadgeSub")}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cele 3 carduri de încredere — jos pe panoul stâng */}
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              display: "flex",
+              gap: "16px",
             }}
           >
-            {lng === "ro" ? "RO" : "EN"}
-          </button>
-        ))}
-      </div>
+            {[
+              { icon: <IconLock size={20} color="rgba(255,255,255,0.95)" />, label: t("auth.trustCard1") },
+              { icon: <IconShieldCheck size={20} color="rgba(255,255,255,0.95)" />, label: t("auth.trustCard2") },
+              { icon: <LeafMark size={20} color="rgba(255,255,255,0.95)" />, label: t("auth.trustCard3") },
+            ].map((c, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "11px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "12px",
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.20)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {c.icon}
+                </div>
+                <span
+                  style={{
+                    fontSize: "12.5px",
+                    lineHeight: 1.35,
+                    fontWeight: 600,
+                    letterSpacing: "0.01em",
+                    color: "rgba(255,255,255,0.78)",
+                  }}
+                >
+                  {c.label}
+                </span>
+              </div>
+            ))}
+          </div>
 
-      {/* Background decorative elements */}
+          {/* Preview aplicație — mockup subtil, sugerează produsul real */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              bottom: "150px",
+              right: "-46px",
+              width: "300px",
+              zIndex: 0,
+              opacity: 0.4,
+              filter: "blur(1px)",
+              transform: "rotate(-3deg)",
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                borderRadius: "14px",
+                background: "rgba(255,255,255,0.10)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                padding: "12px",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.20)",
+              }}
+            >
+              <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: "rgba(255,255,255,0.4)",
+                    }}
+                  />
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <div
+                  style={{
+                    width: "44px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  {[0, 1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        height: "8px",
+                        borderRadius: "4px",
+                        background: `rgba(255,255,255,${i === 0 ? 0.4 : 0.2})`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        style={{
+                          flex: 1,
+                          height: "34px",
+                          borderRadius: "8px",
+                          background: "rgba(255,255,255,0.16)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "6px",
+                        borderRadius: "8px",
+                        background: "rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "18px",
+                          height: "18px",
+                          borderRadius: "50%",
+                          background: "rgba(255,255,255,0.25)",
+                        }}
+                      />
+                      <div
+                        style={{
+                          flex: 1,
+                          height: "6px",
+                          borderRadius: "3px",
+                          background: "rgba(255,255,255,0.2)",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: "30px",
+                          height: "6px",
+                          borderRadius: "3px",
+                          background: "rgba(255,255,255,0.16)",
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ── COLOANĂ FORMULAR (dreapta) ── */}
       <div
         style={{
-          position: "fixed",
-          inset: 0,
-          overflow: "hidden",
-          pointerEvents: "none",
-          zIndex: 0,
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: isMobile ? "48px 20px 56px" : "40px",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: "-10%",
-            right: "-5%",
-            width: "400px",
-            height: "400px",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(92,122,92,0.18) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-10%",
-            left: "-5%",
-            width: "500px",
-            height: "500px",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle, rgba(200,216,200,0.35) 0%, transparent 70%)",
-          }}
-        />
-      </div>
-
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          width: "100%",
-          maxWidth: "420px",
-        }}
-      >
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+        <div style={{ width: "100%", maxWidth: "420px" }}>
+        {/* Brand compact — doar pe mobil (panoul din stânga e ascuns) */}
+        {isMobile && (
+          <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div
+            style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "13px",
+              background: T.sage,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 14px",
+            }}
+          >
+            <LeafMark size={26} color={T.white} />
+          </div>
           <div
             style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: "32px",
+              fontWeight: 700,
               color: T.espresso,
               letterSpacing: "-0.5px",
               marginBottom: "8px",
@@ -294,7 +824,8 @@ export default function AuthPage() {
           >
             {t("auth.tagline")}
           </div>
-        </div>
+          </div>
+        )}
 
         {/* Card */}
         <div
@@ -302,7 +833,7 @@ export default function AuthPage() {
             background: T.white,
             borderRadius: "20px",
             padding: "36px 32px",
-            boxShadow: "0 8px 40px rgba(92,122,92,0.10)",
+            boxShadow: "0 12px 48px rgba(63,91,66,0.10)",
             border: `1px solid ${T.border}`,
           }}
         >
@@ -387,12 +918,12 @@ export default function AuthPage() {
                     cursor: "pointer",
                     fontSize: "14px",
                     fontWeight: 500,
-                    fontFamily: "'DM Sans', sans-serif",
+                    fontFamily: "'Inter', sans-serif",
                     transition: "all 0.2s",
                     background: mode === m ? T.white : "transparent",
                     color: mode === m ? T.espresso : T.muted,
                     boxShadow:
-                      mode === m ? "0 1px 8px rgba(92,122,92,0.15)" : "none",
+                      mode === m ? "0 1px 8px rgba(63,91,66,0.12)" : "none",
                   }}
                 >
                   {m === "login" ? t("auth.tabLogin") : t("auth.tabRegister")}
@@ -636,21 +1167,29 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading}
+              onMouseEnter={() => setBtnHover(true)}
+              onMouseLeave={() => setBtnHover(false)}
               style={{
                 width: "100%",
                 padding: "13px",
                 background: loading
                   ? T.sageMid
-                  : "linear-gradient(135deg, #5C7A5C, #4A6A4A)",
+                  : "linear-gradient(135deg, #5D7D5E, #4F6F52)",
                 border: "none",
                 borderRadius: "12px",
                 color: T.white,
                 fontSize: "15px",
                 fontWeight: 600,
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 cursor: loading ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
                 letterSpacing: "0.02em",
+                transform:
+                  btnHover && !loading ? "translateY(-1px)" : "translateY(0)",
+                boxShadow:
+                  btnHover && !loading
+                    ? "0 10px 24px rgba(79,111,82,0.30)"
+                    : "0 2px 8px rgba(79,111,82,0.16)",
               }}
             >
               {loading ? "..." : submitLabel}
@@ -708,40 +1247,65 @@ export default function AuthPage() {
           )}
         </div>
 
-        {!recovery && mode !== "forgot" && registeredEmail === "" && (
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: "20px",
-              fontSize: "11px",
-              color: T.muted,
-            }}
-          >
-            {t("auth.trialNote")}
-          </div>
-        )}
+        {/* Trial — doar pe mobil; pe desktop e deja în badge-ul din panoul stâng. */}
+        {isMobile &&
+          !recovery &&
+          mode !== "forgot" &&
+          registeredEmail === "" && (
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: "20px",
+                fontSize: "11px",
+                color: T.muted,
+              }}
+            >
+              {t("auth.trialNote")}
+            </div>
+          )}
 
         {/* Linkuri legale */}
         <div
           style={{
             textAlign: "center",
-            marginTop: "14px",
-            fontSize: "11px",
-            color: T.muted,
+            marginTop: "16px",
+            fontSize: "12px",
+            color: T.sage,
             display: "flex",
-            gap: "14px",
+            alignItems: "center",
+            gap: "10px",
             justifyContent: "center",
           }}
         >
-          <Link to="/legal/terms" style={{ color: T.muted }}>
-            {t("auth.legalTerms")}
-          </Link>
-          <Link to="/legal/privacy" style={{ color: T.muted }}>
-            {t("auth.legalPrivacy")}
-          </Link>
-          <Link to="/legal/cookies" style={{ color: T.muted }}>
-            {t("auth.legalCookies")}
-          </Link>
+          {[
+            { to: "/legal/terms", label: t("auth.legalTerms") },
+            { to: "/legal/privacy", label: t("auth.legalPrivacy") },
+            { to: "/legal/cookies", label: t("auth.legalCookies") },
+          ].map((lnk, i) => (
+            <span
+              key={lnk.to}
+              style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}
+            >
+              {i > 0 && (
+                <span style={{ color: T.sageMid, fontSize: "10px" }}>·</span>
+              )}
+              <Link
+                to={lnk.to}
+                onMouseEnter={() => setHoveredLink(lnk.to)}
+                onMouseLeave={() => setHoveredLink(null)}
+                style={{
+                  color: hoveredLink === lnk.to ? T.sageDark : T.sage,
+                  fontWeight: 500,
+                  textDecoration: "none",
+                  letterSpacing: "0.01em",
+                  transition: "color 0.18s",
+                }}
+              >
+                {lnk.label}
+              </Link>
+            </span>
+          ))}
+        </div>
         </div>
       </div>
     </div>
@@ -765,7 +1329,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "10px",
   fontSize: "14px",
   color: T.espresso,
-  fontFamily: "'DM Sans', sans-serif",
+  fontFamily: "'Inter', sans-serif",
   outline: "none",
   boxSizing: "border-box",
   transition: "border-color 0.2s",

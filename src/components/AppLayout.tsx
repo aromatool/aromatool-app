@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
 import { supabase } from "../lib/supabase";
 import FeedbackWidget from "./FeedbackWidget";
+import LeafMark from "./LeafMark";
 
 // ── BLOSSOM SAGE THEME ─────────────────────────────────────
 const T = {
@@ -149,10 +150,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               justifyContent: "center",
             }}
           >
-            <i
-              className="ti ti-leaf"
-              style={{ fontSize: "16px", color: "white" }}
-            />
+            <LeafMark size={16} color="#FFFFFF" />
           </div>
           <div>
             <div
