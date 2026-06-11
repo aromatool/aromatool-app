@@ -230,6 +230,8 @@ serve(async (req) => {
     if (rpcErr) throw rpcErr
 
     const imported = (result?.imported as number) ?? mapped.length
+    const created = (result?.new as number) ?? 0
+    const updated = (result?.updated as number) ?? 0
     const deactivated = (result?.deactivated as number) ?? 0
     const skipped = total - mapped.length
 
@@ -241,12 +243,25 @@ serve(async (req) => {
           records_total: total,
           records_imported: imported,
           records_failed: skipped,
+          records_new: created,
+          records_updated: updated,
+          records_deactivated: deactivated,
           completed_at: new Date().toISOString(),
         })
         .eq('id', jobId)
     }
 
-    return json({ ok: true, country, currency, total, imported, deactivated, skipped })
+    return json({
+      ok: true,
+      country,
+      currency,
+      total,
+      imported,
+      new: created,
+      updated,
+      deactivated,
+      skipped,
+    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     if (jobId) {

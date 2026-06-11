@@ -90,6 +90,9 @@ interface CountryJob {
   records_total: number | null;
   records_imported: number | null;
   records_failed: number | null;
+  records_new: number | null;
+  records_updated: number | null;
+  records_deactivated: number | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -338,7 +341,7 @@ export default function AdminPage() {
     const { data } = await supabase
       .from("product_import_jobs")
       .select(
-        "country_code, status, records_total, records_imported, records_failed, created_at, completed_at"
+        "country_code, status, records_total, records_imported, records_failed, records_new, records_updated, records_deactivated, created_at, completed_at"
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -1908,7 +1911,7 @@ export default function AdminPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1.4fr 0.8fr 0.8fr 1.4fr 0.9fr",
+                  gridTemplateColumns: "1.3fr 0.7fr 0.6fr 0.9fr 1.1fr 0.9fr",
                   gap: "8px",
                   padding: "9px 14px",
                   background: T.cream,
@@ -1922,7 +1925,8 @@ export default function AdminPage() {
               >
                 <div>{t("admin.colCountry")}</div>
                 <div style={{ textAlign: "right" }}>{t("admin.colProducts")}</div>
-                <div style={{ textAlign: "right" }}>{t("admin.colFailed")}</div>
+                <div style={{ textAlign: "right" }}>{t("admin.colNew")}</div>
+                <div style={{ textAlign: "right" }}>{t("admin.colUpdated")}</div>
                 <div>{t("admin.colWhen")}</div>
                 <div style={{ textAlign: "right" }}>{t("admin.colStatus")}</div>
               </div>
@@ -1943,12 +1947,22 @@ export default function AdminPage() {
                       : job.status === "running"
                         ? t("admin.statusRunning")
                         : job.status;
+                const deactivated = job?.records_deactivated ?? 0;
+                const skipped = job?.records_failed ?? 0;
+                // Tooltip nativ cu detaliile care nu au coloană proprie.
+                const rowTitle = job
+                  ? [
+                      t("admin.tipSkipped", { n: skipped }),
+                      t("admin.tipDeactivated", { n: deactivated }),
+                    ].join(" · ")
+                  : undefined;
                 return (
                   <div
                     key={code}
+                    title={rowTitle}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1.4fr 0.8fr 0.8fr 1.4fr 0.9fr",
+                      gridTemplateColumns: "1.3fr 0.7fr 0.6fr 0.9fr 1.1fr 0.9fr",
                       gap: "8px",
                       padding: "9px 14px",
                       alignItems: "center",
@@ -1966,6 +1980,18 @@ export default function AdminPage() {
                         {COUNTRY_FLAGS[code] ?? "🏳️"}
                       </span>
                       {code}
+                      {deactivated > 0 && (
+                        <span
+                          style={{
+                            marginLeft: "6px",
+                            fontSize: "10.5px",
+                            fontWeight: 600,
+                            color: T.red,
+                          }}
+                        >
+                          {t("admin.tagDeactivated", { n: deactivated })}
+                        </span>
+                      )}
                     </div>
                     <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                       {job?.records_imported != null ? job.records_imported : "—"}
@@ -1974,10 +2000,21 @@ export default function AdminPage() {
                       style={{
                         textAlign: "right",
                         fontVariantNumeric: "tabular-nums",
-                        color: job?.records_failed ? T.red : T.muted,
+                        color: job?.records_new ? T.green : T.muted,
+                        fontWeight: job?.records_new ? 600 : 400,
                       }}
                     >
-                      {job?.records_failed != null ? job.records_failed : "—"}
+                      {job?.records_new != null ? job.records_new : "—"}
+                    </div>
+                    <div
+                      style={{
+                        textAlign: "right",
+                        fontVariantNumeric: "tabular-nums",
+                        color: job?.records_updated ? T.espresso : T.muted,
+                        fontWeight: job?.records_updated ? 600 : 400,
+                      }}
+                    >
+                      {job?.records_updated != null ? job.records_updated : "—"}
                     </div>
                     <div style={{ color: T.muted }}>
                       {job

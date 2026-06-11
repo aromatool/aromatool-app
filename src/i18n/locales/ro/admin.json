@@ -134,11 +134,16 @@
   "catalogBreakdownHint": "Ultimul import pentru fiecare catalog (manual sau automat). Sincronizarea automată rulează zilnic la 05:15.",
   "colCountry": "Țară",
   "colProducts": "Produse",
+  "colNew": "Noi",
+  "colUpdated": "Modificate",
   "colFailed": "Eșuate",
   "colWhen": "Când",
   "colStatus": "Status",
   "statusRunning": "în curs",
   "statusNever": "nesincronizat",
+  "tipSkipped": "{{n}} ignorate (nevandabile)",
+  "tipDeactivated": "{{n}} scoase din catalog",
+  "tagDeactivated": "−{{n}} scoase",
   "errorsDesc": "Ultimele erori din sistemele automate (Daily Focus și import catalog). Dacă lista e goală, totul a rulat curat.",
   "noErrors": "Nicio eroare recentă. 🌿"
 }
