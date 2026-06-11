@@ -227,7 +227,14 @@ serve(async (req) => {
         p_currency: currency,
       },
     )
-    if (rpcErr) throw rpcErr
+    if (rpcErr) {
+      // PostgrestError e un obiect; păstrăm detaliile ca text lizibil.
+      throw new Error(
+        rpcErr.message ||
+          [rpcErr.code, rpcErr.details, rpcErr.hint].filter(Boolean).join(' · ') ||
+          JSON.stringify(rpcErr),
+      )
+    }
 
     const imported = (result?.imported as number) ?? mapped.length
     const created = (result?.new as number) ?? 0
@@ -263,7 +270,12 @@ serve(async (req) => {
       skipped,
     })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
+    const msg =
+      e instanceof Error
+        ? e.message
+        : e && typeof e === 'object'
+          ? JSON.stringify(e)
+          : String(e)
     if (jobId) {
       await supabase
         .from('product_import_jobs')
