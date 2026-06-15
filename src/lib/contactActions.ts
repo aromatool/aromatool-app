@@ -19,8 +19,8 @@ export function normalizePhone(phone?: string, defaultDial = '40'): string {
   return digits
 }
 
-export function firstName(name: string): string {
-  return name.split(' ')[0]
+export function firstName(name?: string | null): string {
+  return (name ?? '').trim().split(' ')[0] ?? ''
 }
 
 // Salutul WhatsApp, în limba contactului (RO implicit, EN dacă language_code === 'en').

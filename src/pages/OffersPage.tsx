@@ -489,7 +489,7 @@ export default function OffersPage() {
           const latestOffer = group.offers[0];
           const statusStyle =
             STATUS_STYLE[group.clientStatus] || STATUS_STYLE.prospect;
-          const initials = group.clientName
+          const initials = (group.clientName || "?")
             .split(" ")
             .map((n) => n[0])
             .join("")

@@ -53,8 +53,8 @@ function daysSince(iso?: string | null): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
 }
 
-function initials(name: string): string {
-  return name
+function initials(name?: string | null): string {
+  return (name || "?")
     .split(" ")
     .map((n) => n[0])
     .join("")

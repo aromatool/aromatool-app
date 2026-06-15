@@ -150,8 +150,8 @@ function enrichContact(c: Contact, t: TFunction): Contact {
   };
 }
 
-function initials(name: string): string {
-  return name
+function initials(name?: string | null): string {
+  return (name || "?")
     .split(" ")
     .map((n) => n[0])
     .join("")
