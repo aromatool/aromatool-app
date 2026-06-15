@@ -49,6 +49,7 @@
   "emailPlaceholder": "email@client.com",
   "sending": "Se trimite...",
   "send": "Trimite",
+  "sendDisabledHint": "Completează numele și un email valid ca să poți trimite oferta.",
   "previewBeforeSend": "Previzualizează emailul înainte de trimitere",
   "noEmailWarning": "Acest contact nu are email. Adaugă un email valid ca să poți trimite oferta.",
   "createNewOffer": "Creează ofertă nouă",

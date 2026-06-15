@@ -49,6 +49,7 @@
   "emailPlaceholder": "email@client.com",
   "sending": "Sending...",
   "send": "Send",
+  "sendDisabledHint": "Add a name and a valid email so you can send the offer.",
   "previewBeforeSend": "Preview the email before sending",
   "noEmailWarning": "This contact has no email. Add a valid email so you can send the offer.",
   "createNewOffer": "Create new offer",

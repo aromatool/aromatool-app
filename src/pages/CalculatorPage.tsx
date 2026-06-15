@@ -520,6 +520,14 @@ function CartSection() {
   const total = offerTotals.totalDisplay;
   const totalEurRounded = offerTotals.totalEur;
 
+  // Validare trimitere ofertă: numele e obligatoriu, iar emailul trebuie să fie
+  // unul real (nu placeholder-ul „@noemail.local"). Butonul de trimitere rămâne
+  // dezactivat altfel, ca să nu trimitem oferte fără destinatar valid.
+  const offerNameOk = clientName.trim().length > 0;
+  const offerEmailOk =
+    /\S+@\S+\.\S+/.test(clientEmail.trim()) && !clientEmail.includes("@noemail.local");
+  const canSendOffer = offerNameOk && offerEmailOk;
+
   if (items.length === 0)
     return (
       <>
@@ -1105,7 +1113,7 @@ function CartSection() {
               minWidth: 0,
               padding: "10px 12px",
               background: C.bg2,
-              border: `1.5px solid ${C.border2}`,
+              border: `1.5px solid ${offerNameOk ? C.border2 : C.red}`,
               borderRadius: "8px",
               fontSize: "14px",
               color: C.dark,
@@ -1368,7 +1376,8 @@ function CartSection() {
             }}
           />
           <button
-            disabled={sending}
+            disabled={sending || !canSendOffer}
+            title={!canSendOffer ? tr("calculator.sendDisabledHint") : undefined}
             onClick={async () => {
               const emailSentTo = clientEmail;
               const ok = await sendOffer({
@@ -1402,7 +1411,7 @@ function CartSection() {
               }
             }}
             style={{
-              background: sending ? C.muted : C.primary,
+              background: sending || !canSendOffer ? C.muted : C.primary,
               border: "none",
               borderRadius: "8px",
               padding: "10px 16px",
@@ -1410,7 +1419,7 @@ function CartSection() {
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "13px",
               fontWeight: 600,
-              cursor: sending ? "not-allowed" : "pointer",
+              cursor: sending || !canSendOffer ? "not-allowed" : "pointer",
               whiteSpace: "nowrap",
               display: "flex",
               alignItems: "center",
