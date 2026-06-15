@@ -13,18 +13,23 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
-// ── COMPLETEAZĂ DATELE FIRMEI AICI ─────────────────────────
+// ── DATELE FIRMEI ──────────────────────────────────────────
 // Acestea apar în toate documentele legale.
 export const COMPANY = {
-  legalName: "[DENUMIRE FIRMĂ SRL]",
-  cui: "[CUI / J__/____/____]",
-  address: "[Adresă sediu social, România]",
-  contactEmail: "[contact@aromatool.com]",
-  privacyEmail: "[privacy@aromatool.com]",
+  legalName: "Maja E. Alexandra PFA",
+  cui: "CUI 50886605",
+  address: "Str. Cetății nr. 3A, ap. 23, Florești 407280, Cluj, România",
+  contactEmail: "contact@getaromatool.com",
+  privacyEmail: "privacy@getaromatool.com",
   appName: "AromaTool",
-  appUrl: "aromatool.com",
-  lastUpdated: "11 iunie 2026",
+  appUrl: "getaromatool.com",
+  lastUpdated: "15 iunie 2026",
 };
+
+// Flag pentru banner-ul „document în lucru". Cât timp e `false`, paginile
+// legale afișează avertismentul că textul nu a fost încă validat juridic.
+// Pune-l pe `true` DUPĂ ce un jurist a verificat documentele (task #30).
+export const LEGAL_REVIEWED = false;
 
 const T = {
   sage: "#5C7A5C",
@@ -91,21 +96,24 @@ function LegalLayout({
           })}
         </div>
 
-        {/* Banner draft — de eliminat după validarea juridică */}
-        <div
-          style={{
-            background: T.amberLight,
-            border: `1px solid ${T.amber}33`,
-            borderRadius: "10px",
-            padding: "10px 14px",
-            fontSize: "12px",
-            color: T.warm,
-            marginBottom: "24px",
-            lineHeight: 1.6,
-          }}
-        >
-          {t("legal.draftBanner")}
-        </div>
+        {/* Banner draft — dispare automat când LEGAL_REVIEWED devine true
+            (după validarea juridică, task #30). */}
+        {!LEGAL_REVIEWED && (
+          <div
+            style={{
+              background: T.amberLight,
+              border: `1px solid ${T.amber}33`,
+              borderRadius: "10px",
+              padding: "10px 14px",
+              fontSize: "12px",
+              color: T.warm,
+              marginBottom: "24px",
+              lineHeight: 1.6,
+            }}
+          >
+            {t("legal.draftBanner")}
+          </div>
+        )}
 
         {intro && (
           <p style={{ fontSize: "15px", lineHeight: 1.7, color: T.warm }}>
