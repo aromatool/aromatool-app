@@ -20,6 +20,7 @@ import type { TFunction } from "i18next";
 import type { Contact } from "./DashboardPage";
 import type { ContactStatus } from "../lib/relationshipScore";
 import PhoneInput from "../components/PhoneInput";
+import { useProfileCountry } from "../hooks/useProfileCountry";
 import { openWhatsApp } from "../lib/contactActions";
 import { useSendEmail } from "../hooks/useSendEmail";
 
@@ -136,6 +137,7 @@ const BUSINESS_FILTERS: {
 export default function ContactsPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const profileCountry = useProfileCountry();
   const { requireAccess } = useSubscription();
   const { markOfferSent } = useSendEmail();
   const navigate = useNavigate();
@@ -1929,6 +1931,7 @@ export default function ContactsPage() {
                 <label style={labelStyle}>{t("contacts.list.addForm.phoneLabel")}</label>
                 <PhoneInput
                   value={addData.phone}
+                  defaultCountry={profileCountry}
                   onChange={(v) => setAddData((p) => ({ ...p, phone: v }))}
                   theme={{
                     border: T.border,
@@ -1974,8 +1977,8 @@ export default function ContactsPage() {
                   }
                   style={{ ...inputStyle, cursor: "pointer" }}
                 >
-                  <option value="ro">{t("common.romanian")}</option>
-                  <option value="en">{t("common.english")}</option>
+                  <option value="ro">🇷🇴 {t("common.romanian")}</option>
+                  <option value="en">🇬🇧 {t("common.english")}</option>
                 </select>
               </div>
               <div>

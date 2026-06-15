@@ -860,8 +860,8 @@ export default function FollowupModal({
                     cursor: "pointer",
                   }}
                 >
-                  <option value="ro">{tr("common.romanian")}</option>
-                  <option value="en">{tr("common.english")}</option>
+                  <option value="ro">🇷🇴 {tr("common.romanian")}</option>
+                  <option value="en">🇬🇧 {tr("common.english")}</option>
                 </select>
               </div>
               <div style={{ fontSize: "11px", color: C.muted, marginTop: "5px" }}>

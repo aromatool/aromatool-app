@@ -643,8 +643,8 @@ export default function SettingsPage() {
                 }}
                 style={{ ...inputStyle, appearance: "none", cursor: "pointer" }}
               >
-                <option value="ro">{t("common.romanian")}</option>
-                <option value="en">{t("common.english")}</option>
+                <option value="ro">🇷🇴 {t("common.romanian")}</option>
+                <option value="en">🇬🇧 {t("common.english")}</option>
               </select>
             </div>
           </div>

@@ -18,5 +18,14 @@
   "send": "Trimite",
   "language": "Limbă",
   "romanian": "Română",
-  "english": "Engleză"
+  "english": "Engleză",
+  "phone": {
+    "selectCountry": "Alege țara",
+    "searchPlaceholder": "Caută țara sau prefixul",
+    "recent": "Folosite recent",
+    "favorites": "Favorite",
+    "all": "Toate țările",
+    "noResults": "Nicio țară găsită",
+    "invalid": "Număr de telefon invalid"
+  }
 }

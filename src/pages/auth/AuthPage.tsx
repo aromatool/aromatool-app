@@ -29,8 +29,8 @@ type Mode = "login" | "register" | "forgot";
 
 // Numele afișat al limbilor în selector.
 const LANG_LABELS: Record<Lang, string> = {
-  ro: "Română",
-  en: "English",
+  ro: "🇷🇴 Română",
+  en: "🇬🇧 English",
 };
 
 // ── Iconițe inline (SVG, fără dependență de CDN/webfont) ──

@@ -1352,8 +1352,8 @@ function CartSection() {
               cursor: "pointer",
             }}
           >
-            <option value="ro">{tr("calculator.langRo")}</option>
-            <option value="en">{tr("calculator.langEn")}</option>
+            <option value="ro">🇷🇴 {tr("calculator.langRo")}</option>
+            <option value="en">🇬🇧 {tr("calculator.langEn")}</option>
           </select>
         </div>
 

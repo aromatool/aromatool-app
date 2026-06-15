@@ -7,6 +7,7 @@ import { getRecommendedAction, displayStatus, statusGroup } from "../lib/recomme
 import type { ContactStatus } from "../lib/relationshipScore";
 import type { Contact } from "../pages/DashboardPage";
 import PhoneInput from "./PhoneInput";
+import { useProfileCountry } from "../hooks/useProfileCountry";
 
 interface OfferRow {
   id: string;
@@ -153,6 +154,7 @@ export default function ContactModal({
 }: Props) {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const profileCountry = useProfileCountry();
   const locale = t("actions.localeCode");
   const [tab, setTab] = useState<Tab>("offers");
   const [offers, setOffers] = useState<OfferRow[]>([]);
@@ -942,6 +944,7 @@ export default function ContactModal({
                     {key === "phone" ? (
                       <PhoneInput
                         value={editDraft.phone}
+                        defaultCountry={profileCountry}
                         onChange={(v) => setEditDraft((prev) => ({ ...prev, phone: v }))}
                         theme={{
                           border: T.border,
@@ -993,8 +996,8 @@ export default function ContactModal({
                       cursor: "pointer",
                     }}
                   >
-                    <option value="ro">{t("common.romanian")}</option>
-                    <option value="en">{t("common.english")}</option>
+                    <option value="ro">🇷🇴 {t("common.romanian")}</option>
+                    <option value="en">🇬🇧 {t("common.english")}</option>
                   </select>
                   <div style={{ fontSize: 11, color: T.muted, marginTop: 5 }}>
                     {t("contacts.modal.fieldLanguageHint")}

@@ -18,5 +18,14 @@
   "send": "Send",
   "language": "Language",
   "romanian": "Romanian",
-  "english": "English"
+  "english": "English",
+  "phone": {
+    "selectCountry": "Select country",
+    "searchPlaceholder": "Search country or code",
+    "recent": "Recently used",
+    "favorites": "Favorites",
+    "all": "All countries",
+    "noResults": "No country found",
+    "invalid": "Invalid phone number"
+  }
 }
