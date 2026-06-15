@@ -216,6 +216,38 @@
         {
           "q": "Cum apar datele mele de contact în emailuri?",
           "a": "Telefonul și emailul de contact din Setări alimentează butoanele de WhatsApp și email din footerul mesajelor. Actualizezi într-un singur loc și se reflectă peste tot."
+        },
+        {
+          "q": "Cum schimb limba aplicației?",
+          "a": "Din Setări, la câmpul „Limbă”, alegi Română sau Engleză. Interfața și mesajele de sistem (inclusiv șabloanele oferite de aplicație) se adaptează la limba aleasă."
+        },
+        {
+          "q": "Ce înseamnă „Zile până la reminder follow-up”?",
+          "a": "E intervalul după care un contact care a primit o ofertă, dar n-a mai fost contactat, reapare în agenda ta cu sugestia de follow-up. Îl reglezi în Setări, la profil."
+        },
+        {
+          "q": "Ce este Daily Focus Email?",
+          "a": "În fiecare dimineață primești pe email contactele care merită atenția ta în ziua respectivă. Dacă nu e nimic de făcut, nu primești niciun email. Poți alege ora trimiterii din Setări și poți cere oricând o probă pe adresa ta, ca să vezi cum arată."
+        },
+        {
+          "q": "Cum îmi schimb adresa de email de autentificare?",
+          "a": "Din Setări → „Schimbă adresa de email”. Îți trimitem un link de confirmare la noua adresă; după ce apeși pe el, schimbarea e finalizată. Până atunci, contul rămâne pe adresa veche."
+        },
+        {
+          "q": "Cum îmi schimb parola?",
+          "a": "Din Setări → „Schimbă parola”: introduci parola curentă, apoi pe cea nouă (minim 6 caractere) și o confirmi."
+        },
+        {
+          "q": "Cum îmi descarc datele?",
+          "a": "Din Setări → „Datele tale” poți exporta contactele în format CSV, sau toate datele tale (contacte, oferte, resurse, șabloane) într-un fișier JSON. Le poți descărca oricând."
+        },
+        {
+          "q": "Nu mai vreau emailuri despre cont și abonament. Le pot opri?",
+          "a": "Da. Te poți dezabona de la emailurile despre cont și abonament; vei primi în continuare doar pe cele esențiale (ex. confirmări de plată). Le poți reactiva oricând din Setări."
+        },
+        {
+          "q": "Cum îmi șterg contul?",
+          "a": "Din Setări → „Zona de pericol” → „Șterge contul definitiv”. Se șterg definitiv toate contactele, ofertele, resursele și datele tale; acțiunea nu poate fi anulată. Facturile se păstrează conform legii contabile."
         }
       ]
     }

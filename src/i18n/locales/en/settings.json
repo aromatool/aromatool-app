@@ -67,7 +67,7 @@
     "opening": "Opening...",
     "manage": "Manage subscription",
     "subscribe": "Subscribe",
-    "launchCode": "Have a launch code? You enter it at the payment step.",
+    "launchCode": "Have a launch code? Enter it below, in the \"Got a code?\" field.",
     "portalNoLink": "Didn't receive the portal link.",
     "portalOpenError": "Error opening the portal."
   },

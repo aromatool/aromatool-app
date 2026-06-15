@@ -216,6 +216,38 @@
         {
           "q": "How do my contact details appear in emails?",
           "a": "The phone and contact email from Settings feed the WhatsApp and email buttons in the message footer. You update in one place and it's reflected everywhere."
+        },
+        {
+          "q": "How do I change the app language?",
+          "a": "In Settings, in the \"Language\" field, choose Romanian or English. The interface and the system messages (including the templates provided by the app) adapt to the chosen language."
+        },
+        {
+          "q": "What does \"Days until follow-up reminder\" mean?",
+          "a": "It's the interval after which a contact who received an offer but hasn't been contacted again reappears in your agenda with the follow-up suggestion. You set it in Settings, under your profile."
+        },
+        {
+          "q": "What is the Daily Focus Email?",
+          "a": "Every morning you get an email with the contacts that deserve your attention that day. If there's nothing to do, you get no email. You can choose the send time in Settings and request a test to your address anytime, to see how it looks."
+        },
+        {
+          "q": "How do I change my login email address?",
+          "a": "From Settings → \"Change email address\". We send a confirmation link to the new address; once you tap it, the change is complete. Until then, the account stays on the old address."
+        },
+        {
+          "q": "How do I change my password?",
+          "a": "From Settings → \"Change password\": enter your current password, then the new one (at least 6 characters) and confirm it."
+        },
+        {
+          "q": "How do I download my data?",
+          "a": "From Settings → \"Your data\" you can export your contacts as CSV, or all your data (contacts, offers, resources, templates) in a JSON file. You can download them anytime."
+        },
+        {
+          "q": "I no longer want emails about my account and subscription. Can I stop them?",
+          "a": "Yes. You can unsubscribe from account and subscription emails; you'll still receive only the essential ones (e.g. payment confirmations). You can re-enable them anytime from Settings."
+        },
+        {
+          "q": "How do I delete my account?",
+          "a": "From Settings → \"Danger zone\" → \"Delete account permanently\". All your contacts, offers, resources and data are permanently deleted; the action cannot be undone. Invoices are kept as required by accounting law."
         }
       ]
     }
