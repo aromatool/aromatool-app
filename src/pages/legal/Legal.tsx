@@ -29,7 +29,7 @@ export const COMPANY = {
 // Flag pentru banner-ul „document în lucru". Cât timp e `false`, paginile
 // legale afișează avertismentul că textul nu a fost încă validat juridic.
 // Pune-l pe `true` DUPĂ ce un jurist a verificat documentele (task #30).
-export const LEGAL_REVIEWED = false;
+export const LEGAL_REVIEWED = true;
 
 const T = {
   sage: "#5C7A5C",
