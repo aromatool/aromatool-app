@@ -338,11 +338,6 @@ function ContactCard({
                 : t("dashboard.badge.attention")}
             </span>
           )}
-          {!mobile && (
-            <span style={{ fontSize: 11, color: T.muted, flexShrink: 0 }}>
-              · {displayStatus(contact.status, t)}
-            </span>
-          )}
         </div>
         {mobile && (
           <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
@@ -380,6 +375,18 @@ function ContactCard({
           )}
         </div>
       </div>
+      {!mobile && (
+        <span
+          style={{
+            fontSize: 11,
+            color: T.muted,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          · {displayStatus(contact.status, t)}
+        </span>
+      )}
       {action.type === "needs_offer" &&
         onMarkSent &&
         !contact.communication_blocked && (
