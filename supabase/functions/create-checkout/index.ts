@@ -86,15 +86,12 @@ serve(async (req) => {
       // ── MULTI-COUNTRY ────────────────────────────────────
       // Valuta clientului e aleasă automat de Stripe DACĂ Price-ul are
       // currency_options (RON, EUR, ...) setate în Dashboard.
-      // Colectăm adresa ca să putem calcula TVA-ul corect pe țară.
+      // Colectăm adresa pentru factură + ca bază pentru alegerea valutei.
       billing_address_collection: 'auto',
-      // TVA automat per țară (necesită activarea Stripe Tax în Dashboard).
-      automatic_tax: { enabled: true },
-      // Obligatoriu când refolosim un customer + automatic_tax: lăsăm
-      // Stripe să sincronizeze adresa/numele din checkout pe customer.
-      customer_update: { address: 'auto', name: 'auto' },
-      // Permite firmelor să-și introducă codul de TVA (B2B UE).
-      tax_id_collection: { enabled: true },
+      // TVA automat (Stripe Tax) — DEZACTIVAT temporar până configurăm
+      // partea fiscală în Dashboard. Cu el activat fără setup, checkout-ul
+      // dă eroare. De reactivat: automatic_tax + tax_id_collection +
+      // customer_update:{address:'auto',name:'auto'}.
       success_url: `${base}/app/settings?upgrade=success`,
       cancel_url: `${base}/app/settings?upgrade=cancel`,
       // metadata e citită de webhook ca să seteze planul

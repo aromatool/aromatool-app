@@ -450,6 +450,13 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/customer-portal/index.ts"
 
+# Preț plan — citește prețul din Stripe (multi-valută) pentru afișare în
+# paywall. Public (verify_jwt = false): prețul nu e date sensibile.
+[functions.get-plan-price]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/get-plan-price/index.ts"
+
 # Webhook Stripe — apelat de Stripe, fără JWT (verificăm semnătura).
 [functions.stripe-webhook]
 enabled = true

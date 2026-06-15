@@ -1,6 +1,8 @@
 {
   "planName": "AromaTool Pro",
   "priceText": "99 RON / month",
+  "perMonth": "/ month",
+  "perYear": "/ year",
   "tagline": "Everything you need to grow your team.",
   "features": [
     "Unlimited contacts and CRM",

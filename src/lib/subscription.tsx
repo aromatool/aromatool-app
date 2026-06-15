@@ -174,11 +174,69 @@ const C = {
   green: "#2E8A58",
 };
 
+// Țara → valuta de afișare. RO=RON, restul (UE) implicit EUR.
+function currencyForCountry(country: string): string {
+  return country === "RO" ? "ron" : "eur";
+}
+
+type PlanPrice = {
+  configured: boolean;
+  interval?: string;
+  currencies?: Record<string, { amount: number }>;
+};
+
 function Paywall({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { upgrade, loading, error } = useUpgrade();
+  const { countryCode } = useSubscription();
   const planName = t("paywall.planName");
   const features = t("paywall.features", { returnObjects: true }) as string[];
+
+  // ── Preț live din Stripe (Approach A) ──────────────────────
+  // Citim prețul real din Stripe și alegem valuta după țara liderului.
+  // Dacă funcția nu e configurată / eșuează, cădem pe textul static.
+  const [price, setPrice] = useState<PlanPrice | null>(null);
+  useEffect(() => {
+    let active = true;
+    supabase.functions
+      .invoke("get-plan-price")
+      .then(({ data }) => {
+        if (active && data) setPrice(data as PlanPrice);
+      })
+      .catch(() => {
+        /* fallback la priceText static */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const priceLabel = (() => {
+    if (!price?.configured || !price.currencies) return t("paywall.priceText");
+    const wanted = currencyForCountry(countryCode);
+    const entry =
+      price.currencies[wanted] ??
+      price.currencies["eur"] ??
+      price.currencies["ron"] ??
+      Object.values(price.currencies)[0];
+    if (!entry) return t("paywall.priceText");
+    const cur =
+      price.currencies[wanted] ? wanted : Object.keys(price.currencies)[0];
+    const value = entry.amount / 100;
+    let formatted: string;
+    try {
+      formatted = new Intl.NumberFormat(i18n.language || "ro", {
+        style: "currency",
+        currency: cur.toUpperCase(),
+        minimumFractionDigits: entry.amount % 100 === 0 ? 0 : 2,
+      }).format(value);
+    } catch {
+      formatted = `${value} ${cur.toUpperCase()}`;
+    }
+    const per =
+      price.interval === "year" ? t("paywall.perYear") : t("paywall.perMonth");
+    return `${formatted} ${per}`;
+  })();
 
   return (
     <div
@@ -267,7 +325,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
             <span
               style={{ fontSize: "22px", fontWeight: 600, color: C.espresso }}
             >
-              {t("paywall.priceText")}
+              {priceLabel}
             </span>
           </div>
           <ul
