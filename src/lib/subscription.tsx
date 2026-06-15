@@ -70,7 +70,7 @@ function daysBetween(future: Date): number {
 }
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [plan, setPlan] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(null);
@@ -92,7 +92,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setCountryCode("RO");
       setRenewsAt(null);
       setCancelAtPeriodEnd(false);
-      setLoading(false);
+      // ATENȚIE: nu concluziona „fără acces" cât timp AUTH încă se încarcă.
+      // La un refresh de pagină, user e null o clipă până se rezolvă sesiunea;
+      // dacă am pune loading=false aici, hasAccess ar deveni fals pentru un
+      // moment → CalculatorPage ar deschide paywall-ul degeaba (chiar și pentru
+      // admin). Rămânem în loading până auth confirmă că nu există user.
+      setLoading(authLoading);
       return;
     }
     const { data } = await supabase
@@ -115,7 +120,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     );
     setCancelAtPeriodEnd(data?.subscription_cancel_at_period_end ?? false);
     setLoading(false);
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
     setLoading(true);
