@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { COMPANY } from "./legal/Legal";
 
 // ── BLOSSOM SAGE ───────────────────────────────────────────
 const T = {
@@ -503,26 +504,58 @@ export default function HelpPage() {
         >
           {t("help.footerSub")}
         </div>
-        <button
-          onClick={() => navigate("/app/settings")}
+        <div
           style={{
-            padding: "9px 18px",
-            fontSize: "13px",
-            fontFamily: "inherit",
-            fontWeight: 500,
-            background: T.white,
-            border: `0.5px solid ${T.sageMid}`,
-            borderRadius: "10px",
-            color: T.sageDark,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            gap: "8px",
           }}
         >
-          <i className="ti ti-settings" style={{ fontSize: "15px" }} />
-          {t("help.footerButton")}
-        </button>
+          <button
+            onClick={() => navigate("/app/settings")}
+            style={{
+              padding: "9px 18px",
+              fontSize: "13px",
+              fontFamily: "inherit",
+              fontWeight: 500,
+              background: T.white,
+              border: `0.5px solid ${T.sageMid}`,
+              borderRadius: "10px",
+              color: T.sageDark,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <i className="ti ti-settings" style={{ fontSize: "15px" }} />
+            {t("help.footerButton")}
+          </button>
+          <a
+            href={`mailto:${COMPANY.contactEmail}?subject=${encodeURIComponent(
+              t("help.footerContactSubject"),
+            )}`}
+            style={{
+              padding: "9px 18px",
+              fontSize: "13px",
+              fontFamily: "inherit",
+              fontWeight: 500,
+              background: T.sageDark,
+              border: `0.5px solid ${T.sageDark}`,
+              borderRadius: "10px",
+              color: T.white,
+              cursor: "pointer",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <i className="ti ti-mail" style={{ fontSize: "15px" }} />
+            {t("help.footerContactButton")}
+          </a>
+        </div>
       </div>
     </div>
   );
