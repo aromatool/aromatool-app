@@ -16,6 +16,22 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+// CORS — pagina /unsubscribe din app (alt domeniu) face fetch către funcție
+// în mod JSON (?format=json). Header-ele permit citirea răspunsului.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+}
+
+// Răspuns JSON pentru pagina din app. `ok` = dezabonarea s-a aplicat.
+function jsonResp(body: Record<string, unknown>): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
 // Secret pentru semnarea tokenului; fallback pe CRON_SECRET ca să nu
 // adăugăm un secret nou obligatoriu.
 const UNSUB_SECRET =
@@ -175,11 +191,20 @@ function confirmPage(contactId: string, token: string): Response {
 }
 
 serve(async (req) => {
+  // Preflight CORS pentru fetch-ul din pagina /unsubscribe a appului.
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   const url = new URL(req.url)
   const contactId = url.searchParams.get('c') || ''
   const userId = url.searchParams.get('u') || ''
   const token = url.searchParams.get('t') || ''
   const lang: 'ro' | 'en' = url.searchParams.get('l') === 'en' ? 'en' : 'ro'
+  // Mod JSON: apelat de pagina /unsubscribe din app (randează ea UI-ul).
+  // Pe domeniul *.supabase.co gateway-ul rescrie text/html→text/plain, deci
+  // pagina HTML de aici nu se randează în browser — de aceea UI-ul stă în app.
+  const asJson = url.searchParams.get('format') === 'json'
 
   // ── Ramura USER (emailuri despre cont/abonament AromaTool) ──
   // Are prioritate dacă există ?u=. Separată complet de contacts.
@@ -187,21 +212,24 @@ serve(async (req) => {
     const tx = USER_TXT[lang]
     if (req.method === 'POST') {
       const ok = await doUnsubscribeUser(userId, token)
+      if (asJson) return jsonResp({ ok })
       return ok
         ? page(tx.doneTitle, tx.doneBody, lang)
         : page(tx.invalidTitle, tx.invalidBody, lang)
     }
     const valid = await isValidToken(userId, token)
+    if (asJson) return jsonResp({ valid })
     return valid
       ? confirmPageUser(userId, token, lang)
       : page(tx.invalidTitle, tx.invalidBody, lang)
   }
 
-  // ── Ramura CONTACT (clienții userului) — neschimbată ──
+  // ── Ramura CONTACT (clienții userului) ──
   // One-click (RFC 8058): Gmail/Yahoo trimit POST fără interacțiune. Acceptat.
-  // Tot pe POST vine și butonul din pagina de confirmare (vezi mai jos).
+  // Tot pe POST vine și butonul din pagina /unsubscribe a appului (mod JSON).
   if (req.method === 'POST') {
     const ok = await doUnsubscribe(contactId, token)
+    if (asJson) return jsonResp({ ok })
     // Răspuns vizibil pentru utilizator (butonul), dar și „ok" simplu pentru
     // clienții one-click care nu randează HTML.
     return ok
@@ -214,6 +242,7 @@ serve(async (req) => {
 
   // GET: NU mutăm. Validăm tokenul și arătăm o pagină cu buton de confirmare.
   const valid = await isValidToken(contactId, token)
+  if (asJson) return jsonResp({ valid })
   return valid
     ? confirmPage(contactId, token)
     : page('Link invalid', 'Linkul de dezabonare nu este valid sau a expirat.')

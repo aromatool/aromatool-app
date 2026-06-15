@@ -14,6 +14,7 @@ import ResourcesPage from "./pages/ResourcesPage";
 import HelpPage from "./pages/HelpPage";
 import AdminPage from "./pages/AdminPage";
 import { PrivacyPage, TermsPage, CookiePage } from "./pages/legal/Legal";
+import UnsubscribePage from "./pages/UnsubscribePage";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
@@ -190,6 +191,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      {/* Dezabonare — publică (link din emailuri) */}
+      <Route path="/unsubscribe" element={<UnsubscribePage />} />
       {/* Pagini legale — publice */}
       <Route path="/legal/privacy" element={<PrivacyPage />} />
       <Route path="/legal/terms" element={<TermsPage />} />

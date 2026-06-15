@@ -8,6 +8,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 // `unsubscribe`. Fallback pe CRON_SECRET ca să nu adăugăm un secret nou.
 const UNSUB_SECRET =
   Deno.env.get('UNSUBSCRIBE_SECRET') || Deno.env.get('CRON_SECRET') || ''
+// URL-ul appului (Vercel). Linkul VIZIBIL de dezabonare arată spre pagina
+// /unsubscribe din app, care se randează corect (vezi nota de mai jos).
+const APP_URL = (Deno.env.get('APP_URL') || 'https://app.aromatool.com').replace(/\/$/, '')
 
 // HMAC-SHA256(contactId) → hex. Identic cu funcția `unsubscribe`.
 async function signUnsub(contactId: string): Promise<string> {
@@ -28,9 +31,17 @@ async function signUnsub(contactId: string): Promise<string> {
     .join('')
 }
 
-// Construiește URL-ul de dezabonare pentru un contact.
+// URL one-click (List-Unsubscribe, RFC 8058). Clienții de mail fac POST aici
+// fără să randeze HTML → rămâne pe funcția Supabase (endpoint real, nu SPA).
 function unsubUrl(contactId: string, token: string): string {
   return `${SUPABASE_URL}/functions/v1/unsubscribe?c=${contactId}&t=${token}`
+}
+
+// URL VIZIBIL (linkul pe care-l apasă omul din footer). Arată spre pagina
+// /unsubscribe din app — gateway-ul *.supabase.co rescrie text/html→text/plain,
+// deci pagina funcției s-ar afișa ca text brut. Pagina din app se randează ok.
+function unsubHumanUrl(contactId: string, token: string): string {
+  return `${APP_URL}/unsubscribe?c=${contactId}&t=${token}`
 }
 
 // Footer HTML cu linkul de dezabonare, inserat înainte de </body>.
@@ -195,11 +206,12 @@ serve(async (req) => {
     let unsubHeaders: Record<string, string> = {}
     if (contact_id && UNSUB_SECRET) {
       const token = await signUnsub(contact_id)
-      const link = unsubUrl(contact_id, token)
-      finalHtml = injectUnsubFooter(html, link)
-      if (finalText) finalText = injectUnsubText(finalText, link)
+      const humanLink = unsubHumanUrl(contact_id, token)   // footer vizibil → app
+      const oneClickLink = unsubUrl(contact_id, token)     // header → funcție
+      finalHtml = injectUnsubFooter(html, humanLink)
+      if (finalText) finalText = injectUnsubText(finalText, humanLink)
       unsubHeaders = {
-        'List-Unsubscribe': `<${link}>`,
+        'List-Unsubscribe': `<${oneClickLink}>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       }
     }

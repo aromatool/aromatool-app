@@ -75,9 +75,16 @@ async function signUnsub(userId: string): Promise<string> {
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(userId))
   return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
+// One-click (List-Unsubscribe, RFC 8058) → funcția Supabase (endpoint real).
 async function unsubUrl(userId: string, lang: 'ro' | 'en'): Promise<string> {
   const t = await signUnsub(userId)
   return `${SUPABASE_URL}/functions/v1/unsubscribe?u=${userId}&t=${t}&l=${lang}`
+}
+// Linkul VIZIBIL din footer → pagina /unsubscribe din app (se randează corect;
+// funcția pe *.supabase.co ar apărea ca text brut din cauza rescrierii Content-Type).
+async function unsubHumanUrl(userId: string, lang: 'ro' | 'en'): Promise<string> {
+  const t = await signUnsub(userId)
+  return `${APP_URL}/unsubscribe?u=${userId}&t=${t}&l=${lang}`
 }
 
 // ── Conținut email (RO/EN) ───────────────────────────────────
@@ -293,10 +300,11 @@ serve(async (req) => {
       if (!toEmail) { processed--; continue }
 
       const c = copyFor(kind, lang, firstName, days)
-      const unsubLink = await unsubUrl(p.id, lang)
+      const oneClickLink = await unsubUrl(p.id, lang)        // header one-click → funcție
+      const humanLink = await unsubHumanUrl(p.id, lang)      // footer vizibil → app
       const settingsLink = `${APP_URL}/app/settings#subscription`
-      const html = buildEmail(c, unsubLink, settingsLink, lang)
-      await sendEmail(toEmail, c.subject, html, unsubLink)
+      const html = buildEmail(c, humanLink, settingsLink, lang)
+      await sendEmail(toEmail, c.subject, html, oneClickLink)
       sent++
 
       // Marchează ca trimis (dedupe). În probă nu marcăm.
