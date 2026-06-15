@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Fișiere de traduceri Setări — re-incluse EXPLICIT.
+# ~/.gitignore_global conține o regulă „settings.json" (fără cale) care
+# altfel ar exclude aceste fișiere din git → traducerile Setări lipsesc
+# din build-ul de pe Vercel. Negarea de mai jos le readuce sub control.
+!src/i18n/locales/ro/settings.json
+!src/i18n/locales/en/settings.json

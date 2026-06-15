@@ -55,6 +55,7 @@ interface Profile {
   daily_focus_enabled: boolean;
   daily_focus_hour: number;
   is_admin: boolean;
+  account_emails_opt_out: boolean;
 }
 
 export default function SettingsPage() {
@@ -123,6 +124,7 @@ export default function SettingsPage() {
     daily_focus_enabled: false,
     daily_focus_hour: 8,
     is_admin: false,
+    account_emails_opt_out: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,6 +135,28 @@ export default function SettingsPage() {
   const [focusTesting, setFocusTesting] = useState(false);
   const [focusTestMsg, setFocusTestMsg] = useState("");
   const [focusTestErr, setFocusTestErr] = useState("");
+
+  // Re-abonare la emailurile despre cont — apare DOAR dacă userul s-a
+  // dezabonat (din linkul din email). Acțiune separată de „Salvează".
+  const [reactivating, setReactivating] = useState(false);
+  const [reactivated, setReactivated] = useState(false);
+
+  async function reactivateAccountEmails() {
+    setReactivating(true);
+    const { error: reErr } = await supabase
+      .from("profiles")
+      .update({
+        account_emails_opt_out: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user!.id);
+    setReactivating(false);
+    if (!reErr) {
+      setProfile((p) => ({ ...p, account_emails_opt_out: false }));
+      setReactivated(true);
+      setTimeout(() => setReactivated(false), 5000);
+    }
+  }
 
   async function testDailyFocus() {
     setFocusTesting(true);
@@ -315,7 +339,7 @@ export default function SettingsPage() {
     setLoading(true);
     const { data } = await supabase
       .from("profiles")
-      .select("full_name, phone, contact_email, email_signature, country_code, language_code, follow_up_days, daily_focus_enabled, daily_focus_hour, is_admin")
+      .select("full_name, phone, contact_email, email_signature, country_code, language_code, follow_up_days, daily_focus_enabled, daily_focus_hour, is_admin, account_emails_opt_out")
       .eq("id", user!.id)
       .single();
 
@@ -334,6 +358,7 @@ export default function SettingsPage() {
         daily_focus_enabled: data.daily_focus_enabled === true,
         daily_focus_hour: data.daily_focus_hour || 8,
         is_admin: data.is_admin === true,
+        account_emails_opt_out: data.account_emails_opt_out === true,
       });
       // Sincronizează limba interfeței cu preferința din profil (sursa
       // de adevăr între dispozitive).
@@ -886,6 +911,69 @@ export default function SettingsPage() {
               : "—"}
           </span>
         </div>
+
+        {/* Re-abonare — vizibilă DOAR dacă userul s-a dezabonat din email. */}
+        {(profile.account_emails_opt_out || reactivated) && (
+          <div
+            style={{
+              marginTop: "14px",
+              paddingTop: "14px",
+              borderTop: `1px solid ${C.border}`,
+            }}
+          >
+            {profile.account_emails_opt_out ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  alignItems: isMobile ? "stretch" : "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  background: C.bg2,
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                }}
+              >
+                <span style={{ fontSize: "13px", color: C.muted, lineHeight: 1.5 }}>
+                  {t("settings.account.emailsOptedOut")}
+                </span>
+                <button
+                  onClick={reactivateAccountEmails}
+                  disabled={reactivating}
+                  style={{
+                    background: C.green,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "9px 16px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: reactivating ? "default" : "pointer",
+                    whiteSpace: "nowrap",
+                    opacity: reactivating ? 0.6 : 1,
+                  }}
+                >
+                  {reactivating
+                    ? t("settings.account.reactivating")
+                    : t("settings.account.reactivate")}
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: C.greenbg,
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  fontSize: "13px",
+                  color: C.green,
+                  fontWeight: 500,
+                }}
+              >
+                {t("settings.account.reactivated")}
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           style={{

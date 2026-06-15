@@ -293,7 +293,7 @@ serve(async (req) => {
       if (!toEmail) { processed--; continue }
 
       const c = copyFor(kind, lang, firstName, days)
-      const unsubLink = await unsubUrl(p.id)
+      const unsubLink = await unsubUrl(p.id, lang)
       const settingsLink = `${APP_URL}/app/settings#subscription`
       const html = buildEmail(c, unsubLink, settingsLink, lang)
       await sendEmail(toEmail, c.subject, html, unsubLink)
