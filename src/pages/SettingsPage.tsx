@@ -1079,6 +1079,22 @@ export default function SettingsPage() {
                           : t("settings.subscription.daysLeft", { days: sub.daysLeft })
                         : t("settings.subscription.trialEnded")}
             </div>
+            {sub.isActive && sub.renewsAt && (
+              <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>
+                {t(
+                  sub.cancelAtPeriodEnd
+                    ? "settings.subscription.activeUntil"
+                    : "settings.subscription.renewsOn",
+                  {
+                    date: sub.renewsAt.toLocaleDateString(i18n.language, {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    }),
+                  },
+                )}
+              </div>
+            )}
           </div>
           <span
             style={{

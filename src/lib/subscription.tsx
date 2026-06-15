@@ -48,6 +48,8 @@ interface SubscriptionState {
   isAdmin: boolean; // admin — acces total, fără gating
   freeAccess: boolean; // acces gratuit acordat de admin (non-admin)
   countryCode: string; // țara liderului (catalog implicit pentru oferte)
+  renewsAt: Date | null; // finalul perioadei curente (reînnoire sau expirare)
+  cancelAtPeriodEnd: boolean; // abonamentul se anulează la finalul perioadei
   hasAccess: boolean; // isAdmin || freeAccess || isActive || isTrialing
   loading: boolean;
   refresh: () => Promise<void>;
@@ -75,6 +77,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [freeAccess, setFreeAccess] = useState(false);
   const [countryCode, setCountryCode] = useState("RO");
+  const [renewsAt, setRenewsAt] = useState<Date | null>(null);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [loading, setLoading] = useState(true);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
@@ -86,13 +90,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setIsAdmin(false);
       setFreeAccess(false);
       setCountryCode("RO");
+      setRenewsAt(null);
+      setCancelAtPeriodEnd(false);
       setLoading(false);
       return;
     }
     const { data } = await supabase
       .from("profiles")
       .select(
-        "subscription_plan, subscription_status, trial_ends_at, is_admin, free_access, country_code",
+        "subscription_plan, subscription_status, trial_ends_at, is_admin, free_access, country_code, subscription_current_period_end, subscription_cancel_at_period_end",
       )
       .eq("id", user.id)
       .single();
@@ -102,6 +108,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     setIsAdmin(data?.is_admin ?? false);
     setFreeAccess(data?.free_access ?? false);
     setCountryCode(data?.country_code ?? "RO");
+    setRenewsAt(
+      data?.subscription_current_period_end
+        ? new Date(data.subscription_current_period_end)
+        : null,
+    );
+    setCancelAtPeriodEnd(data?.subscription_cancel_at_period_end ?? false);
     setLoading(false);
   }, [user?.id]);
 
@@ -137,6 +149,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     isAdmin,
     freeAccess,
     countryCode,
+    renewsAt,
+    cancelAtPeriodEnd,
     hasAccess,
     loading,
     refresh,

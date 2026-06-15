@@ -56,6 +56,8 @@
     "adminDesc": "Acces complet, fără abonament.",
     "freeDesc": "Acces oferit de echipă, fără plată.",
     "activeDesc": "Abonament activ.",
+    "renewsOn": "Se reînnoiește pe {{date}}.",
+    "activeUntil": "Activ până pe {{date}} (nu se reînnoiește).",
     "pastDue": "Plata a eșuat — actualizează metoda de plată.",
     "expiresTomorrow": "Expiră mâine.",
     "daysLeft": "{{days}} zile rămase.",

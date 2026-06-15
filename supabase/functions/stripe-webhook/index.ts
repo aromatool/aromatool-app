@@ -52,10 +52,12 @@ serve(async (req) => {
       customerId?: string | null
       plan: string
       status?: string
+      extra?: Record<string, unknown>
     }) {
       const patch: Record<string, unknown> = {
         subscription_plan: opts.plan,
         ...(opts.status ? { subscription_status: opts.status } : {}),
+        ...(opts.extra ?? {}),
         updated_at: new Date().toISOString(),
       }
       let dbErr: unknown = null
@@ -97,10 +99,22 @@ serve(async (req) => {
           : sub.status === 'past_due' ? 'past_due'
           : sub.status === 'canceled' ? 'canceled'
           : 'inactive'
+        // current_period_end: în versiunile noi de API Stripe s-a mutat de pe
+        // Subscription pe SubscriptionItem — îl citim din ambele locuri.
+        // deno-lint-ignore no-explicit-any
+        const subAny = sub as any
+        const periodEndUnix: number | null =
+          subAny.current_period_end ?? subAny.items?.data?.[0]?.current_period_end ?? null
         await setPlan({
           customerId: typeof sub.customer === 'string' ? sub.customer : null,
           plan,
           status,
+          extra: {
+            subscription_current_period_end: periodEndUnix
+              ? new Date(periodEndUnix * 1000).toISOString()
+              : null,
+            subscription_cancel_at_period_end: sub.cancel_at_period_end ?? false,
+          },
         })
         break
       }

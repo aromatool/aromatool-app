@@ -56,6 +56,8 @@
     "adminDesc": "Full access, no subscription.",
     "freeDesc": "Access granted by the team, no payment.",
     "activeDesc": "Subscription active.",
+    "renewsOn": "Renews on {{date}}.",
+    "activeUntil": "Active until {{date}} (won't renew).",
     "pastDue": "Payment failed — update your payment method.",
     "expiresTomorrow": "Expires tomorrow.",
     "daysLeft": "{{days}} days left.",
