@@ -7,7 +7,7 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { COUNTRIES, flagOf } from "../lib/countries";
 import PhoneInput from "../components/PhoneInput";
-import { useSubscription, PLAN } from "../lib/subscription";
+import { useSubscription, usePlanPrice, PLAN } from "../lib/subscription";
 import RedeemCodeForm from "../components/RedeemCodeForm";
 import { useUpgrade } from "../hooks/useUpgrade";
 
@@ -64,6 +64,8 @@ export default function SettingsPage() {
 
   // ── Abonament ──────────────────────────────────────────────
   const sub = useSubscription();
+  // Preț live din Stripe (sursa de adevăr) — același hook ca în Paywall.
+  const { priceLabel } = usePlanPrice();
   const { upgrade, loading: upgradeLoading, error: upgradeError } = useUpgrade();
   const [searchParams] = useSearchParams();
   const upgradeResult = searchParams.get("upgrade"); // "success" | "cancel"
@@ -1200,8 +1202,11 @@ export default function SettingsPage() {
                 lineHeight: 1.5,
               }}
             >
-              {PLAN.name} — <strong style={{ color: C.dark }}>{PLAN.priceText}</strong>.{" "}
-              {PLAN.tagline}
+              {PLAN.name} —{" "}
+              <strong style={{ color: C.dark }}>
+                {priceLabel ?? PLAN.priceText}
+              </strong>
+              . {PLAN.tagline}
             </div>
             <button
               onClick={() => upgrade(PLAN.id)}

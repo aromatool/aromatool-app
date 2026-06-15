@@ -26,7 +26,7 @@ import RedeemCodeForm from "../components/RedeemCodeForm";
 export const PLAN = {
   id: "pro",
   name: "AromaTool Pro",
-  priceText: "99 RON / lună",
+  priceText: "49,99 RON / lună",
   tagline: "Tot ce ai nevoie ca să-ți crești echipa.",
   features: [
     "Contacte și CRM nelimitate",
@@ -204,18 +204,18 @@ type PlanPrice = {
   currencies?: Record<string, { amount: number }>;
 };
 
-function Paywall({ onClose }: { onClose: () => void }) {
+// Preț live din Stripe, formatat pentru afișare. Folosit în Paywall ȘI în
+// pagina de Setări (ca să fie mereu sincron — sursa de adevăr e Stripe).
+// Returnează `priceLabel = null` cât timp se încarcă (evită flash-ul cu
+// textul static), apoi suma reală în valuta țării. Dacă funcția nu e
+// configurată / eșuează, cade pe textul static `paywall.priceText`.
+// eslint-disable-next-line react-refresh/only-export-components
+export function usePlanPrice(): { priceLabel: string | null; priceLoaded: boolean } {
   const { t, i18n } = useTranslation();
-  const { upgrade, loading, error } = useUpgrade();
   const { countryCode } = useSubscription();
-  const planName = t("paywall.planName");
-  const features = t("paywall.features", { returnObjects: true }) as string[];
-
-  // ── Preț live din Stripe (Approach A) ──────────────────────
-  // Citim prețul real din Stripe și alegem valuta după țara liderului.
-  // Dacă funcția nu e configurată / eșuează, cădem pe textul static.
   const [price, setPrice] = useState<PlanPrice | null>(null);
   const [priceLoaded, setPriceLoaded] = useState(false);
+
   useEffect(() => {
     let active = true;
     supabase.functions
@@ -234,8 +234,6 @@ function Paywall({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  // Cât timp se încarcă prețul live, nu afișăm fallback-ul static
-  // (altfel apare un flash "99 RON" până vine prețul real din Stripe).
   const priceLabel = (() => {
     if (!priceLoaded) return null;
     if (!price?.configured || !price.currencies) return t("paywall.priceText");
@@ -263,6 +261,19 @@ function Paywall({ onClose }: { onClose: () => void }) {
       price.interval === "year" ? t("paywall.perYear") : t("paywall.perMonth");
     return `${formatted} ${per}`;
   })();
+
+  return { priceLabel, priceLoaded };
+}
+
+function Paywall({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const { upgrade, loading, error } = useUpgrade();
+  const planName = t("paywall.planName");
+  const features = t("paywall.features", { returnObjects: true }) as string[];
+
+  // Preț live din Stripe (sursa de adevăr). `priceLabel === null` cât timp
+  // se încarcă → afișăm un skeleton, ca să nu apară flash-ul textului static.
+  const { priceLabel } = usePlanPrice();
 
   return (
     <div
