@@ -319,7 +319,7 @@ export function useSendEmail() {
           .select('id')
           .eq('user_id', user!.id)
           .eq('email', params.clientEmail)
-          .single()
+          .maybeSingle()
         if (existingContact) {
           contactId = existingContact.id
         } else {
@@ -527,7 +527,7 @@ export function useSendEmail() {
           .select('id')
           .eq('user_id', user!.id)
           .eq('email', params.clientEmail)
-          .single()
+          .maybeSingle()
         if (existingContact) {
           contactId = existingContact.id
           await supabase

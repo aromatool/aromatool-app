@@ -45,8 +45,8 @@ const ACCENT = {
   neutral:{ accentBg: '#F1EFE8', accentColor: '#888780' }, // niciun caz urgent
 }
 
-function firstName(name: string): string {
-  return name.split(' ')[0]
+function firstName(name?: string | null): string {
+  return (name ?? '').trim().split(' ')[0] ?? ''
 }
 
 // Grupa de status afișată (cele 4 categorii curate). Pură, fără text —
