@@ -1345,10 +1345,9 @@ function CartSection() {
           </div>
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-              gap: "8px",
-              alignItems: "start",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
             }}
           >
             {/* Resurse atașate (ca linkuri securizate) */}
@@ -1368,8 +1367,6 @@ function CartSection() {
                   color: C.text2,
                   cursor: "pointer",
                   fontFamily: "'DM Sans', sans-serif",
-                  width: "100%",
-                  justifyContent: "center",
                 }}
               >
                 <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
