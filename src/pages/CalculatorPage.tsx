@@ -6,6 +6,7 @@ import { useCartStore } from "../hooks/useCartStore";
 import { useSendEmail, buildEmailHtml, round2, computeOfferTotals } from "../hooks/useSendEmail";
 import { useResources } from "../hooks/useResources";
 import EnrollLink from "../components/EnrollLink";
+import PhoneInput from "../components/PhoneInput";
 import CurrencyPanel from "../components/CurrencyPanel";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 import { useAuth } from "../lib/auth";
@@ -369,6 +370,17 @@ function CartSection() {
   const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
   const [showResourcePicker, setShowResourcePicker] = useState(false);
   const { resources } = useResources();
+  // Layout responsiv în interiorul cardului (CartSection e folosit și pe
+  // desktop, și pe mobil) — comutăm grilele pe o coloană sub 768px.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
   const {
     sendOffer,
     logOffer,
@@ -1087,246 +1099,201 @@ function CartSection() {
           marginBottom: "8px",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            fontSize: "10px",
-            fontWeight: 700,
-            color: C.primary,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: "10px",
-          }}
-        >
-          <i className="ti ti-mail" style={{ fontSize: "13px" }} />
-          {tr("calculator.sendOfferToClient")}
-        </div>
-        <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-          <input
-            value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            placeholder={`${tr("calculator.clientNamePlaceholder")} *`}
+        {/* ── Header ─────────────────────────────────────── */}
+        <div style={{ marginBottom: "14px" }}>
+          <div
             style={{
-              flex: 1,
-              minWidth: 0,
-              padding: "10px 12px",
-              background: C.bg2,
-              border: `1.5px solid ${C.border2}`,
-              borderRadius: "8px",
-              fontSize: "14px",
-              color: C.dark,
-              fontFamily: "'DM Sans', sans-serif",
-              outline: "none",
-            }}
-          />
-          <input
-            value={clientPhone}
-            onChange={(e) => setClientPhone(e.target.value)}
-            placeholder={tr("calculator.phonePlaceholder")}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              padding: "10px 12px",
-              background: C.bg2,
-              border: `1.5px solid ${C.border2}`,
-              borderRadius: "8px",
-              fontSize: "14px",
-              color: C.dark,
-              fontFamily: "'DM Sans', sans-serif",
-              outline: "none",
-            }}
-          />
-        </div>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder={tr("calculator.notesPlaceholder")}
-          rows={3}
-          style={{
-            width: "100%",
-            marginBottom: "8px",
-            padding: "10px 12px",
-            background: C.bg2,
-            border: `1.5px solid ${C.border2}`,
-            borderRadius: "8px",
-            fontSize: "13px",
-            color: C.dark,
-            fontFamily: "'DM Sans', sans-serif",
-            outline: "none",
-            resize: "vertical",
-            boxSizing: "border-box",
-          }}
-        />
-
-        {/* Resurse atașate (ca linkuri securizate) */}
-        <div style={{ marginBottom: "8px" }}>
-          <button
-            onClick={() => setShowResourcePicker((v) => !v)}
-            style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
               gap: "6px",
-              padding: "8px 12px",
-              background: C.bg2,
-              border: `1.5px dashed ${C.border2}`,
-              borderRadius: "8px",
-              fontSize: "12px",
-              fontWeight: 500,
-              color: C.text2,
-              cursor: "pointer",
-              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "10px",
+              fontWeight: 700,
+              color: C.primary,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "4px",
             }}
           >
-            <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
-            {tr("calculator.addResource")}
-            {selectedResourceIds.length > 0 && ` (${selectedResourceIds.length})`}
-          </button>
-
-          {showResourcePicker && (
-            <div
-              style={{
-                marginTop: "8px",
-                background: C.card,
-                border: `1px solid ${C.border2}`,
-                borderRadius: "10px",
-                padding: "10px",
-                maxHeight: "220px",
-                overflowY: "auto",
-              }}
-            >
-              {resources.length === 0 ? (
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: C.muted,
-                    textAlign: "center",
-                    padding: "12px",
-                  }}
-                >
-                  {tr("calculator.noResources")}
-                </div>
-              ) : (
-                resources.map((r) => {
-                  const checked = selectedResourceIds.includes(r.id);
-                  return (
-                    <label
-                      key={r.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "7px 4px",
-                        cursor: "pointer",
-                        borderBottom: `1px solid ${C.border}`,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleResource(r.id)}
-                        style={{
-                          accentColor: C.primary,
-                          width: "15px",
-                          height: "15px",
-                          cursor: "pointer",
-                          flexShrink: 0,
-                        }}
-                      />
-                      <i
-                        className={
-                          r.file_type === "application/pdf"
-                            ? "ti ti-file-type-pdf"
-                            : "ti ti-photo"
-                        }
-                        style={{ fontSize: "15px", color: C.primary, flexShrink: 0 }}
-                      />
-                      <span
-                        style={{
-                          fontSize: "13px",
-                          color: C.dark,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {r.title}
-                      </span>
-                    </label>
-                  );
-                })
-              )}
-            </div>
-          )}
-
-          {selectedResourceIds.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "6px",
-                marginTop: "8px",
-              }}
-            >
-              {selectedResourceIds.map((id) => {
-                const r = resources.find((x) => x.id === id);
-                if (!r) return null;
-                return (
-                  <div
-                    key={id}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "5px 8px",
-                      background: C.bg2,
-                      border: `1px solid ${C.border2}`,
-                      borderRadius: "8px",
-                      fontSize: "11px",
-                      color: C.dark,
-                    }}
-                  >
-                    <i
-                      className={
-                        r.file_type === "application/pdf"
-                          ? "ti ti-file-type-pdf"
-                          : "ti ti-photo"
-                      }
-                      style={{ fontSize: "13px", color: C.primary, flexShrink: 0 }}
-                    />
-                    <span
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "160px",
-                      }}
-                    >
-                      {r.title}
-                    </span>
-                    <button
-                      onClick={() => toggleResource(id)}
-                      title={tr("calculator.removeResource")}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: C.muted,
-                        display: "flex",
-                        padding: 0,
-                      }}
-                    >
-                      <i className="ti ti-x" style={{ fontSize: "13px" }} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+            <i className="ti ti-mail" style={{ fontSize: "13px" }} />
+            {tr("calculator.sendOfferToClient")}
+          </div>
+          <div style={{ fontSize: "12px", color: C.muted, lineHeight: 1.4 }}>
+            {tr("calculator.sendOfferSubtitle")}
+          </div>
         </div>
 
-        <div style={{ marginBottom: "8px" }}>
+        {/* ── 1. Date client ─────────────────────────────── */}
+        <div style={{ marginBottom: "14px" }}>
+          <div
+            style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              color: C.text2,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "8px",
+            }}
+          >
+            {tr("calculator.sectionClientData")}
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: "8px",
+              alignItems: "start",
+            }}
+          >
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  color: C.muted,
+                  marginBottom: "4px",
+                }}
+              >
+                {tr("calculator.clientNameLabel")} *
+              </label>
+              <input
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder={tr("calculator.clientNamePlaceholder")}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  background: C.bg2,
+                  border: `1.5px solid ${C.border2}`,
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  color: C.dark,
+                  fontFamily: "'DM Sans', sans-serif",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  color: C.muted,
+                  marginBottom: "4px",
+                }}
+              >
+                {tr("calculator.phoneLabel")}
+              </label>
+              <PhoneInput
+                value={clientPhone}
+                onChange={setClientPhone}
+                defaultCountry={catalogCountry || "RO"}
+                placeholder={tr("calculator.phonePlaceholder")}
+                theme={{ border: C.border2, inputBg: C.bg2, text: C.dark, focus: C.primary }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── 2. Detalii email ───────────────────────────── */}
+        <div style={{ marginBottom: "14px" }}>
+          <div
+            style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              color: C.text2,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "8px",
+            }}
+          >
+            {tr("calculator.sectionEmailDetails")}
+          </div>
+          <div style={{ marginBottom: "8px" }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                color: C.muted,
+                marginBottom: "4px",
+              }}
+            >
+              {tr("calculator.emailLabel")} *
+            </label>
+            <input
+              type="email"
+              value={clientEmail}
+              onChange={(e) => setClientEmail(e.target.value)}
+              placeholder={tr("calculator.emailPlaceholder")}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                background: C.bg2,
+                border: `1.5px solid ${clientEmail.includes("@noemail.local") ? C.red : C.border2}`,
+                borderRadius: "8px",
+                fontSize: "14px",
+                color: C.dark,
+                fontFamily: "'DM Sans', sans-serif",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {clientEmail.includes("@noemail.local") && (
+            <div
+              style={{
+                marginBottom: "8px",
+                padding: "8px 12px",
+                background: C.amberbg,
+                border: `1px solid rgba(196,144,106,0.3)`,
+                borderRadius: "8px",
+                fontSize: "12px",
+                color: C.amber,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "6px",
+              }}
+            >
+              <i className="ti ti-alert-triangle" style={{ fontSize: "14px", flexShrink: 0, marginTop: "1px" }} />
+              {tr("calculator.noEmailWarning")}
+            </div>
+          )}
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "12px",
+                color: C.muted,
+                marginBottom: "4px",
+              }}
+            >
+              {tr("calculator.emailLanguage")}
+            </label>
+            <select
+              value={offerLang}
+              onChange={(e) => setOfferLang(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                background: C.bg2,
+                border: `1.5px solid ${C.border2}`,
+                borderRadius: "8px",
+                fontSize: "14px",
+                color: C.dark,
+                fontFamily: "'DM Sans', sans-serif",
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              <option value="ro">🇷🇴 {tr("calculator.langRo")}</option>
+              <option value="en">🇬🇧 {tr("calculator.langEn")}</option>
+            </select>
+          </div>
+        </div>
+
+        {/* ── 3. Mesaj personalizat ──────────────────────── */}
+        <div style={{ marginBottom: "14px" }}>
           <label
             style={{
               display: "block",
@@ -1335,46 +1302,271 @@ function CartSection() {
               marginBottom: "4px",
             }}
           >
-            {tr("calculator.emailLanguage")}
+            {tr("calculator.customMessageLabel")}
           </label>
-          <select
-            value={offerLang}
-            onChange={(e) => setOfferLang(e.target.value)}
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={tr("calculator.customMessagePlaceholder")}
+            rows={3}
+            maxLength={500}
             style={{
-              padding: "8px 12px",
+              width: "100%",
+              padding: "10px 12px",
               background: C.bg2,
               border: `1.5px solid ${C.border2}`,
               borderRadius: "8px",
-              fontSize: "14px",
+              fontSize: "13px",
               color: C.dark,
               fontFamily: "'DM Sans', sans-serif",
               outline: "none",
-              cursor: "pointer",
-            }}
-          >
-            <option value="ro">🇷🇴 {tr("calculator.langRo")}</option>
-            <option value="en">🇬🇧 {tr("calculator.langEn")}</option>
-          </select>
-        </div>
-
-        <div style={{ display: "flex", gap: "8px" }}>
-          <input
-            type="email"
-            value={clientEmail}
-            onChange={(e) => setClientEmail(e.target.value)}
-            placeholder={`${tr("calculator.emailPlaceholder")} *`}
-            style={{
-              flex: 1,
-              padding: "10px 12px",
-              background: C.bg2,
-              border: `1.5px solid ${clientEmail.includes("@noemail.local") ? C.red : C.border2}`,
-              borderRadius: "8px",
-              fontSize: "14px",
-              color: C.dark,
-              fontFamily: "'DM Sans', sans-serif",
-              outline: "none",
+              resize: "vertical",
+              boxSizing: "border-box",
             }}
           />
+          <div style={{ textAlign: "right", fontSize: "11px", color: C.muted, marginTop: "3px" }}>
+            {notes.length} / 500
+          </div>
+        </div>
+
+        {/* ── 4. Extra opțiuni ───────────────────────────── */}
+        <div style={{ marginBottom: "14px" }}>
+          <div
+            style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              color: C.text2,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: "8px",
+            }}
+          >
+            {tr("calculator.sectionExtraOptions")}
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: "8px",
+              alignItems: "start",
+            }}
+          >
+            {/* Resurse atașate (ca linkuri securizate) */}
+            <div>
+              <button
+                onClick={() => setShowResourcePicker((v) => !v)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 12px",
+                  background: C.bg2,
+                  border: `1.5px dashed ${C.border2}`,
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: C.text2,
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                  width: "100%",
+                  justifyContent: "center",
+                }}
+              >
+                <i className="ti ti-paperclip" style={{ fontSize: "14px" }} />
+                {tr("calculator.addResource")}
+                {selectedResourceIds.length > 0 && ` (${selectedResourceIds.length})`}
+              </button>
+
+              {showResourcePicker && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    background: C.card,
+                    border: `1px solid ${C.border2}`,
+                    borderRadius: "10px",
+                    padding: "10px",
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                  }}
+                >
+                  {resources.length === 0 ? (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: C.muted,
+                        textAlign: "center",
+                        padding: "12px",
+                      }}
+                    >
+                      {tr("calculator.noResources")}
+                    </div>
+                  ) : (
+                    resources.map((r) => {
+                      const checked = selectedResourceIds.includes(r.id);
+                      return (
+                        <label
+                          key={r.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "7px 4px",
+                            cursor: "pointer",
+                            borderBottom: `1px solid ${C.border}`,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleResource(r.id)}
+                            style={{
+                              accentColor: C.primary,
+                              width: "15px",
+                              height: "15px",
+                              cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          />
+                          <i
+                            className={
+                              r.file_type === "application/pdf"
+                                ? "ti ti-file-type-pdf"
+                                : "ti ti-photo"
+                            }
+                            style={{ fontSize: "15px", color: C.primary, flexShrink: 0 }}
+                          />
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              color: C.dark,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {r.title}
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {selectedResourceIds.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "6px",
+                    marginTop: "8px",
+                  }}
+                >
+                  {selectedResourceIds.map((id) => {
+                    const r = resources.find((x) => x.id === id);
+                    if (!r) return null;
+                    return (
+                      <div
+                        key={id}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "5px 8px",
+                          background: C.bg2,
+                          border: `1px solid ${C.border2}`,
+                          borderRadius: "8px",
+                          fontSize: "11px",
+                          color: C.dark,
+                        }}
+                      >
+                        <i
+                          className={
+                            r.file_type === "application/pdf"
+                              ? "ti ti-file-type-pdf"
+                              : "ti ti-photo"
+                          }
+                          style={{ fontSize: "13px", color: C.primary, flexShrink: 0 }}
+                        />
+                        <span
+                          style={{
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: "160px",
+                          }}
+                        >
+                          {r.title}
+                        </span>
+                        <button
+                          onClick={() => toggleResource(id)}
+                          title={tr("calculator.removeResource")}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: C.muted,
+                            display: "flex",
+                            padding: 0,
+                          }}
+                        >
+                          <i className="ti ti-x" style={{ fontSize: "13px" }} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Link înscriere — se include în email */}
+            <div>
+              <EnrollLink
+                clientName={clientName}
+                clientPhone={clientPhone}
+                compact={true}
+                country={catalogCountry}
+                onLinkGenerated={setEnrollLink}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── 5. Footer acțiuni ──────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
+            justifyContent: "space-between",
+            gap: "10px",
+            paddingTop: "12px",
+            borderTop: `1px solid ${C.border}`,
+          }}
+        >
+          <button
+            onClick={() => setShowPreview(true)}
+            disabled={items.length === 0}
+            style={{
+              background: "none",
+              border: "none",
+              padding: "8px 4px",
+              fontSize: "12px",
+              color: items.length === 0 ? C.muted : C.text2,
+              cursor: items.length === 0 ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontFamily: "'DM Sans', sans-serif",
+              justifyContent: "center",
+              textDecoration: items.length === 0 ? "none" : "underline",
+              textUnderlineOffset: "3px",
+            }}
+          >
+            <i className="ti ti-eye" style={{ fontSize: "14px" }} />
+            {tr("calculator.previewBeforeSend")}
+          </button>
+
           <button
             disabled={sending || !canSendOffer}
             title={!canSendOffer ? tr("calculator.sendDisabledHint") : undefined}
@@ -1414,7 +1606,7 @@ function CartSection() {
               background: sending || !canSendOffer ? C.muted : C.primary,
               border: "none",
               borderRadius: "8px",
-              padding: "10px 16px",
+              padding: "11px 20px",
               color: "white",
               fontFamily: "'DM Sans', sans-serif",
               fontSize: "13px",
@@ -1423,61 +1615,17 @@ function CartSection() {
               whiteSpace: "nowrap",
               display: "flex",
               alignItems: "center",
-              gap: "5px",
+              justifyContent: "center",
+              gap: "6px",
+              width: isMobile ? "100%" : "auto",
             }}
           >
             {sending
               ? <><i className="ti ti-loader-2" style={{ fontSize: "14px" }} /> {tr("calculator.sending")}</>
-              : <><i className="ti ti-send" style={{ fontSize: "14px" }} /> {tr("calculator.send")}</>
+              : <><i className="ti ti-send" style={{ fontSize: "14px" }} /> {tr("calculator.sendOfferButton")}</>
             }
           </button>
         </div>
-
-        {/* Preview email — sub câmpul de email */}
-        <button
-          onClick={() => setShowPreview(true)}
-          disabled={items.length === 0}
-          style={{
-            background: "none",
-            border: "none",
-            padding: "8px 4px 2px",
-            fontSize: "12px",
-            color: items.length === 0 ? C.muted : C.text2,
-            cursor: items.length === 0 ? "not-allowed" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            fontFamily: "'DM Sans', sans-serif",
-            marginTop: "2px",
-            width: "100%",
-            justifyContent: "center",
-            textDecoration: items.length === 0 ? "none" : "underline",
-            textUnderlineOffset: "3px",
-          }}
-        >
-          <i className="ti ti-eye" style={{ fontSize: "14px" }} />
-          {tr("calculator.previewBeforeSend")}
-        </button>
-
-        {clientEmail.includes("@noemail.local") && (
-          <div
-            style={{
-              marginTop: "6px",
-              padding: "8px 12px",
-              background: C.amberbg,
-              border: `1px solid rgba(196,144,106,0.3)`,
-              borderRadius: "8px",
-              fontSize: "12px",
-              color: C.amber,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "6px",
-            }}
-          >
-            <i className="ti ti-alert-triangle" style={{ fontSize: "14px", flexShrink: 0, marginTop: "1px" }} />
-            {tr("calculator.noEmailWarning")}
-          </div>
-        )}
 
         {sendError && (
           <div
@@ -1547,17 +1695,6 @@ function CartSection() {
             </button>
           </div>
         )}
-
-        {/* Link înscriere — se include în email */}
-        <div style={{ marginTop: "8px" }}>
-          <EnrollLink
-            clientName={clientName}
-            clientPhone={clientPhone}
-            compact={true}
-            country={catalogCountry}
-            onLinkGenerated={setEnrollLink}
-          />
-        </div>
       </div>
 
       {/* Text ofertă copiabil — de folosit pe orice canal (în afara emailului) */}
