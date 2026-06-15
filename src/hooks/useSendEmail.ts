@@ -300,30 +300,68 @@ export function useSendEmail() {
     }
 
     try {
-      // ── Verificare communication controls dacă avem contact_id ──
-      if (params.contactId) {
+      const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'AromaTool'
+      const userPhone = user?.user_metadata?.phone || ''
+      const userEmail = user?.user_metadata?.contact_email || user?.email || ''
+      const userSignature = user?.user_metadata?.email_signature || ''
+
+      // ── Rezolvă/creează contactul ÎNAINTE de trimitere ───────────────────
+      // Avem nevoie de un contact_id încă de la send: doar așa edge function-ul
+      // injectează linkul de dezabonare + header-ele List-Unsubscribe (cerute
+      // de Gmail/Yahoo). Altfel PRIMA ofertă către o adresă nouă (cazul tipic)
+      // pleca fără unsubscribe. Bonus: dacă adresa tastată corespunde unui
+      // contact deja dezabonat/blocat, verificarea de mai jos îl prinde.
+      let contactId: string | null = params.contactId || null
+      let createdNewContactId: string | null = null
+      if (!contactId) {
+        const { data: existingContact } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('user_id', user!.id)
+          .eq('email', params.clientEmail)
+          .single()
+        if (existingContact) {
+          contactId = existingContact.id
+        } else {
+          const { data: newContact } = await supabase
+            .from('contacts')
+            .insert({
+              user_id: user!.id,
+              email: params.clientEmail,
+              name: params.clientName || null,
+              phone: params.clientPhone || null,
+              status: 'prospect',
+              first_offer_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+          contactId = newContact?.id || null
+          createdNewContactId = contactId
+        }
+      }
+
+      // ── Communication controls (acum acoperă și contactele rezolvate după email) ──
+      if (contactId) {
         const { data: contactCheck } = await supabase
           .from('contacts')
           .select('email_opt_out, communication_blocked')
-          .eq('id', params.contactId)
+          .eq('id', contactId)
           .single()
 
         if (contactCheck?.communication_blocked) {
+          // Nu lăsa în urmă un contact orfan creat acum dacă oprim trimiterea.
+          if (createdNewContactId) await supabase.from('contacts').delete().eq('id', createdNewContactId)
           setError(i18n.t('offers.sendErrBlocked'))
           setLoading(false)
           return false
         }
         if (contactCheck?.email_opt_out) {
+          if (createdNewContactId) await supabase.from('contacts').delete().eq('id', createdNewContactId)
           setError(i18n.t('offers.sendErrOptOut'))
           setLoading(false)
           return false
         }
       }
-
-      const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'AromaTool'
-      const userPhone = user?.user_metadata?.phone || ''
-      const userEmail = user?.user_metadata?.contact_email || user?.email || ''
-      const userSignature = user?.user_metadata?.email_signature || ''
 
       const lng = params.lang || 'ro'
       const subject = params.clientName
@@ -332,30 +370,33 @@ export function useSendEmail() {
 
       // ── RESURSE: creăm linkuri securizate (token) înainte de trimitere ──
       const resourceIds = params.resourceIds ?? []
-      const createdLinks = await createResourceLinks(user!.id, resourceIds, params.contactId)
+      const createdLinks = await createResourceLinks(user!.id, resourceIds, contactId || undefined)
       const linkRows = createdLinks.map(l => ({ id: l.id }))
       const resourceLinks: ResourceLink[] = createdLinks.map(l => ({ title: l.title, url: l.url }))
 
       const html = buildEmailHtml(params, userName, userPhone, userEmail, resourceLinks, userSignature)
       const text = buildEmailText(params, userName, userPhone, userEmail, resourceLinks, userSignature)
 
-      // 1. Trimite emailul
+      // 1. Trimite emailul (cu contact_id → unsubscribe garantat)
       const { data, error: fnError } = await supabase.functions.invoke('send-email', {
         body: {
           to: params.clientEmail,
           subject,
           html,
           text,
-          contact_id: params.contactId || undefined,
+          contact_id: contactId || undefined,
           from_name: userName,
           reply_to: userEmail || undefined,
         }
       })
 
       if (fnError || data?.error) {
-        // Curățăm linkurile create dacă emailul a eșuat (fără orfani)
+        // Curățăm linkurile + contactul nou create dacă emailul a eșuat (fără orfani)
         if (linkRows.length > 0) {
           await supabase.from('resource_links').delete().in('id', linkRows.map(l => l.id))
+        }
+        if (createdNewContactId) {
+          await supabase.from('contacts').delete().eq('id', createdNewContactId)
         }
         // Pentru statusuri non-2xx (ex. 402 abonament, 429 rate-limit) mesajul
         // util e în corpul răspunsului, nu în fnError (care e generic). Îl extragem.
@@ -373,45 +414,12 @@ export function useSendEmail() {
         throw new Error(data.error)
       }
 
-      // 2. Salvează/actualizează contactul
-      let contactId: string | null = params.contactId || null
-
+      // 2. Marcați activitate pe contact (creat sau existent)
       if (contactId) {
-        // Vine din Contacts — actualizăm direct
         await supabase
           .from('contacts')
           .update({ updated_at: new Date().toISOString() })
           .eq('id', contactId)
-      } else {
-        // Vine din Calculator direct — căutăm după email
-        const { data: existingContact } = await supabase
-          .from('contacts')
-          .select('id')
-          .eq('user_id', user!.id)
-          .eq('email', params.clientEmail)
-          .single()
-
-        if (existingContact) {
-          contactId = existingContact.id
-          await supabase
-            .from('contacts')
-            .update({ updated_at: new Date().toISOString() })
-            .eq('id', contactId)
-        } else {
-          const { data: newContact } = await supabase
-            .from('contacts')
-            .insert({
-              user_id: user!.id,
-              email: params.clientEmail,
-              name: params.clientName || null,
-              phone: params.clientPhone || null,
-              status: 'prospect',
-              first_offer_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single()
-          contactId = newContact?.id || null
-        }
       }
 
       // 3. Salvează oferta
