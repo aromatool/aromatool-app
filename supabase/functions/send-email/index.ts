@@ -41,6 +41,11 @@ function injectUnsubFooter(html: string, link: string): string {
     : html + footer
 }
 
+// Echivalentul în text/plain al footerului de dezabonare.
+function injectUnsubText(text: string, link: string): string {
+  return `${text}\n\n—\nNu mai vrei aceste emailuri? Dezabonează-te: ${link}`
+}
+
 // Adresa tehnică de expediere. O singură dată verifici domeniul în Resend
 // și setezi secretul MAIL_FROM (ex: "trimite@mail.aromatool.com"). Până atunci
 // rămâne sandbox-ul de test Resend (merge doar către emailul tău verificat).
@@ -104,7 +109,7 @@ serve(async (req) => {
     })
 
   try {
-    const { to, subject, html, contact_id, log_id, from_name, reply_to } = await req.json()
+    const { to, subject, html, text, contact_id, log_id, from_name, reply_to } = await req.json()
 
     if (!to || !subject || !html) {
       return json({ error: 'Missing required fields: to, subject, html' }, 400)
@@ -186,11 +191,13 @@ serve(async (req) => {
     // Dacă avem un contact, generăm link semnat + îl injectăm în HTML
     // și adăugăm header-ele List-Unsubscribe (cerute de Gmail/Yahoo).
     let finalHtml = html
+    let finalText = typeof text === 'string' && text.trim() ? text : undefined
     let unsubHeaders: Record<string, string> = {}
     if (contact_id && UNSUB_SECRET) {
       const token = await signUnsub(contact_id)
       const link = unsubUrl(contact_id, token)
       finalHtml = injectUnsubFooter(html, link)
+      if (finalText) finalText = injectUnsubText(finalText, link)
       unsubHeaders = {
         'List-Unsubscribe': `<${link}>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -205,6 +212,8 @@ serve(async (req) => {
       subject,
       html: finalHtml,
     }
+    // text/plain alături de HTML → multipart/alternative (mai bună livrabilitate).
+    if (finalText) payload.text = finalText
     if (Object.keys(unsubHeaders).length) payload.headers = unsubHeaders
     const rt = validReplyTo(reply_to)
     if (rt) payload.reply_to = rt

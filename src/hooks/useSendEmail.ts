@@ -192,6 +192,76 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
 </body></html>`
 }
 
+// Versiune text/plain a emailului de ofertă. Trimisă alături de HTML ca
+// multipart/alternative → mai bună livrabilitate (un email HTML-only e un
+// semnal slab pentru filtrele de spam) + fallback pentru clienții care nu
+// randează HTML. Oglindește conținutul din `buildEmailHtml`, fără markup.
+export function buildEmailText(params: SendOfferParams, userName: string, userPhone?: string, userEmail?: string, resourceLinks: ResourceLink[] = [], userSignature?: string): string {
+  const { clientName, items, transport, exchangeRate, currency, baseCurrency, lang, notes, enrollLink } = params
+  const displayCurrency = currency || 'RON'
+  const base = baseCurrency || 'EUR'
+  const rate = exchangeRate || 1
+  const lng = lang || 'ro'
+  const t = (key: string, opts?: Record<string, unknown>) => i18n.t(key, { lng, ...opts })
+
+  const lines: string[] = []
+
+  lines.push(`${t('email.greeting')}${clientName ? `, ${clientName}` : ''}!`)
+  lines.push('')
+  lines.push(t('email.intro', { user: userName }))
+  lines.push('')
+
+  // Produse: o linie per produs, cu discount și (opțional) prețul în moneda de bază.
+  for (const item of items) {
+    const lineEur = round2(item.price_eur * item.qty * (1 - item.disc / 100))
+    const lineDisplay = round2(lineEur * rate)
+    const discTxt = item.disc > 0 ? ` (−${item.disc}%)` : ''
+    const secondary = displayCurrency !== base ? ` (${fmtCurrency(lineEur, base)})` : ''
+    lines.push(`- ${item.name}${discTxt} × ${item.qty} — ${fmtCurrency(lineDisplay, displayCurrency)}${secondary}`)
+  }
+  lines.push('')
+
+  if (transport > 0) {
+    const transportDisplay = round2(transport * rate)
+    const transportSecondary = displayCurrency !== base ? ` (${fmtCurrency(transport, base)})` : ''
+    lines.push(`${t('email.transport')}: ${fmtCurrency(transportDisplay, displayCurrency)}${transportSecondary}`)
+  }
+
+  const { totalEur, totalDisplay } = computeOfferTotals(items, transport, rate)
+  const totalSecondary = displayCurrency !== base ? ` (${fmtCurrency(totalEur, base)})` : ''
+  lines.push(`${t('email.totalToPay')}: ${fmtCurrency(totalDisplay, displayCurrency)}${totalSecondary}`)
+  lines.push('')
+
+  if (notes) {
+    lines.push(`${t('email.notesLabel')}:`)
+    lines.push(notes)
+    lines.push('')
+  }
+
+  if (resourceLinks.length > 0) {
+    lines.push(`${t('email.materialsLabel')}:`)
+    for (const r of resourceLinks) lines.push(`- ${r.title}: ${r.url}`)
+    lines.push('')
+  }
+
+  if (enrollLink) {
+    lines.push(t('email.enrollTitle'))
+    lines.push(t('email.enrollBody'))
+    lines.push(`${t('email.enrollButton')} ${enrollLink}`)
+    lines.push('')
+  }
+
+  // Semnătură / contact distribuitor.
+  lines.push('—')
+  lines.push(userSignature || userName)
+  if (userPhone) lines.push(userPhone)
+  if (userEmail) lines.push(userEmail)
+  lines.push('')
+  lines.push(t('email.sentVia'))
+
+  return lines.join('\n')
+}
+
 export function useSendEmail() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -267,6 +337,7 @@ export function useSendEmail() {
       const resourceLinks: ResourceLink[] = createdLinks.map(l => ({ title: l.title, url: l.url }))
 
       const html = buildEmailHtml(params, userName, userPhone, userEmail, resourceLinks, userSignature)
+      const text = buildEmailText(params, userName, userPhone, userEmail, resourceLinks, userSignature)
 
       // 1. Trimite emailul
       const { data, error: fnError } = await supabase.functions.invoke('send-email', {
@@ -274,6 +345,7 @@ export function useSendEmail() {
           to: params.clientEmail,
           subject,
           html,
+          text,
           contact_id: params.contactId || undefined,
           from_name: userName,
           reply_to: userEmail || undefined,
