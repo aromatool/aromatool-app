@@ -35,7 +35,7 @@ function unsubUrl(contactId: string, token: string): string {
 
 // Footer HTML cu linkul de dezabonare, inserat înainte de </body>.
 function injectUnsubFooter(html: string, link: string): string {
-  const footer = `<div style="margin-top:24px;padding-top:16px;border-top:1px solid #EDE8E0;font-size:11px;color:#A89888;text-align:center;font-family:sans-serif">Nu mai vrei aceste emailuri? <a href="${link}" style="color:#A89888">Dezabonează-te</a>.</div>`
+  const footer = `<div style="margin-top:8px;padding:18px 28px 28px;font-size:11px;color:#A89888;text-align:center;font-family:sans-serif;line-height:1.6">Nu mai vrei aceste emailuri? <a href="${link}" style="color:#A89888;text-decoration:underline">Dezabonează-te</a>.</div>`
   return html.includes('</body>')
     ? html.replace('</body>', `${footer}</body>`)
     : html + footer

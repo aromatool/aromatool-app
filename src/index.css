@@ -36,3 +36,14 @@ body {
 .fade-in {
   animation: fadeIn 0.3s ease forwards;
 }
+
+/* iOS Safari face auto-zoom la focus pe orice câmp cu font-size < 16px.
+   Pe mobil forțăm minim 16px ca input-urile (ex. formular contact) să nu
+   mai declanșeze zoom-ul. Doar pe ecrane mici → desktopul rămâne neatins. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

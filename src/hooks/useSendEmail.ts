@@ -115,7 +115,7 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
 
   ${EMAIL_HEADER_HTML}
 
-  <div style="padding:28px 28px 0;">
+  <div style="padding:28px 28px 24px;">
     <p style="font-size:15px;color:#3D3530;margin-bottom:6px;text-align:center">
       ${t('email.greeting')}${clientName ? `, <strong>${escapeHtml(clientName)}</strong>` : ''}!
     </p>
