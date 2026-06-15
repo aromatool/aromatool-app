@@ -210,6 +210,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
   // Citim prețul real din Stripe și alegem valuta după țara liderului.
   // Dacă funcția nu e configurată / eșuează, cădem pe textul static.
   const [price, setPrice] = useState<PlanPrice | null>(null);
+  const [priceLoaded, setPriceLoaded] = useState(false);
   useEffect(() => {
     let active = true;
     supabase.functions
@@ -219,13 +220,19 @@ function Paywall({ onClose }: { onClose: () => void }) {
       })
       .catch(() => {
         /* fallback la priceText static */
+      })
+      .finally(() => {
+        if (active) setPriceLoaded(true);
       });
     return () => {
       active = false;
     };
   }, []);
 
+  // Cât timp se încarcă prețul live, nu afișăm fallback-ul static
+  // (altfel apare un flash "99 RON" până vine prețul real din Stripe).
   const priceLabel = (() => {
+    if (!priceLoaded) return null;
     if (!price?.configured || !price.currencies) return t("paywall.priceText");
     const wanted = currencyForCountry(countryCode);
     const entry =
@@ -336,11 +343,24 @@ function Paywall({ onClose }: { onClose: () => void }) {
               marginBottom: "12px",
             }}
           >
-            <span
-              style={{ fontSize: "22px", fontWeight: 600, color: C.espresso }}
-            >
-              {priceLabel}
-            </span>
+            {priceLabel === null ? (
+              <span
+                aria-hidden="true"
+                style={{
+                  display: "inline-block",
+                  width: "120px",
+                  height: "22px",
+                  borderRadius: "6px",
+                  background: "rgba(61,53,48,0.10)",
+                }}
+              />
+            ) : (
+              <span
+                style={{ fontSize: "22px", fontWeight: 600, color: C.espresso }}
+              >
+                {priceLabel}
+              </span>
+            )}
           </div>
           <ul
             style={{
