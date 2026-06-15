@@ -140,6 +140,21 @@ interface PromoCode {
   created_at: string;
 }
 
+// Consum email prin aplicație (RPC admin_email_usage). Sursele: offers + account_email_log.
+interface EmailUsage {
+  month_offers: number;
+  month_account: number;
+  month_total: number;
+  day_offers: number;
+  day_account: number;
+  day_total: number;
+}
+
+// Plafoanele planului Resend (free tier). Folosite doar pentru a desena
+// bara de progres; nu sunt o limită impusă de noi.
+const RESEND_MONTH_LIMIT = 3000;
+const RESEND_DAY_LIMIT = 100;
+
 type Tab = "users" | "feedback" | "focus" | "catalog" | "codes" | "errors";
 
 // Statusuri feedback (operare: triaj simplu). Eticheta vine din i18n
@@ -254,6 +269,10 @@ export default function AdminPage() {
   const [focusTestMsg, setFocusTestMsg] = useState("");
   const [focusTestErr, setFocusTestErr] = useState("");
 
+  // ── Consum email (Resend) ────────────────────────────────
+  const [emailUsage, setEmailUsage] = useState<EmailUsage | null>(null);
+  const [emailUsageErr, setEmailUsageErr] = useState("");
+
   // ── Error Center ─────────────────────────────────────────
   const [failedImports, setFailedImports] = useState<FailedImport[]>([]);
 
@@ -356,6 +375,23 @@ export default function AdminPage() {
     loadPromoCodes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authorized, tab]);
+
+  // Încarcă consumul de email prima dată când se deschide tabul „Daily Focus".
+  useEffect(() => {
+    if (authorized !== true || tab !== "focus") return;
+    if (emailUsage || emailUsageErr) return;
+    loadEmailUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorized, tab]);
+
+  async function loadEmailUsage() {
+    const { data, error } = await supabase.rpc("admin_email_usage");
+    if (error || !data) {
+      setEmailUsageErr(t("admin.emailUsageError"));
+      return;
+    }
+    setEmailUsage(data as EmailUsage);
+  }
 
   async function loadLastJob() {
     const { data } = await supabase
@@ -1552,6 +1588,137 @@ export default function AdminPage() {
       {/* ── TAB: DAILY FOCUS ────────────────────────────────── */}
       {tab === "focus" && (
         <div>
+          {/* ── Consum email (Resend) ── */}
+          <div
+            style={{
+              background: T.white,
+              border: `1px solid ${T.border}`,
+              borderRadius: "14px",
+              padding: "20px 22px",
+              marginBottom: "16px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "14px",
+                fontWeight: 600,
+                color: T.espresso,
+                marginBottom: "4px",
+              }}
+            >
+              {t("admin.emailUsageTitle")}
+            </div>
+            <div
+              style={{
+                fontSize: "13px",
+                color: T.muted,
+                lineHeight: 1.6,
+                marginBottom: "16px",
+              }}
+            >
+              {t("admin.emailUsageDesc")}
+            </div>
+
+            {emailUsageErr ? (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  background: T.redLight,
+                  borderRadius: "10px",
+                  fontSize: "13px",
+                  color: T.red,
+                }}
+              >
+                {emailUsageErr}
+              </div>
+            ) : !emailUsage ? (
+              <div style={{ fontSize: "13px", color: T.muted }}>
+                {t("admin.loading")}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {[
+                  {
+                    label: t("admin.emailUsageMonth"),
+                    used: emailUsage.month_total,
+                    limit: RESEND_MONTH_LIMIT,
+                    offers: emailUsage.month_offers,
+                    account: emailUsage.month_account,
+                  },
+                  {
+                    label: t("admin.emailUsageDay"),
+                    used: emailUsage.day_total,
+                    limit: RESEND_DAY_LIMIT,
+                    offers: emailUsage.day_offers,
+                    account: emailUsage.day_account,
+                  },
+                ].map((row) => {
+                  const ratio = Math.min(1, row.used / row.limit);
+                  const barColor =
+                    ratio >= 0.9 ? T.red : ratio >= 0.7 ? "#D9A441" : T.sage;
+                  return (
+                    <div key={row.label}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "baseline",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: T.espresso,
+                          }}
+                        >
+                          {row.label}
+                        </span>
+                        <span style={{ fontSize: "13px", color: T.warm }}>
+                          {t("admin.emailUsageOfLimit", {
+                            used: row.used,
+                            limit: row.limit,
+                          })}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          height: "8px",
+                          background: T.linen,
+                          borderRadius: "999px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${ratio * 100}%`,
+                            background: barColor,
+                            borderRadius: "999px",
+                            transition: "width 0.3s ease",
+                          }}
+                        />
+                      </div>
+                      <div
+                        style={{
+                          marginTop: "5px",
+                          fontSize: "12px",
+                          color: T.muted,
+                        }}
+                      >
+                        {t("admin.emailUsageBreakdown", {
+                          offers: row.offers,
+                          account: row.account,
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div
             style={{
               background: T.white,
