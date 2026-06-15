@@ -85,7 +85,11 @@
       "items": [
         {
           "q": "How do I build an offer?",
-          "a": "Go to \"Build offer\", add products to the cart, set the quantity and, if you want, a per-product discount. Choose the currency and exchange rate, add shipping and a note if needed. At the end you preview and send the offer by email to the chosen contact."
+          "a": "Go to \"Build offer\", add products to the cart, set the quantity and, if you want, a per-product discount. Choose the currency and exchange rate, add shipping and a note if needed. At the end you preview and send the offer by email to the chosen contact.\nTo send by email you need to fill in the client's name and a valid email — otherwise the \"Send\" button stays inactive."
+        },
+        {
+          "q": "I sent the offer over WhatsApp or another way. How do I save it to the history?",
+          "a": "Besides sending by email, you have the \"Mark as sent\" button. You pick the channel you used (WhatsApp, email or another channel), and the offer is saved to the client's history without sending an email from the app."
         },
         {
           "q": "How are prices and the exchange rate calculated?",
@@ -128,6 +132,10 @@
         {
           "q": "How do I quickly contact a client?",
           "a": "From the CRM or Dashboard you have quick actions: WhatsApp, email and new offer. The WhatsApp message is prepared automatically based on the contact's status and opens in WhatsApp so you can adjust it before sending."
+        },
+        {
+          "q": "Why can't I send emails or offers to a contact?",
+          "a": "If a contact has unsubscribed, communication to them is blocked: you can no longer send them emails or offers from the app. The contact stays in your list with their full history, but sending actions are disabled, to respect their choice."
         }
       ]
     },
@@ -186,11 +194,11 @@
         },
         {
           "q": "How do I subscribe?",
-          "a": "From Settings → the \"Subscription\" card tap \"Subscribe\". We take you to the secure payment page, where you choose the payment method and, if you have one, enter the launch code. After confirmation, your account unlocks automatically."
+          "a": "From Settings → the \"Subscription\" card tap \"Subscribe\". We take you to the secure payment page (Stripe), where you choose the payment method. After the payment is confirmed, your account unlocks automatically."
         },
         {
-          "q": "I have a launch / discount code. Where do I enter it?",
-          "a": "At the payment step, after you tap \"Subscribe\", there's a field for the promo code. You enter it there and the discount applies automatically."
+          "q": "I have a launch code. Where do I enter it?",
+          "a": "The launch code is entered directly in the app, NOT at payment. You'll find it in Settings → the \"Subscription\" card, in the \"Got a code?\" field (it also appears on the screen shown when a feature is locked). Type the code, tap \"Apply\", and it adds free days to your trial — no card needed."
         },
         {
           "q": "How do I manage my subscription or invoice?",

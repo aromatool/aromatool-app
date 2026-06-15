@@ -85,7 +85,11 @@
       "items": [
         {
           "q": "Cum construiesc o ofertă?",
-          "a": "Intră în „Construiește oferta”, adaugă produsele în coș, setează cantitatea și, dacă vrei, un discount per produs. Alege moneda și cursul de schimb, adaugă transportul și o notă dacă e cazul. La final previzualizezi și trimiți oferta pe email contactului ales."
+          "a": "Intră în „Construiește oferta”, adaugă produsele în coș, setează cantitatea și, dacă vrei, un discount per produs. Alege moneda și cursul de schimb, adaugă transportul și o notă dacă e cazul. La final previzualizezi și trimiți oferta pe email contactului ales.\nCa să poți trimite pe email, completezi numele clientului și un email valid — altfel butonul „Trimite” rămâne inactiv."
+        },
+        {
+          "q": "Am trimis oferta pe WhatsApp sau în alt mod. Cum o salvez în istoric?",
+          "a": "Pe lângă trimiterea pe email, ai butonul „Marchează ca trimisă”. Alegi canalul pe care ai folosit-o (WhatsApp, email sau alt canal), iar oferta se salvează în istoricul clientului fără să mai trimită email din aplicație."
         },
         {
           "q": "Cum sunt calculate prețurile și cursul valutar?",
@@ -128,6 +132,10 @@
         {
           "q": "Cum contactez rapid un client?",
           "a": "Din CRM sau Dashboard ai acțiuni rapide: WhatsApp, email și ofertă nouă. Mesajul de WhatsApp e pregătit automat în funcție de starea contactului și se deschide în WhatsApp ca să îl poți ajusta înainte de trimitere."
+        },
+        {
+          "q": "De ce nu pot trimite emailuri sau oferte unui contact?",
+          "a": "Dacă un contact s-a dezabonat, comunicarea către el e blocată: nu îi mai poți trimite emailuri sau oferte din aplicație. Contactul rămâne în listă cu tot istoricul lui, dar acțiunile de trimitere sunt dezactivate, ca să-i respectăm alegerea."
         }
       ]
     },
@@ -186,11 +194,11 @@
         },
         {
           "q": "Cum mă abonez?",
-          "a": "Din Setări → cardul „Abonament” apeși „Abonează-te”. Te ducem la pagina de plată securizată, unde alegi metoda de plată și, dacă ai, introduci codul de lansare. După confirmare, contul tău se deblochează automat."
+          "a": "Din Setări → cardul „Abonament” apeși „Abonează-te”. Te ducem la pagina de plată securizată (Stripe), unde alegi metoda de plată. După confirmarea plății, contul tău se deblochează automat."
         },
         {
-          "q": "Am un cod de lansare / reducere. Unde îl introduc?",
-          "a": "La pasul de plată, după ce apeși „Abonează-te”, există un câmp pentru codul promoțional. Îl introduci acolo și reducerea se aplică automat."
+          "q": "Am un cod de lansare. Unde îl introduc?",
+          "a": "Codul de lansare se introduce direct în aplicație, NU la plată. Îl găsești în Setări → cardul „Abonament”, în câmpul „Ai un cod?” (apare și pe ecranul afișat când o funcție e blocată). Scrii codul, apeși „Aplică”, iar el îți adaugă zile gratuite la perioada de probă — fără card."
         },
         {
           "q": "Cum îmi gestionez abonamentul sau factura?",
