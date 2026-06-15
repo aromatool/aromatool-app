@@ -17,7 +17,7 @@ import type { TFunction } from "i18next";
 // Acestea apar în toate documentele legale.
 export const COMPANY = {
   legalName: "Maja E. Alexandra PFA",
-  cui: "CUI 50886605",
+  cui: "CUI 50886605, nr. ordine ONRC F2024015809001/14.11.2024",
   address: "Str. Cetății nr. 3A, ap. 23, Florești 407280, Cluj, România",
   contactEmail: "contact@getaromatool.com",
   privacyEmail: "privacy@getaromatool.com",
