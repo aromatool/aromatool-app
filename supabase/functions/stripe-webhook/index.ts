@@ -58,10 +58,22 @@ serve(async (req) => {
         ...(opts.status ? { subscription_status: opts.status } : {}),
         updated_at: new Date().toISOString(),
       }
+      let dbErr: unknown = null
       if (opts.userId) {
-        await supabase.from('profiles').update(patch).eq('id', opts.userId)
+        const { error } = await supabase.from('profiles').update(patch).eq('id', opts.userId)
+        dbErr = error
       } else if (opts.customerId) {
-        await supabase.from('profiles').update(patch).eq('stripe_customer_id', opts.customerId)
+        const { error } = await supabase.from('profiles').update(patch).eq('stripe_customer_id', opts.customerId)
+        dbErr = error
+      } else {
+        console.error('stripe-webhook setPlan: niciun identificator (userId/customerId)')
+        return
+      }
+      // NU mai înghițim erorile DB: dacă update-ul eșuează (ex. constraint),
+      // aruncăm → webhook-ul răspunde 500 → Stripe reîncearcă livrarea.
+      if (dbErr) {
+        console.error('stripe-webhook setPlan DB error:', dbErr)
+        throw new Error(`setPlan failed: ${JSON.stringify(dbErr)}`)
       }
     }
 
