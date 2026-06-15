@@ -60,7 +60,7 @@ interface Profile {
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const { user, signOut, updatePassword } = useAuth();
+  const { user, signIn, signOut, updatePassword, updateEmail } = useAuth();
 
   // ── Abonament ──────────────────────────────────────────────
   const sub = useSubscription();
@@ -188,6 +188,7 @@ export default function SettingsPage() {
   }
 
   // Schimbare parolă
+  const [pwCurrent, setPwCurrent] = useState("");
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
@@ -206,15 +207,56 @@ export default function SettingsPage() {
       return;
     }
     setPwSaving(true);
+    // Securitate: verificăm parola CURENTĂ înainte de schimbare, ca o sesiune
+    // deschisă (device partajat) să nu poată prelua contul fără s-o știe.
+    // signIn = signInWithPassword pe același user → doar reîmprospătează
+    // sesiunea, nu deloghează.
+    const { error: reauthErr } = await signIn(user!.email!, pwCurrent);
+    if (reauthErr) {
+      setPwSaving(false);
+      setPwError(t("settings.password.wrongCurrent"));
+      return;
+    }
     const { error: pwErr } = await updatePassword(pw1);
     setPwSaving(false);
     if (pwErr) {
       setPwError(t("settings.password.changeError"));
     } else {
+      setPwCurrent("");
       setPw1("");
       setPw2("");
       setPwSuccess(true);
       setTimeout(() => setPwSuccess(false), 3000);
+    }
+  }
+
+  // Schimbare email
+  const [newEmail, setNewEmail] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
+  async function changeEmail() {
+    setEmailError("");
+    setEmailSuccess(false);
+    const val = newEmail.trim();
+    // Validare minimală (Supabase revalidează oricum pe server).
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      setEmailError(t("settings.email.invalid"));
+      return;
+    }
+    if (val.toLowerCase() === (user?.email || "").toLowerCase()) {
+      setEmailError(t("settings.email.same"));
+      return;
+    }
+    setEmailSaving(true);
+    const { error: emErr } = await updateEmail(val);
+    setEmailSaving(false);
+    if (emErr) {
+      setEmailError(t("settings.email.changeError"));
+    } else {
+      setNewEmail("");
+      setEmailSuccess(true);
     }
   }
 
@@ -1287,6 +1329,109 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Change email */}
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "16px",
+          padding: "24px",
+          marginBottom: "16px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: C.primary,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: "16px",
+          }}
+        >
+          {t("settings.email.heading")}
+        </div>
+
+        <div style={{ display: "grid", gap: "14px" }}>
+          <div>
+            <label style={labelStyle}>{t("settings.email.currentLabel")}</label>
+            <input
+              type="email"
+              value={user?.email || ""}
+              disabled
+              style={{ ...inputStyle, background: C.muted, color: C.primary, cursor: "not-allowed" }}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>{t("settings.email.newLabel")}</label>
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder={t("settings.email.newPlaceholder")}
+              autoComplete="email"
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        {emailError && (
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "10px 14px",
+              background: C.redbg,
+              border: `1px solid rgba(201,79,106,0.2)`,
+              borderRadius: "10px",
+              fontSize: "13px",
+              color: C.red,
+            }}
+          >
+            ⚠️ {emailError}
+          </div>
+        )}
+
+        {emailSuccess && (
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "10px 14px",
+              background: C.greenbg,
+              border: `1px solid rgba(46,138,88,0.2)`,
+              borderRadius: "10px",
+              fontSize: "13px",
+              color: C.green,
+              lineHeight: 1.5,
+            }}
+          >
+            ✅ {t("settings.email.sent")}
+          </div>
+        )}
+
+        <button
+          onClick={changeEmail}
+          disabled={emailSaving || !newEmail}
+          style={{
+            marginTop: "16px",
+            width: "100%",
+            padding: "12px",
+            background:
+              emailSaving || !newEmail
+                ? C.muted
+                : `linear-gradient(135deg, #5C7A5C, #4A6A4A)`,
+            border: "none",
+            borderRadius: "10px",
+            color: "white",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            cursor: emailSaving || !newEmail ? "not-allowed" : "pointer",
+          }}
+        >
+          {emailSaving ? t("settings.email.changing") : t("settings.email.submit")}
+        </button>
+      </div>
+
       {/* Change password */}
       <div
         style={{
@@ -1311,6 +1456,17 @@ export default function SettingsPage() {
         </div>
 
         <div style={{ display: "grid", gap: "14px" }}>
+          <div>
+            <label style={labelStyle}>{t("settings.password.currentLabel")}</label>
+            <input
+              type="password"
+              value={pwCurrent}
+              onChange={(e) => setPwCurrent(e.target.value)}
+              placeholder={t("settings.password.currentPlaceholder")}
+              autoComplete="current-password"
+              style={inputStyle}
+            />
+          </div>
           <div>
             <label style={labelStyle}>{t("settings.password.newLabel")}</label>
             <input
@@ -1369,13 +1525,13 @@ export default function SettingsPage() {
 
         <button
           onClick={changePassword}
-          disabled={pwSaving || !pw1 || !pw2}
+          disabled={pwSaving || !pwCurrent || !pw1 || !pw2}
           style={{
             marginTop: "16px",
             width: "100%",
             padding: "12px",
             background:
-              pwSaving || !pw1 || !pw2
+              pwSaving || !pwCurrent || !pw1 || !pw2
                 ? C.muted
                 : `linear-gradient(135deg, #5C7A5C, #4A6A4A)`,
             border: "none",
@@ -1384,7 +1540,7 @@ export default function SettingsPage() {
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "14px",
             fontWeight: 500,
-            cursor: pwSaving || !pw1 || !pw2 ? "not-allowed" : "pointer",
+            cursor: pwSaving || !pwCurrent || !pw1 || !pw2 ? "not-allowed" : "pointer",
           }}
         >
           {pwSaving ? t("settings.password.changing") : t("settings.password.submit")}

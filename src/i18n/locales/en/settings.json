@@ -77,8 +77,23 @@
     "exportCsv": "⬇️ Export contacts (CSV)",
     "exportJson": "⬇️ All data (JSON)"
   },
+  "email": {
+    "heading": "✉️ Change email address",
+    "currentLabel": "Current address",
+    "newLabel": "New address",
+    "newPlaceholder": "name@example.com",
+    "sent": "We sent a confirmation email to your new address. Click the link inside to finish the change. Until then, your account keeps the old address.",
+    "changing": "Sending...",
+    "submit": "Change email",
+    "invalid": "Invalid email address.",
+    "same": "The new address is the same as the current one.",
+    "changeError": "Couldn't change your email. Please try again."
+  },
   "password": {
     "heading": "🔑 Change password",
+    "currentLabel": "Current password",
+    "currentPlaceholder": "Your current password",
+    "wrongCurrent": "Current password is incorrect.",
     "newLabel": "New password",
     "newPlaceholder": "At least 6 characters",
     "confirmLabel": "Confirm password",

@@ -25,6 +25,10 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   // Setează parola nouă (după ce userul a venit din link).
   updatePassword: (password: string) => Promise<{ error: Error | null }>;
+  // Schimbă adresa de email a contului. Supabase trimite un email de
+  // confirmare la noua adresă (și, dacă „Secure email change" e activ, și la
+  // cea veche); schimbarea devine efectivă abia după confirmare.
+  updateEmail: (email: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -128,6 +132,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const updateEmail = async (email: string) => {
+    const { error } = await supabase.auth.updateUser(
+      { email },
+      // Linkul de confirmare din emailul „Change Email" duce înapoi în
+      // aplicație (trebuie să fie și în Authentication → Redirect URLs).
+      { emailRedirectTo: `${window.location.origin}/auth` },
+    );
+    return { error };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -140,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         resetPassword,
         updatePassword,
+        updateEmail,
       }}
     >
       {children}

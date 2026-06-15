@@ -77,8 +77,23 @@
     "exportCsv": "⬇️ Export contacte (CSV)",
     "exportJson": "⬇️ Toate datele (JSON)"
   },
+  "email": {
+    "heading": "✉️ Schimbă adresa de email",
+    "currentLabel": "Adresa curentă",
+    "newLabel": "Adresă nouă",
+    "newPlaceholder": "nume@exemplu.ro",
+    "sent": "Ți-am trimis un email de confirmare la noua adresă. Apasă linkul din el ca să finalizezi schimbarea. Până atunci, contul rămâne pe adresa veche.",
+    "changing": "Se trimite...",
+    "submit": "Schimbă emailul",
+    "invalid": "Adresă de email invalidă.",
+    "same": "Adresa nouă este identică cu cea curentă.",
+    "changeError": "Eroare la schimbarea emailului. Încearcă din nou."
+  },
   "password": {
     "heading": "🔑 Schimbă parola",
+    "currentLabel": "Parola curentă",
+    "currentPlaceholder": "Parola ta de acum",
+    "wrongCurrent": "Parola curentă este greșită.",
     "newLabel": "Parolă nouă",
     "newPlaceholder": "Minim 6 caractere",
     "confirmLabel": "Confirmă parola",
