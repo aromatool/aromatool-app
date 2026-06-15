@@ -1364,7 +1364,7 @@ export default function SettingsPage() {
               type="email"
               value={user?.email || ""}
               disabled
-              style={{ ...inputStyle, background: C.muted, color: C.primary, cursor: "not-allowed" }}
+              style={{ ...inputStyle, background: C.bg2, color: C.muted, cursor: "not-allowed" }}
             />
           </div>
           <div>
@@ -1422,11 +1422,11 @@ export default function SettingsPage() {
             padding: "12px",
             background:
               emailSaving || !newEmail
-                ? C.muted
+                ? C.border
                 : `linear-gradient(135deg, #5C7A5C, #4A6A4A)`,
             border: "none",
             borderRadius: "10px",
-            color: "white",
+            color: emailSaving || !newEmail ? C.muted : "white",
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "14px",
             fontWeight: 500,
@@ -1537,11 +1537,11 @@ export default function SettingsPage() {
             padding: "12px",
             background:
               pwSaving || !pwCurrent || !pw1 || !pw2
-                ? C.muted
+                ? C.border
                 : `linear-gradient(135deg, #5C7A5C, #4A6A4A)`,
             border: "none",
             borderRadius: "10px",
-            color: "white",
+            color: pwSaving || !pwCurrent || !pw1 || !pw2 ? C.muted : "white",
             fontFamily: "'DM Sans', sans-serif",
             fontSize: "14px",
             fontWeight: 500,
