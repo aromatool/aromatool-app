@@ -10,6 +10,7 @@ interface Props {
   onWhatsApp?: (contact: Contact) => void;
   onEmail?: (contact: Contact) => void;
   onOffer?: (contact: Contact) => void;
+  onMarkSent?: (contact: Contact) => void;
   onStatusChange?: (
     contactId: string,
     newStatus: ContactStatus,
@@ -248,6 +249,7 @@ export default function ContactSlideOver({
   onWhatsApp,
   onEmail,
   onOffer,
+  onMarkSent,
   onStatusChange,
   onNotesChange,
   onOpenOffer,
@@ -401,7 +403,7 @@ export default function ContactSlideOver({
             <div style={{ fontSize: 12, color: T.warm, marginTop: 2 }}>
               {t("contacts.slideOver.subtitle", {
                 status: displayStatus(contact.status, t),
-                days: inCRM,
+                count: inCRM,
               })}
             </div>
           </div>
@@ -648,6 +650,15 @@ export default function ContactSlideOver({
                 disabled={!!contact.communication_blocked}
               />
             </div>
+            {action.type === "needs_offer" && onMarkSent && !contact.communication_blocked && (
+              <div style={{ marginTop: 6 }}>
+                <SecondaryButton
+                  icon="ti-check"
+                  label={t("contacts.markSent.button")}
+                  onClick={() => onMarkSent(contact)}
+                />
+              </div>
+            )}
           </div>
 
           {/* Rezumat relație — 4 carduri */}
@@ -664,7 +675,7 @@ export default function ContactSlideOver({
               icon="ti-calendar"
               iconBg={T.sageLt}
               iconColor={T.sage}
-              value={t("contacts.common.days", { count: inCRM })}
+              value={t("contacts.common.dur", { count: inCRM })}
               label={t("contacts.slideOver.statInCrm")}
             />
             <StatCard
@@ -685,7 +696,7 @@ export default function ContactSlideOver({
               icon="ti-clock"
               iconBg={T.lavLt}
               iconColor={T.lav}
-              value={lastContact !== null ? t("contacts.common.days", { count: lastContact }) : "—"}
+              value={lastContact !== null ? t("contacts.common.dur", { count: lastContact }) : "—"}
               label={t("contacts.slideOver.statLastContact")}
             />
           </div>
@@ -971,85 +982,108 @@ export default function ContactSlideOver({
           )}
 
           {/* Ultima ofertă */}
-          {contact.last_offer && (
-            <div style={{ marginBottom: 16 }}>
-              <SectionLabel>{t("contacts.slideOver.lastOffer")}</SectionLabel>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  background: T.cream,
-                  border: `0.5px solid ${T.bd}`,
-                  borderRadius: 10,
-                  padding: "12px",
-                }}
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 8,
-                    background: T.sageLt,
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <i
-                    className="ti ti-package"
-                    style={{ fontSize: 20, color: T.sage }}
-                    aria-hidden="true"
-                  />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: T.esp }}>
-                    {t("contacts.slideOver.offerDate", {
-                      date: new Date(
-                        contact.last_offer.sentAt,
-                      ).toLocaleDateString(t("actions.localeCode"), {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      }),
-                    })}
+          {contact.last_offer &&
+            (() => {
+              const lo = contact.last_offer!;
+              // Ofertă logată manual pe alt canal (WhatsApp/telefon): fără produse, €0.
+              // NU afișăm „0 produse · €0" — arătăm canalul pe care a fost trimisă.
+              const isExternal = lo.external === true;
+              const channelLabel =
+                lo.sentVia === "phone"
+                  ? t("contacts.markSent.phone")
+                  : lo.sentVia === "other"
+                    ? t("contacts.markSent.other")
+                    : t("contacts.markSent.whatsapp");
+              return (
+                <div style={{ marginBottom: 16 }}>
+                  <SectionLabel>
+                    {t("contacts.slideOver.lastOffer")}
+                  </SectionLabel>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      background: T.cream,
+                      border: `0.5px solid ${T.bd}`,
+                      borderRadius: 10,
+                      padding: "12px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 8,
+                        background: T.sageLt,
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <i
+                        className={`ti ${isExternal ? "ti-send" : "ti-package"}`}
+                        style={{ fontSize: 20, color: T.sage }}
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{ fontSize: 13, fontWeight: 500, color: T.esp }}
+                      >
+                        {t("contacts.slideOver.offerDate", {
+                          date: new Date(lo.sentAt).toLocaleDateString(
+                            t("actions.localeCode"),
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          ),
+                        })}
+                      </div>
+                      <div style={{ fontSize: 11, color: T.muted }}>
+                        {isExternal
+                          ? t("contacts.slideOver.sentExternal", {
+                              channel: channelLabel,
+                            })
+                          : `${t("contacts.slideOver.products", {
+                              count: lo.productCount,
+                            })} · €${lo.totalEur.toFixed(0)}`}
+                      </div>
+                    </div>
+                    {!isExternal && (
+                      <button
+                        onClick={() => onOpenOffer?.(lo.id)}
+                        style={{
+                          background: T.wh,
+                          color: T.sage,
+                          border: `0.5px solid ${T.sageMid}`,
+                          borderRadius: 7,
+                          padding: "6px 10px",
+                          fontSize: 11,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        {t("contacts.slideOver.viewOffer")}{" "}
+                        <i
+                          className="ti ti-external-link"
+                          style={{ fontSize: 12 }}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    )}
                   </div>
-                  <div style={{ fontSize: 11, color: T.muted }}>
-                    {t("contacts.slideOver.products", {
-                      count: contact.last_offer.productCount,
-                    })}{" "}
-                    · €{contact.last_offer.totalEur.toFixed(0)}
-                  </div>
                 </div>
-                <button
-                  onClick={() => onOpenOffer?.(contact.last_offer!.id)}
-                  style={{
-                    background: T.wh,
-                    color: T.sage,
-                    border: `0.5px solid ${T.sageMid}`,
-                    borderRadius: 7,
-                    padding: "6px 10px",
-                    fontSize: 11,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  {t("contacts.slideOver.viewOffer")}{" "}
-                  <i
-                    className="ti ti-external-link"
-                    style={{ fontSize: 12 }}
-                    aria-hidden="true"
-                  />
-                </button>
-              </div>
-            </div>
-          )}
+              );
+            })()}
 
           {/* Produse recomandate ultima dată */}
           {contact.offer_products && contact.offer_products.length > 0 && (

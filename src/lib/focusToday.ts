@@ -92,7 +92,9 @@ export function aggregateContacts(
 export const FOCUS_ACTION_PRIORITY: ActionType[] = [
   "reactivate",
   "needs_offer",
+  "first_order",
   "needs_followup",
+  "reorder",
   "discuss_business",
 ];
 

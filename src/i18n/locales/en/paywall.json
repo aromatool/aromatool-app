@@ -13,5 +13,10 @@
   "trialEndedBody": "Your free trial has ended. Subscribe to keep adding contacts, sending messages and building offers.",
   "opening": "Opening...",
   "subscribe": "Subscribe",
-  "launchCodeHint": "Have a launch code? You'll enter it at the payment step."
+  "launchCodeHint": "Have a launch code? You'll enter it at the payment step.",
+  "locked": {
+    "title": "Premium feature",
+    "body": "Your free trial has ended. Subscribe to view this section.",
+    "cta": "See plan"
+  }
 }

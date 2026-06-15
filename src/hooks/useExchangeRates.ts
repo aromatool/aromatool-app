@@ -106,6 +106,13 @@ export function useExchangeRates() {
       CHF: 'CHF', HUF: 'Ft', PLN: 'zł', CZK: 'Kč'
     }
     const symbol = symbols[currency] || currency
+    // Curs lipsă/invalid → effectiveRate poate da NaN, iar (NaN).toLocaleString
+    // afișează literalmente „NaN" în totaluri, text WhatsApp și copy. Afișăm un
+    // placeholder neutru în loc; trimiterea/salvarea ofertei e oricum oprită
+    // separat de garda de curs din useSendEmail.
+    if (!Number.isFinite(amount)) {
+      return ['USD', 'GBP'].includes(currency) ? `${symbol}—` : `— ${symbol}`
+    }
     const formatted = amount.toLocaleString('ro-RO', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,

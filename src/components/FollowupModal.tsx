@@ -6,6 +6,7 @@ import type { ActionType } from "../lib/recommendedAction";
 import { EMAIL_HEADER_HTML } from "../lib/emailLogo";
 import { createResourceLinks } from "../lib/resourceLink";
 import { buildEmailFooter } from "../lib/emailFooter";
+import { escapeHtml } from "../lib/escapeHtml";
 import { useResources } from "../hooks/useResources";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +16,8 @@ import { useTranslation } from "react-i18next";
 const ACTION_LABEL_KEYS = new Set([
   "needs_offer",
   "needs_followup",
+  "first_order",
+  "reorder",
   "reactivate",
   "discuss_business",
 ]);
@@ -24,6 +27,10 @@ function messageActionFor(action?: ActionType): string {
   switch (action) {
     case "needs_offer":
       return "needs_offer";
+    case "first_order":
+      return "first_order";
+    case "reorder":
+      return "reorder";
     case "reactivate":
       return "reactivate";
     case "discuss_business":
@@ -172,8 +179,8 @@ function buildEmailHtml(
   lang?: string,
 ): string {
   const ET = emailText(lang);
-  const headline = replaceVars(body.headline, vars);
-  const intro = replaceVars(body.intro, vars);
+  const headline = escapeHtml(replaceVars(body.headline, vars));
+  const intro = escapeHtml(replaceVars(body.intro, vars));
 
   const resourceButtons =
     resourceLinks.length > 0
@@ -181,7 +188,7 @@ function buildEmailHtml(
       <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px;font-family:'Helvetica Neue',Arial,sans-serif">${ET.attachments}</div>
       ${resourceLinks
         .map(
-          (r) => `<a href="${r.url}" style="display:block;margin-bottom:8px;padding:11px 16px;background:#5C7A5C;border-radius:8px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif">📎 ${r.title}</a>`,
+          (r) => `<a href="${encodeURI(r.url)}" style="display:block;margin-bottom:8px;padding:11px 16px;background:#5C7A5C;border-radius:8px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif">📎 ${escapeHtml(r.title)}</a>`,
         )
         .join("")}
     </div>`
@@ -196,7 +203,7 @@ function buildEmailHtml(
           (1 - p.disc / 100) *
           (lastOffer.exchange_rate || 1);
         return `<tr>
-      <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#3D3530">${p.name}${p.disc > 0 ? ` <span style="color:#C94F6A;font-size:11px">−${p.disc}%</span>` : ""}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#3D3530">${escapeHtml(p.name)}${p.disc > 0 ? ` <span style="color:#C94F6A;font-size:11px">−${p.disc}%</span>` : ""}</td>
       <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#A89888;text-align:center">×${p.qty}</td>
       <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;font-weight:600;color:#4A6A4A;text-align:right">${total.toLocaleString(ET.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${lastOffer.currency || "RON"}</td>
     </tr>`;
@@ -247,7 +254,7 @@ function buildCustomHtml(
   lang?: string,
 ): string {
   const ET = emailText(lang);
-  const safe = message.replace(/\n/g, "<br>");
+  const safe = escapeHtml(message).replace(/\n/g, "<br>");
   return `<!DOCTYPE html><html><body style="margin:0;padding:16px;background:#FAFAF7;font-family:Georgia,serif;">
 <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #EDE8E0;">
   ${EMAIL_HEADER_HTML}
@@ -300,6 +307,16 @@ export default function FollowupModal({
   // Custom email
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
+  // Editare la trimitere — ajustezi mesajul DOAR pentru acest email, fără să
+  // modifici template-ul din baza de date (efemer).
+  const [editing, setEditing] = useState(false);
+  const [draftSubject, setDraftSubject] = useState("");
+  const [draftHeadline, setDraftHeadline] = useState("");
+  const [draftIntro, setDraftIntro] = useState("");
+  // Editare la trimitere: poți scoate tabelul ofertei și poți ajusta semnătura
+  // doar pentru acest email (efemer, fără DB).
+  const [draftSignature, setDraftSignature] = useState("");
+  const [includeOffer, setIncludeOffer] = useState(true);
   // Limba emailului trimis clientului — implicit limba contactului.
   const [emailLang, setEmailLang] = useState<string>(
     contact.language_code === "en" ? "en" : "ro",
@@ -311,6 +328,30 @@ export default function FollowupModal({
   // de acum X zile"). La prima ofertă / reactivare / business îl ascundem.
   const offerForEmail =
     selected?.trigger_action === "needs_followup" ? lastOffer : null;
+
+  // Corpul efectiv folosit la preview + trimitere: dacă editezi, aplicăm
+  // modificările efemere peste mesajul de sistem (fără să-l atingem în DB).
+  const effectiveBody: TemplateBody | null = selectedBody
+    ? editing
+      ? { ...selectedBody, headline: draftHeadline, intro: draftIntro }
+      : selectedBody
+    : null;
+
+  // Oferta efectivă din email: la editare userul o poate scoate (bifa). În afara
+  // editării rămâne comportamentul implicit (se arată doar la needs_followup).
+  const effectiveOffer = editing && !includeOffer ? null : offerForEmail;
+  // Semnătura efectivă: la editare folosim varianta ajustată pentru acest email.
+  const effectiveSignature = editing ? draftSignature : userSignature;
+
+  // Trimiterea e blocată în aceleași condiții, indiferent de tab. Centralizăm
+  // ca să nu repetăm logica în disabled/background/cursor.
+  const sendDisabled =
+    sending ||
+    !!contact.communication_blocked ||
+    !!contact.email_opt_out ||
+    (tab === "template" &&
+      (!selectedId || (editing && !draftIntro.trim()))) ||
+    (tab === "custom" && !customMessage.trim());
 
   // Mesajele de sistem se filtrează după limba aleasă; mesajele proprii ale
   // userului se afișează mereu (sunt scrise de el, în limba lui).
@@ -399,6 +440,27 @@ export default function FollowupModal({
     );
   }
 
+  // Editarea efemeră se resetează când schimbi mesajul selectat sau limba.
+  useEffect(() => {
+    setEditing(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, emailLang]);
+
+  // Intră în editare: pre-completăm câmpurile cu textul final (variabilele deja
+  // înlocuite, ex. {{nume}} → numele real), ca să editezi direct ce vede clientul.
+  function startEditing() {
+    if (!selected || !selectedBody) return;
+    setDraftSubject(replaceVars(selected.subject, vars));
+    setDraftHeadline(replaceVars(selectedBody.headline, vars));
+    setDraftIntro(replaceVars(selectedBody.intro, vars));
+    // Pre-completăm semnătura cu cea din Setări — o ajustezi, nu o rescrii.
+    setDraftSignature(userSignature);
+    // Oferta pornește inclusă (dacă există); userul o poate scoate din bifă.
+    setIncludeOffer(true);
+    setEditing(true);
+    setShowPreview(true);
+  }
+
   async function loadData() {
     setLoading(true);
 
@@ -415,15 +477,20 @@ export default function FollowupModal({
     setTemplates(tpl || []);
     // Selecția implicită se face în efectul de mai jos (depinde de limbă).
 
-    const { data: offer } = await supabase
+    // Cea mai recentă ofertă REALĂ (cu produse). Ofertele logate manual pe alt
+    // canal (WhatsApp/telefon) au €0 și produse goale — n-au ce căuta în tabelul
+    // „oferta anterioară" din email (ar afișa „0").
+    const { data: recentOffers } = await supabase
       .from("offers")
       .select("products_json, total_display, currency, exchange_rate, sent_at")
       .eq("contact_id", contact.id)
       .order("sent_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(5);
 
-    if (offer) setLastOffer(offer as LastOffer);
+    const realOffer = (recentOffers ?? []).find(
+      (o) => ((o.products_json as unknown[] | null) ?? []).length > 0,
+    );
+    if (realOffer) setLastOffer(realOffer as LastOffer);
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -451,6 +518,9 @@ export default function FollowupModal({
   }
 
   async function send() {
+    // Gardă anti-dublu-trimitere: dacă un send e deja în curs, ignorăm
+    // click-urile rapide repetate (altfel se trimit 2 emailuri / 2 loguri).
+    if (sending) return;
     if (!requireAccess()) return;
     setSending(true);
     setError("");
@@ -475,7 +545,7 @@ export default function FollowupModal({
       let html: string;
 
       if (tab === "template") {
-        subject = replaceVars(selected!.subject, vars);
+        subject = replaceVars(editing ? draftSubject : selected!.subject, vars);
         // Linkuri securizate pentru resursele atașate (doar la template)
         const created = await createResourceLinks(
           user!.id,
@@ -488,11 +558,11 @@ export default function FollowupModal({
           url: l.url,
         }));
         html = buildEmailHtml(
-          selectedBody!,
+          effectiveBody!,
           vars,
-          offerForEmail,
+          effectiveOffer,
           userName,
-          userSignature,
+          effectiveSignature,
           resourceLinks,
           userPhone,
           userEmail,
@@ -1152,6 +1222,144 @@ export default function FollowupModal({
                       </div>
                     )}
 
+                    {/* ── EDITARE LA TRIMITERE (efemeră, fără DB) ── */}
+                    {selected && (
+                      <div style={{ marginBottom: "12px" }}>
+                        <button
+                          onClick={() =>
+                            editing ? setEditing(false) : startEditing()
+                          }
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 12px",
+                            background: editing ? C.sageLight : C.bg2,
+                            border: `1.5px ${editing ? "solid" : "dashed"} ${
+                              editing ? C.primary : C.border2
+                            }`,
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                            fontWeight: 500,
+                            color: editing ? C.primary : C.text2,
+                            cursor: "pointer",
+                            fontFamily: "'DM Sans', sans-serif",
+                          }}
+                        >
+                          <i className="ti ti-pencil" style={{ fontSize: "14px" }} />
+                          {editing
+                            ? tr("contacts.followup.editCancel")
+                            : tr("contacts.followup.editBeforeSend")}
+                        </button>
+
+                        {editing && (
+                          <div style={{ marginTop: "10px" }}>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: C.muted,
+                                marginBottom: "10px",
+                              }}
+                            >
+                              {tr("contacts.followup.editHint")}
+                            </div>
+                            <label style={labelStyle}>
+                              {tr("contacts.followup.subjectLabel")}
+                            </label>
+                            <input
+                              type="text"
+                              value={draftSubject}
+                              onChange={(e) => setDraftSubject(e.target.value)}
+                              style={{ ...inputStyle, marginBottom: "12px" }}
+                            />
+                            <label style={labelStyle}>
+                              {tr("contacts.followup.editHeadlineLabel")}
+                            </label>
+                            <input
+                              type="text"
+                              value={draftHeadline}
+                              onChange={(e) => setDraftHeadline(e.target.value)}
+                              style={{ ...inputStyle, marginBottom: "12px" }}
+                            />
+                            <label style={labelStyle}>
+                              {tr("contacts.followup.messageLabel")}
+                            </label>
+                            <textarea
+                              value={draftIntro}
+                              onChange={(e) => setDraftIntro(e.target.value)}
+                              rows={6}
+                              style={{
+                                ...inputStyle,
+                                resize: "vertical",
+                                lineHeight: 1.6,
+                              }}
+                            />
+
+                            {/* Include / scoate tabelul ofertei — doar când există */}
+                            {offerForEmail && (
+                              <label
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  marginTop: "14px",
+                                  fontSize: "12px",
+                                  color: C.text2,
+                                  cursor: "pointer",
+                                  fontFamily: "'DM Sans', sans-serif",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={includeOffer}
+                                  onChange={(e) =>
+                                    setIncludeOffer(e.target.checked)
+                                  }
+                                  style={{
+                                    width: "16px",
+                                    height: "16px",
+                                    accentColor: C.primary,
+                                  }}
+                                />
+                                {tr("contacts.followup.editIncludeOffer")}
+                              </label>
+                            )}
+
+                            {/* Semnătura — pre-completată din Setări, editabilă efemer */}
+                            <label
+                              style={{ ...labelStyle, marginTop: "14px" }}
+                            >
+                              {tr("contacts.followup.editSignatureLabel")}
+                            </label>
+                            <textarea
+                              value={draftSignature}
+                              onChange={(e) =>
+                                setDraftSignature(e.target.value)
+                              }
+                              rows={3}
+                              placeholder={tr(
+                                "contacts.followup.editSignaturePlaceholder",
+                              )}
+                              style={{
+                                ...inputStyle,
+                                resize: "vertical",
+                                lineHeight: 1.6,
+                              }}
+                            />
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: C.muted,
+                                marginTop: "6px",
+                              }}
+                            >
+                              {tr("contacts.followup.editSignatureHint")}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {selected && (
                       <button
                         onClick={() => setShowPreview(!showPreview)}
@@ -1174,7 +1382,7 @@ export default function FollowupModal({
                       </button>
                     )}
 
-                    {showPreview && selected && selectedBody && (
+                    {showPreview && selected && effectiveBody && (
                       <div
                         style={{
                           border: `1px solid ${C.border}`,
@@ -1185,11 +1393,11 @@ export default function FollowupModal({
                       >
                         <iframe
                           srcDoc={buildEmailHtml(
-                            selectedBody,
+                            effectiveBody,
                             vars,
-                            offerForEmail,
+                            effectiveOffer,
                             userName,
-                            userSignature,
+                            effectiveSignature,
                             selectedResourceIds
                               .map((id) => resources.find((r) => r.id === id))
                               .filter((r): r is NonNullable<typeof r> =>
@@ -1292,38 +1500,18 @@ export default function FollowupModal({
                 </button>
                 <button
                   onClick={send}
-                  disabled={
-                    sending ||
-                    !!contact.communication_blocked ||
-                    !!contact.email_opt_out ||
-                    (tab === "template" && !selectedId) ||
-                    (tab === "custom" && !customMessage.trim())
-                  }
+                  disabled={sendDisabled}
                   style={{
                     flex: 2,
                     padding: "11px",
-                    background:
-                      sending ||
-                      contact.communication_blocked ||
-                      contact.email_opt_out ||
-                      (tab === "template" && !selectedId) ||
-                      (tab === "custom" && !customMessage.trim())
-                        ? C.muted
-                        : C.primary,
+                    background: sendDisabled ? C.muted : C.primary,
                     border: "none",
                     borderRadius: "10px",
                     color: "white",
                     fontFamily: "'DM Sans', sans-serif",
                     fontSize: "13px",
                     fontWeight: 500,
-                    cursor:
-                      sending ||
-                      contact.communication_blocked ||
-                      contact.email_opt_out ||
-                      (tab === "template" && !selectedId) ||
-                      (tab === "custom" && !customMessage.trim())
-                        ? "not-allowed"
-                        : "pointer",
+                    cursor: sendDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   {sending

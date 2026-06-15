@@ -1,6 +1,6 @@
 {
   "home": "Home",
-  "crm": "CRM",
+  "crm": "Contacts",
   "buildOffer": "Build offer",
   "offers": "Offers",
   "resources": "Resources",
@@ -15,8 +15,8 @@
   "newOffer": "New offer",
   "bannerPastDue": "Your subscription payment failed. Update your payment method so you don't lose access.",
   "bannerManage": "Manage",
-  "bannerTrialExpiresTomorrow": "Your free trial expires tomorrow.",
-  "bannerTrialDaysLeft": "Free trial: {{days}} days left.",
+  "bannerTrialExpiresTomorrow": "Your free trial expires tomorrow. Subscribe to keep your access.",
+  "bannerTrialDaysLeft": "Your free trial expires in {{days}} days. Subscribe to keep your access.",
   "bannerSeePlan": "See plan",
   "bannerTrialEnded": "Your free trial has ended. Subscribe to keep adding contacts and sending messages.",
   "bannerSubscribe": "Subscribe"

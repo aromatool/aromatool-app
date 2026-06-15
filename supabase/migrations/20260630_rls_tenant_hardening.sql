@@ -20,19 +20,23 @@
 -- sistem devin intangibile pentru useri.
 drop policy if exists "Users can manage own templates" on public.followup_templates;
 
+drop policy if exists "Templates: read own or system" on public.followup_templates;
 create policy "Templates: read own or system"
   on public.followup_templates for select to authenticated
   using (user_id = auth.uid() or user_id is null);
 
+drop policy if exists "Templates: insert own" on public.followup_templates;
 create policy "Templates: insert own"
   on public.followup_templates for insert to authenticated
   with check (user_id = auth.uid());
 
+drop policy if exists "Templates: update own" on public.followup_templates;
 create policy "Templates: update own"
   on public.followup_templates for update to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+drop policy if exists "Templates: delete own" on public.followup_templates;
 create policy "Templates: delete own"
   on public.followup_templates for delete to authenticated
   using (user_id = auth.uid());
@@ -45,6 +49,7 @@ drop policy if exists "Products viewable by all" on public.products;
 -- ── C. guides ────────────────────────────────────────────────
 drop policy if exists "Guides viewable by authenticated users" on public.guides;
 
+drop policy if exists "Guides viewable by company members" on public.guides;
 create policy "Guides viewable by company members"
   on public.guides for select to authenticated
   using (

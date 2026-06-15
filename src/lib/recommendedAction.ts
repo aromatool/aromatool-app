@@ -1,15 +1,17 @@
 import type { TFunction } from 'i18next'
 import type { Contact } from './contactTypes.ts'
 import type { ContactStatus } from './relationshipScore.ts'
-import { INACTIVE_DAYS, FOLLOWUP_STALE_DAYS } from './crmThresholds.ts'
+import { INACTIVE_DAYS, FOLLOWUP_STALE_DAYS, REORDER_DAYS } from './crmThresholds.ts'
 
 // Tipul de acțiune — folosit intern pentru grupare/filtrare în Dashboard.
 // Utilizatorul NU vede acest tip, doar textul acțiunii.
 export type ActionType =
   | 'needs_offer'      // Trimite prima ofertă
-  | 'needs_followup'   // Trimite follow-up
+  | 'needs_followup'   // Trimite follow-up (prospect cu ofertă)
+  | 'first_order'      // Întâmpină clientul nou (post-achiziție)
+  | 'reorder'          // Sugerează reaprovizionarea (nudge lunar)
   | 'awaiting_reply'   // Așteaptă răspuns
-  | 'reactivate'       // Reactivează (inactiv / în risc)
+  | 'reactivate'       // Reactivează (inactiv / în risc / win-back)
   | 'discuss_business' // Discută despre business
   | 'none'             // Nicio acțiune necesară
 
@@ -28,7 +30,11 @@ export interface RecommendedAction {
 
 function daysSince(iso: string | null | undefined): number {
   if (!iso) return 9999
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  const ts = new Date(iso).getTime()
+  // Dată coruptă/neparsabilă → tratăm ca „necunoscut" (foarte vechi), nu NaN.
+  if (!Number.isFinite(ts)) return 9999
+  // Dată în viitor (fus orar, ceas greșit) → 0, niciodată negativ.
+  return Math.max(0, Math.floor((Date.now() - ts) / 86400000))
 }
 
 const ACCENT = {
@@ -102,7 +108,7 @@ function computeAction(c: Contact): ActionDescriptor {
       type: 'reactivate',
       titleKey: 'actions.title.reactivate', titleParams: { name },
       reasonKey: lastActivity < 9999 ? 'actions.reason.inactiveDays' : 'actions.reason.inactiveMarked',
-      reasonParams: { days: lastActivity },
+      reasonParams: { count: lastActivity },
       priority: 'urgent',
       ...ACCENT.red, urgent: true,
     }
@@ -111,7 +117,7 @@ function computeAction(c: Contact): ActionDescriptor {
     return {
       type: 'reactivate',
       titleKey: 'actions.title.contact', titleParams: { name },
-      reasonKey: 'actions.reason.clientNotContacted', reasonParams: { days: lastActivity },
+      reasonKey: 'actions.reason.clientNotContacted', reasonParams: { count: lastActivity },
       priority: 'urgent',
       ...ACCENT.red, urgent: true,
     }
@@ -122,33 +128,61 @@ function computeAction(c: Contact): ActionDescriptor {
     return {
       type: 'needs_offer',
       titleKey: 'actions.title.needsOffer',
-      reasonKey: 'actions.reason.noOfferYet', reasonParams: { name, days: contactAge },
+      reasonKey: 'actions.reason.noOfferYet', reasonParams: { name, count: contactAge },
       priority: 'attention',
       ...ACCENT.amber, urgent: true,
     }
   }
 
-  // 3. NECESITĂ FOLLOW-UP — are ofertă, dar follow-up-ul e de făcut
-  // Pentru data ultimului follow-up: dacă nu o știm dar au existat follow-up-uri,
-  // folosim ultima activitate ca aproximare (evităm valoarea 9999).
+  // „Atingere" de făcut acum: niciodată contactat de la ofertă SAU ultimul
+  // contact mai vechi de pragul de prospețime. Pentru data ultimului follow-up:
+  // dacă nu o știm dar au existat follow-up-uri, folosim ultima activitate ca
+  // aproximare (evităm valoarea 9999). Reutilizat de first_order + needs_followup.
   const effectiveFollowupRef = c.last_followup_at ?? (followupCount > 0 ? (c.last_activity_at ?? c.first_offer_at) : null)
   const daysSinceLastFollowup = effectiveFollowupRef ? daysSince(effectiveFollowupRef) : null
-  const needsFollowup =
-    totalOffers >= 1 &&
+  const dueForTouch =
     !c.followup_opted_out &&
     (followupCount === 0 || (daysSinceLastFollowup !== null && daysSinceLastFollowup >= FOLLOWUP_STALE_DAYS))
-  if (needsFollowup) {
+
+  // 3. CLIENT NOU — întâmpinare post-achiziție (mulțumire / ghidare / „cum merge?")
+  // Doar cât e proaspăt (sub pragul de reaprovizionare); după aceea intră pe reorder.
+  if (c.status === 'client_nou' && totalOffers >= 1 && lastActivity < REORDER_DAYS && dueForTouch) {
+    return {
+      type: 'first_order',
+      titleKey: 'actions.title.firstOrder', titleParams: { name },
+      reasonKey: followupCount === 0 ? 'actions.reason.firstOrderNew' : 'actions.reason.firstOrderCheck',
+      reasonParams: { name },
+      priority: 'attention',
+      ...ACCENT.amber, urgent: true,
+    }
+  }
+
+  // 4. NECESITĂ FOLLOW-UP — DOAR prospecți cu ofertă (clienții au flux propriu:
+  // first_order / reorder). Follow-up-ul e de făcut dacă „atingerea" e datorată.
+  if ((c.status === 'prospect' || c.status === 'in_followup') && totalOffers >= 1 && dueForTouch) {
     return {
       type: 'needs_followup',
       titleKey: 'actions.title.needsFollowup',
       reasonKey: followupCount === 0 ? 'actions.reason.followupNever' : 'actions.reason.followupLast',
-      reasonParams: { name, days: daysSinceLastFollowup },
+      reasonParams: followupCount === 0 ? { name } : { name, count: daysSinceLastFollowup ?? 0 },
       priority: 'attention',
       ...ACCENT.amber, urgent: true,
     }
   }
 
-  // 4. DISCUTĂ BUSINESS — client implicat, candidat de echipă
+  // 5. REAPROVIZIONARE — client activ, ~30-60 zile de la ultima activitate.
+  // Nudge lunar (aliniat cu comanda Loyalty Rewards), înainte de pragul de inactiv.
+  if (isClient && lastActivity >= REORDER_DAYS && lastActivity < INACTIVE_DAYS) {
+    return {
+      type: 'reorder',
+      titleKey: 'actions.title.reorder', titleParams: { name },
+      reasonKey: 'actions.reason.reorder', reasonParams: { name, days: lastActivity },
+      priority: 'attention',
+      ...ACCENT.amber, urgent: true,
+    }
+  }
+
+  // 6. DISCUTĂ BUSINESS — client implicat, candidat de echipă
   const businessSignals = [
     isClient,
     totalOffers >= 3,
@@ -167,18 +201,18 @@ function computeAction(c: Contact): ActionDescriptor {
     }
   }
 
-  // 5. AȘTEAPTĂ RĂSPUNS — follow-up recent, fără răspuns
+  // 7. AȘTEAPTĂ RĂSPUNS — follow-up recent, fără răspuns
   if (totalOffers >= 1 && followupCount >= 1 && daysSinceFollowup < FOLLOWUP_STALE_DAYS) {
     return {
       type: 'awaiting_reply',
       titleKey: 'actions.title.awaitingReply',
-      reasonKey: 'actions.reason.awaitingReply', reasonParams: { days: daysSinceFollowup },
+      reasonKey: 'actions.reason.awaitingReply', reasonParams: { count: daysSinceFollowup },
       priority: 'normal',
       ...ACCENT.lav, urgent: false,
     }
   }
 
-  // 6. NIMIC URGENT
+  // 8. NIMIC URGENT
   return {
     type: 'none',
     titleKey: 'actions.title.none',
@@ -211,7 +245,9 @@ export function getRecommendedAction(c: Contact, t: TFunction): RecommendedActio
 export const ACTIONABLE_TYPES: ActionType[] = [
   'reactivate',
   'needs_offer',
+  'first_order',
   'needs_followup',
+  'reorder',
   'discuss_business',
 ]
 
@@ -232,7 +268,11 @@ export function crmCategory(c: Contact): CrmCategory {
   const type = getActionType(c)
   switch (type) {
     case 'needs_offer':       return 'offer'
-    case 'needs_followup':    return 'followup'
+    // first_order (întâmpinare client nou) și reorder (nudge lunar) sunt tot
+    // „atingeri" proactive de trimis acum → intră în categoria follow-up.
+    case 'needs_followup':
+    case 'first_order':
+    case 'reorder':           return 'followup'
     case 'reactivate':        return 'reactivate'
     // awaiting_reply (follow-up trimis recent), discuss_business și none
     // = nicio acțiune presantă pentru user → "Fără acțiuni"
@@ -265,15 +305,24 @@ export function shortReason(c: Contact, t: TFunction): string {
 
   switch (type) {
     case 'reactivate':
-      return lastActivity < 9999 ? t('actions.shortReason.daysNoContact', { days: lastActivity }) : t('actions.shortReason.inactive')
+      // Sub 1 zi (ex. contact marcat manual „inactiv" azi) → „inactiv", nu „0 zile fără contact".
+      return lastActivity >= 1 && lastActivity < 9999 ? t('actions.shortReason.daysNoContact', { count: lastActivity }) : t('actions.shortReason.inactive')
     case 'needs_offer':
-      return contactAge <= 1 ? t('actions.shortReason.addedRecently') : t('actions.shortReason.inCrmNoOffer', { days: contactAge })
+      return contactAge <= 1 ? t('actions.shortReason.addedRecently') : t('actions.shortReason.inCrmNoOffer', { count: contactAge })
+    case 'first_order':
+      return followupCount === 0 ? t('actions.shortReason.firstOrderNew') : t('actions.shortReason.firstOrderCheck')
+    case 'reorder':
+      return t('actions.shortReason.reorder', { count: lastActivity })
     case 'needs_followup':
       return followupCount === 0
         ? t('actions.shortReason.notContactedAfterOffer')
-        : daysSinceFollowup !== null ? t('actions.shortReason.lastFollowupDays', { days: daysSinceFollowup }) : t('actions.shortReason.followupToResume')
+        : daysSinceFollowup !== null ? t('actions.shortReason.lastFollowupDays', { count: daysSinceFollowup }) : t('actions.shortReason.followupToResume')
     case 'awaiting_reply':
-      return daysSinceFollowup !== null ? t('actions.shortReason.followupDaysAgo', { days: daysSinceFollowup }) : t('actions.shortReason.waiting')
+      // „acum 0 zile" e greșit — un follow-up trimis azi se citește „follow-up azi".
+      if (daysSinceFollowup === null) return t('actions.shortReason.waiting')
+      return daysSinceFollowup === 0
+        ? t('actions.shortReason.followupToday')
+        : t('actions.shortReason.followupDaysAgo', { count: daysSinceFollowup })
     case 'discuss_business':
       return t('actions.shortReason.engagedClient')
     default:

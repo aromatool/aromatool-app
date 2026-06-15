@@ -31,6 +31,15 @@ security definer
 set search_path = public
 as $$
 begin
+  -- BYPASS controlat: RPC-urile noastre de încredere (SECURITY DEFINER) care
+  -- TREBUIE să modifice o coloană privilegiată a PROPRIULUI profil al userului
+  -- (ex. redeem_promo_code extinde trial_ends_at) setează acest flag
+  -- tranzacțional ÎNAINTE de update. Userii NU pot seta acest GUC prin REST/RLS,
+  -- deci nu e o cale de escaladare — doar funcțiile server-side de încredere.
+  if current_setting('aromatool.bypass_profile_guard', true) = 'on' then
+    return new;
+  end if;
+
   -- Self-update al unui user ne-admin: blochează schimbarea coloanelor sensibile.
   if auth.uid() is not null
      and auth.uid() = new.id

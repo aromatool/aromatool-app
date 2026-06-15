@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useResources,
@@ -77,6 +77,15 @@ export default function ResourcesPage() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -149,7 +158,15 @@ export default function ResourcesPage() {
   const nextPlan = idx >= 0 && idx < PLAN_ORDER.length - 1 ? PLAN_ORDER[idx + 1] : null;
 
   return (
-    <div style={{ maxWidth: "720px", margin: "0 auto", padding: "16px" }}>
+    <div
+      className="res-page"
+      style={{ maxWidth: "720px", margin: "0 auto", padding: isMobile ? 0 : "16px" }}
+    >
+      <style>{`
+        @media (max-width: 768px) {
+          .res-page input, .res-page textarea, .res-page select { font-size: 16px !important; }
+        }
+      `}</style>
       {/* Header */}
       <div style={{ marginBottom: "16px" }}>
         <h1
@@ -292,6 +309,7 @@ export default function ResourcesPage() {
           placeholder={t("resources.searchPlaceholder")}
           style={{
             flex: 1,
+            minWidth: 0,
             padding: "10px 12px",
             background: C.card,
             border: `1.5px solid ${C.border2}`,

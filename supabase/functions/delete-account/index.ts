@@ -24,6 +24,10 @@ const USER_TABLES = [
   'followup_log',
   'resource_links',
   'template_resources',
+  // Șabloanele PROPRII ale userului (user_id = userId). Cele de sistem au
+  // user_id NULL → nu sunt atinse de filtrul .eq('user_id', userId). Vine după
+  // followup_log (care le referă cu RESTRICT) și template_resources (cascade).
+  'followup_templates',
   'daily_focus_jobs',
   'feedback',
   'product_import_jobs',

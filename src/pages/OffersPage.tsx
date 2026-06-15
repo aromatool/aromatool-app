@@ -38,6 +38,7 @@ interface Offer {
   currency: string;
   base_currency?: string;
   exchange_rate: number;
+  sent_via?: string | null;
   notes: string | null;
   transport: number;
   products_json: Array<{
@@ -110,6 +111,29 @@ function offerClientKey(offer: Offer): string {
   return offer.contacts?.id || offer.contacts?.email || "unknown";
 }
 
+// O ofertă „logată extern" e rândul minimal creat de butonul „Marchează ca
+// trimisă" din CRM: fără produse și total 0, doar ca să iasă contactul din
+// „Trimite prima ofertă". Nu are detalii de afișat → o tratăm separat.
+function isExternalOffer(offer: Offer): boolean {
+  return !offer.products_json || offer.products_json.length === 0;
+}
+
+// Eticheta canalului pe care a fost comunicată oferta (sent_via).
+function channelLabel(sentVia: string | null | undefined, t: (k: string) => string): string {
+  switch (sentVia) {
+    case "whatsapp":
+      return t("offers.channelWhatsapp");
+    case "phone":
+      return t("offers.channelPhone");
+    case "email":
+      return t("offers.channelEmail");
+    case "both":
+      return t("offers.channelBoth");
+    default:
+      return t("offers.channelOther");
+  }
+}
+
 export default function OffersPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -124,6 +148,20 @@ export default function OffersPage() {
   const [expandedOffers, setExpandedOffers] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const appliedFocus = useRef<string | null>(null);
+
+  // Mobile detection — only used to relax desktop-only spacing/typography on
+  // small screens. Desktop layout stays pixel-identical.
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     if (user) loadOffers();
@@ -153,7 +191,7 @@ export default function OffersPage() {
     const { data, error } = await supabase
       .from("offers")
       .select(
-        `id, sent_at, total_display, total_eur, exchange_rate, currency, base_currency, notes, transport, products_json, contacts(id, email, name, status)`,
+        `id, sent_at, total_display, total_eur, exchange_rate, currency, base_currency, notes, transport, products_json, sent_via, contacts(id, email, name, status)`,
       )
       .eq("user_id", user!.id)
       .order("sent_at", { ascending: false });
@@ -399,7 +437,8 @@ export default function OffersPage() {
             background: T.white,
             border: `0.5px solid ${T.border}`,
             borderRadius: "10px",
-            fontSize: "14px",
+            // 16px on mobile prevents iOS Safari from auto-zooming on focus.
+            fontSize: isMobile ? "16px" : "14px",
             color: T.espresso,
             fontFamily: "inherit",
             outline: "none",
@@ -456,6 +495,12 @@ export default function OffersPage() {
             .join("")
             .slice(0, 2)
             .toUpperCase();
+          // Există oferte mai vechi de expandat? Dacă nu, săgeata + toggle-ul
+          // n-au ce face → le ascundem.
+          const hasMore = group.offers.length > 1;
+          // Toate ofertele clientului sunt loguri externe (fără produse) → nu
+          // are sens să afișăm „€ 0.00" ca valoare totală.
+          const groupExternalOnly = group.offers.every(isExternalOffer);
 
           return (
             <div
@@ -472,12 +517,14 @@ export default function OffersPage() {
               <div
                 style={{
                   padding: "14px 16px",
-                  cursor: "pointer",
+                  cursor: hasMore ? "pointer" : "default",
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
                 }}
-                onClick={() => toggleClient(group.clientKey)}
+                onClick={
+                  hasMore ? () => toggleClient(group.clientKey) : undefined
+                }
               >
                 {/* Avatar */}
                 <div
@@ -546,24 +593,43 @@ export default function OffersPage() {
                 </div>
 
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "16px",
-                      fontWeight: 500,
-                      color: T.espresso,
-                    }}
-                  >
-                    € {group.totalEur.toFixed(2)}
-                  </div>
-                  <div style={{ fontSize: "11px", color: T.muted }}>
-                    {t("offers.total")}
-                  </div>
+                  {groupExternalOnly ? (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: T.muted,
+                        background: T.linen,
+                        padding: "3px 10px",
+                        borderRadius: "999px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {t("offers.sentExternalShort")}
+                    </span>
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          fontSize: "16px",
+                          fontWeight: 500,
+                          color: T.espresso,
+                        }}
+                      >
+                        € {group.totalEur.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: "11px", color: T.muted }}>
+                        {t("offers.total")}
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <i
-                  className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
-                  style={{ fontSize: "18px", color: T.muted, flexShrink: 0 }}
-                />
+                {hasMore && (
+                  <i
+                    className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
+                    style={{ fontSize: "18px", color: T.muted, flexShrink: 0 }}
+                  />
+                )}
               </div>
 
               {/* Latest offer — always visible under client header */}
@@ -575,6 +641,7 @@ export default function OffersPage() {
                 copiedId={copiedId}
                 setCopiedId={setCopiedId}
                 highlight={latestOffer.id === focusOfferId}
+                isMobile={isMobile}
               />
 
               {/* Older offers — visible when client expanded */}
@@ -591,6 +658,7 @@ export default function OffersPage() {
                       copiedId={copiedId}
                       setCopiedId={setCopiedId}
                       highlight={offer.id === focusOfferId}
+                      isMobile={isMobile}
                     />
                   ))}
 
@@ -635,6 +703,7 @@ function OfferRow({
   copiedId,
   setCopiedId,
   highlight = false,
+  isMobile = false,
 }: {
   offer: Offer;
   isLatest: boolean;
@@ -643,7 +712,9 @@ function OfferRow({
   copiedId: string | null;
   setCopiedId: (id: string | null) => void;
   highlight?: boolean;
+  isMobile?: boolean;
 }) {
+  const { t } = useTranslation();
   const currency = offer.currency || "RON";
   // Moneda de bază a ofertei (prețurile din products_json sunt în ea).
   const base = offer.base_currency || "EUR";
@@ -652,6 +723,8 @@ function OfferRow({
     .map((p) => `${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}`)
     .join(", ");
   const moreCount = (offer.products_json?.length || 0) - 2;
+  // Log extern (fără produse): nu are sumar/preț/detalii de expandat.
+  const external = isExternalOffer(offer);
 
   function copyOffer() {
     const products = offer.products_json
@@ -681,10 +754,12 @@ function OfferRow({
     >
       {/* Row header */}
       <div
-        onClick={onToggle}
+        onClick={external ? undefined : onToggle}
         style={{
-          padding: "11px 16px 11px 68px",
-          cursor: "pointer",
+          // Desktop indents offer rows under the client name (68px). On mobile
+          // that wastes ~15% of the width, so rows sit flush with card padding.
+          padding: isMobile ? "11px 16px" : "11px 16px 11px 68px",
+          cursor: external ? "default" : "pointer",
           display: "flex",
           alignItems: "center",
           gap: "12px",
@@ -702,21 +777,25 @@ function OfferRow({
               flexShrink: 0,
             }}
           >
-            Ultima
+            {t("offers.badgeLatest")}
           </span>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
               fontSize: "12px",
-              color: T.warm,
+              color: external ? T.muted : T.warm,
+              fontStyle: external ? "italic" : "normal",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
-            {productsPreview}
-            {moreCount > 0 ? ` +${moreCount}` : ""}
+            {external
+              ? t("offers.sentExternal", {
+                  channel: channelLabel(offer.sent_via, t),
+                })
+              : `${productsPreview ?? ""}${moreCount > 0 ? ` +${moreCount}` : ""}`}
           </div>
           <div style={{ fontSize: "11px", color: T.muted, marginTop: "1px" }}>
             {new Date(offer.sent_at).toLocaleDateString(uiLocale(i18n.language), {
@@ -727,25 +806,31 @@ function OfferRow({
             })}
           </div>
         </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: "14px", fontWeight: 500, color: T.espresso }}>
-            {fmtCurrency(offer.total_display, currency)}
-          </div>
-          {currency !== base && (
-            <div style={{ fontSize: "10px", color: T.muted }}>
-              {fmtCurrency(offer.total_eur || 0, base)}
+        {!external && (
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div
+              style={{ fontSize: "14px", fontWeight: 500, color: T.espresso }}
+            >
+              {fmtCurrency(offer.total_display, currency)}
             </div>
-          )}
-        </div>
-        <i
-          className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
-          style={{ fontSize: "15px", color: T.muted, flexShrink: 0 }}
-        />
+            {currency !== base && (
+              <div style={{ fontSize: "10px", color: T.muted }}>
+                {fmtCurrency(offer.total_eur || 0, base)}
+              </div>
+            )}
+          </div>
+        )}
+        {!external && (
+          <i
+            className={`ti ti-chevron-${isExpanded ? "up" : "down"}`}
+            style={{ fontSize: "15px", color: T.muted, flexShrink: 0 }}
+          />
+        )}
       </div>
 
       {/* Expanded offer details */}
-      {isExpanded && (
-        <div style={{ padding: "0 16px 14px 68px" }}>
+      {isExpanded && !external && (
+        <div style={{ padding: isMobile ? "0 16px 14px" : "0 16px 14px 68px" }}>
           {/* Products */}
           <div
             style={{
@@ -828,7 +913,7 @@ function OfferRow({
                   borderRadius: "999px",
                 }}
               >
-                Transport:{" "}
+                {t("offers.transportLabel")}:{" "}
                 {fmtCurrency(
                   offer.transport * (offer.exchange_rate || 1),
                   currency,
@@ -884,7 +969,7 @@ function OfferRow({
               className={`ti ${copiedId === offer.id ? "ti-check" : "ti-copy"}`}
               style={{ fontSize: "14px" }}
             />
-            {copiedId === offer.id ? "Copiat!" : "Copiază sumar"}
+            {copiedId === offer.id ? t("offers.copied") : t("offers.copySummary")}
           </button>
         </div>
       )}

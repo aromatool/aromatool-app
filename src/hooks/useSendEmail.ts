@@ -5,6 +5,7 @@ import { useSubscription } from '../lib/subscription'
 import { createResourceLinks } from '../lib/resourceLink'
 import { EMAIL_HEADER_HTML } from '../lib/emailLogo'
 import { buildEmailFooter } from '../lib/emailFooter'
+import { escapeHtml } from '../lib/escapeHtml'
 import i18n from '../i18n'
 import type { CartItem } from './useCartStore'
 
@@ -87,7 +88,7 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     const disc = item.disc > 0 ? `<span style="color:#C94F6A;font-size:11px"> −${item.disc}%</span>` : ''
     const secondaryEur = displayCurrency !== base ? `<div style="font-size:11px;color:#A89888;margin-top:2px">${fmtCurrency(lineEur, base)}</div>` : ''
     return `<tr>
-      <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530">${item.name}${disc}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530">${escapeHtml(item.name)}${disc}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#A89888;text-align:center">${item.qty}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530;text-align:right;font-weight:600">
         ${fmtCurrency(lineDisplay, displayCurrency)}${secondaryEur}
@@ -103,8 +104,8 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     <div style="margin-top:16px;padding:16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
       <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px">${t('email.materialsLabel')}</div>
       ${resourceLinks.map(r => `
-        <a href="${r.url}" style="display:block;margin-bottom:8px;padding:11px 16px;background:#5C7A5C;border-radius:8px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;text-align:center">
-          📎 ${r.title}
+        <a href="${encodeURI(r.url)}" style="display:block;margin-bottom:8px;padding:11px 16px;background:#5C7A5C;border-radius:8px;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;text-align:center">
+          📎 ${escapeHtml(r.title)}
         </a>`).join('')}
     </div>` : ''
 
@@ -116,7 +117,7 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
 
   <div style="padding:28px 28px 0;">
     <p style="font-size:15px;color:#3D3530;margin-bottom:6px;text-align:center">
-      ${t('email.greeting')}${clientName ? `, <strong>${clientName}</strong>` : ''}!
+      ${t('email.greeting')}${clientName ? `, <strong>${escapeHtml(clientName)}</strong>` : ''}!
     </p>
     <p style="font-size:13px;color:#A89888;margin-bottom:24px;text-align:center">
       ${t('email.intro', { user: userName })}
@@ -157,7 +158,7 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     ${notes ? `
     <div style="margin-top:14px;padding:14px 16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
       <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px">${t('email.notesLabel')}</div>
-      <div style="font-size:13px;color:#3D3530;line-height:1.7;white-space:pre-wrap">${notes}</div>
+      <div style="font-size:13px;color:#3D3530;line-height:1.7;white-space:pre-wrap">${escapeHtml(notes)}</div>
     </div>` : ''}
 
     ${resourceButtons}
@@ -387,5 +388,202 @@ export function useSendEmail() {
     }
   }
 
-  return { sendOffer, loading, error, success, setError, setSuccess }
+  // ── Loghează o ofertă FĂRĂ să trimită email ──────────────────────────
+  // Pentru cazurile în care oferta a fost comunicată pe alt canal (WhatsApp,
+  // telefon, în persoană etc.): salvăm aceeași ofertă în `offers`, cu
+  // `sent_via` setat pe canalul ales, ca să apară în istoric și să scoată
+  // contactul din „Trimite prima ofertă". Refolosește exact aceeași logică de
+  // rezolvare a contactului ca `sendOffer`, dar sare peste pasul de email.
+  const logOffer = async (
+    params: SendOfferParams,
+    sentVia: 'whatsapp' | 'phone' | 'other'
+  ) => {
+    if (!requireAccess()) return false
+    if (params.items.length === 0) {
+      setError(i18n.t('offers.sendErrEmptyCart'))
+      return false
+    }
+    if (!Number.isFinite(params.exchangeRate) || params.exchangeRate <= 0) {
+      setError(i18n.t('offers.sendErrRate'))
+      return false
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess(false)
+
+    const offerTotals = computeOfferTotals(params.items, params.transport, params.exchangeRate)
+    if (!Number.isFinite(offerTotals.totalEur) || !Number.isFinite(offerTotals.totalDisplay)) {
+      setError(i18n.t('offers.sendErrRate'))
+      setLoading(false)
+      return false
+    }
+
+    try {
+      // Respectăm blocarea comunicării și pentru un log manual.
+      if (params.contactId) {
+        const { data: contactCheck } = await supabase
+          .from('contacts')
+          .select('communication_blocked')
+          .eq('id', params.contactId)
+          .single()
+        if (contactCheck?.communication_blocked) {
+          setError(i18n.t('offers.sendErrBlocked'))
+          setLoading(false)
+          return false
+        }
+      }
+
+      // 1. Rezolvă/creează contactul (identic cu fluxul de email)
+      let contactId: string | null = params.contactId || null
+      if (contactId) {
+        await supabase
+          .from('contacts')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', contactId)
+      } else if (params.clientEmail && !params.clientEmail.includes('@noemail.local')) {
+        const { data: existingContact } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('user_id', user!.id)
+          .eq('email', params.clientEmail)
+          .single()
+        if (existingContact) {
+          contactId = existingContact.id
+          await supabase
+            .from('contacts')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', contactId)
+        } else {
+          const { data: newContact } = await supabase
+            .from('contacts')
+            .insert({
+              user_id: user!.id,
+              email: params.clientEmail,
+              name: params.clientName || null,
+              phone: params.clientPhone || null,
+              status: 'prospect',
+              first_offer_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single()
+          contactId = newContact?.id || null
+        }
+      }
+
+      // 2. Resurse atașate (dacă există) → linkuri securizate
+      const resourceIds = params.resourceIds ?? []
+      const createdLinks = resourceIds.length > 0
+        ? await createResourceLinks(user!.id, resourceIds, contactId || undefined)
+        : []
+      const linkRows = createdLinks.map(l => ({ id: l.id }))
+
+      // 3. Salvează oferta cu canalul ales (fără email)
+      const { data: newOffer } = await supabase
+        .from('offers')
+        .insert({
+          user_id: user!.id,
+          contact_id: contactId,
+          products_json: params.items.map(i => ({
+            name: i.name,
+            sku: i.sku,
+            qty: i.qty,
+            disc: i.disc,
+            price_eur: i.price_eur,
+          })),
+          transport: params.transport,
+          notes: params.notes || null,
+          total_display: offerTotals.totalDisplay,
+          total_eur: offerTotals.totalEur,
+          exchange_rate: params.exchangeRate,
+          currency: params.currency || 'RON',
+          base_currency: params.baseCurrency || 'EUR',
+          sent_via: sentVia,
+        })
+        .select('id')
+        .single()
+
+      if (linkRows.length > 0) {
+        await supabase
+          .from('resource_links')
+          .update({ offer_id: newOffer?.id ?? null, contact_id: contactId })
+          .in('id', linkRows.map(l => l.id))
+      }
+
+      setSuccess(true)
+      return true
+    } catch (err: any) {
+      console.error('Log offer error:', err)
+      setError(err.message || i18n.t('offers.sendErrGeneric'))
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Marchează o ofertă ca trimisă din CRM, FĂRĂ produse și FĂRĂ email ──
+  // Pentru cazul în care distribuitorul a comunicat deja oferta (telefon,
+  // WhatsApp, în persoană) și vrea doar să noteze faptul în CRM, fără să o
+  // reconstruiască în Calculator. Salvăm un rând MINIMAL în `offers` (fără
+  // produse, total 0) cu `sent_via` = canalul ales, exact cât să apară în
+  // istoric și să scoată contactul din „Trimite prima ofertă". Pentru oferta
+  // reală cu produse se folosește `logOffer` (din Calculator).
+  const markOfferSent = async (
+    contactId: string,
+    sentVia: 'whatsapp' | 'phone' | 'other'
+  ) => {
+    if (!requireAccess()) return false
+    if (!contactId) return false
+
+    setLoading(true)
+    setError('')
+    setSuccess(false)
+
+    try {
+      // Respectăm blocarea comunicării și pentru un log manual.
+      const { data: contactCheck } = await supabase
+        .from('contacts')
+        .select('communication_blocked')
+        .eq('id', contactId)
+        .single()
+      if (contactCheck?.communication_blocked) {
+        setError(i18n.t('offers.sendErrBlocked'))
+        setLoading(false)
+        return false
+      }
+
+      await supabase
+        .from('contacts')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', contactId)
+
+      const { error: insErr } = await supabase
+        .from('offers')
+        .insert({
+          user_id: user!.id,
+          contact_id: contactId,
+          products_json: [],
+          transport: 0,
+          notes: null,
+          total_display: 0,
+          total_eur: 0,
+          exchange_rate: 1,
+          currency: 'RON',
+          base_currency: 'EUR',
+          sent_via: sentVia,
+        })
+      if (insErr) throw new Error(insErr.message)
+
+      setSuccess(true)
+      return true
+    } catch (err: any) {
+      console.error('Mark offer sent error:', err)
+      setError(err.message || i18n.t('offers.sendErrGeneric'))
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { sendOffer, logOffer, markOfferSent, loading, error, success, setError, setSuccess }
 }

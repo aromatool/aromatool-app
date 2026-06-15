@@ -19,12 +19,17 @@
   "qtyPlaceholder": "Cant.",
   "discPlaceholder": "Disc%",
   "addToCart": "Adaugă în coș",
-  "invalidPrice": "Introduceți un preț valid (număr ≥ 0).",
+  "invalidPrice": "Introduceți un preț valid (număr mai mare ca 0).",
   "emailLanguage": "Limba emailului",
   "langRo": "Română",
   "langEn": "Engleză",
   "close": "Închide",
   "perPiece": "/buc",
+  "locked": {
+    "title": "Cont inactiv",
+    "body": "Constructorul de oferte e disponibil doar cu un abonament activ. Perioada gratuită s-a încheiat — abonează-te ca să continui să creezi oferte.",
+    "cta": "Vezi planul"
+  },
   "totals": {
     "subtotal": "Subtotal",
     "discounts": "Reduceri",
@@ -53,6 +58,15 @@
   "textCopied": "Text copiat!",
   "copyOfferText": "Copiază textul ofertei",
   "whatsapp": "WhatsApp",
+  "markAsSent": "Marchează ca trimisă",
+  "markAsSentChoose": "Pe ce canal ai trimis oferta?",
+  "markAsSentCancel": "Renunță",
+  "markChannel": {
+    "whatsapp": "WhatsApp",
+    "phone": "Telefon",
+    "other": "Alt canal"
+  },
+  "offerMarkedSent": "Ofertă marcată ca trimisă ({{channel}}).",
   "clearCart": "Golește coșul",
   "previewEmailTitle": "Preview email ofertă",
   "previewEmailFrame": "Preview email",

@@ -18,6 +18,7 @@ const T = {
   muted: "#9A958C", // text terțiar (derivat)
   border: "#E7E3DD", // Borders
   white: "#FFFFFF", // Cards
+  card: "#FFFDF9", // Card warm (panou mobil + inputuri)
   green: "#2E8A58", // success (păstrat)
   greenLight: "#E8F8F0",
   red: "#C94F6A",
@@ -114,6 +115,43 @@ function IconShieldCheck(p: IconProps) {
   );
 }
 
+function IconMail(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 6l9 -6" />
+    </StrokeIcon>
+  );
+}
+
+function IconUser(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21v-1a6 6 0 0 1 6 -6h4a6 6 0 0 1 6 6v1" />
+    </StrokeIcon>
+  );
+}
+
+function IconEye(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" />
+    </StrokeIcon>
+  );
+}
+
+function IconEyeOff(p: IconProps) {
+  return (
+    <StrokeIcon {...p}>
+      <path d="M10.585 10.587a2 2 0 0 0 2.829 2.828" />
+      <path d="M16.681 16.673a8.7 8.7 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9 9 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87" />
+      <path d="M3 3l18 18" />
+    </StrokeIcon>
+  );
+}
+
 export default function AuthPage() {
   const { t, i18n } = useTranslation();
   const uiLang: Lang = i18n.language?.startsWith("en") ? "en" : "ro";
@@ -142,6 +180,8 @@ export default function AuthPage() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   // Dropdown selector de limbă (stil 🌐 globe + nume limbă + chevron).
   const [langOpen, setLangOpen] = useState(false);
+  // Toggle vizibilitate parolă (eye icon) — doar pe inputurile mobile.
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn, signUp, user, recovery, resetPassword, updatePassword } =
     useAuth();
   const navigate = useNavigate();
@@ -259,6 +299,133 @@ export default function AuthPage() {
       : mode === "register"
         ? t("auth.submitRegister")
         : t("auth.submitForgot");
+
+  // Titlu centrat în modurile fără tab-uri (forgot / recovery).
+  const centeredHead = mode === "forgot" || recovery;
+
+  // ── Input reutilizabil ──────────────────────────────────────
+  // Desktop: identic cu varianta veche (fără iconiță, stil compact).
+  // Mobil: iconiță stânga + (opțional) eye-toggle dreapta, input înalt 56px.
+  const renderField = (f: {
+    label: string;
+    type: string;
+    value: string;
+    onChange: (v: string) => void;
+    placeholder: string;
+    marginBottom: string;
+    leftIcon?: React.ReactNode;
+    isPassword?: boolean;
+  }) => {
+    const base = isMobile ? mInputStyle : inputStyle;
+    const focus = isMobile ? mInputFocusStyle : inputFocusStyle;
+    const extra: React.CSSProperties = {};
+    if (isMobile && f.leftIcon) extra.paddingLeft = "46px";
+    if (isMobile && f.isPassword) extra.paddingRight = "46px";
+    const rest = { ...base, ...extra };
+    const focused = { ...focus, ...extra };
+    const inputType = f.isPassword && showPassword ? "text" : f.type;
+    return (
+      <div style={{ marginBottom: f.marginBottom }}>
+        <label style={labelStyle}>{f.label}</label>
+        <div style={{ position: "relative" }}>
+          {isMobile && f.leftIcon && (
+            <span
+              style={{
+                position: "absolute",
+                left: "16px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                pointerEvents: "none",
+              }}
+            >
+              {f.leftIcon}
+            </span>
+          )}
+          <input
+            type={inputType}
+            value={f.value}
+            onChange={(e) => f.onChange(e.target.value)}
+            placeholder={f.placeholder}
+            required
+            style={rest}
+            onFocus={(e) => Object.assign(e.target.style, focused)}
+            onBlur={(e) => Object.assign(e.target.style, rest)}
+          />
+          {isMobile && f.isPassword && (
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "6px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {showPassword ? (
+                <IconEyeOff size={20} color={T.muted} />
+              ) : (
+                <IconEye size={20} color={T.muted} />
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Linkuri legale (Termeni · Confidențialitate · Cookie-uri) ──
+  const legalFooter = (
+    <div
+      style={{
+        textAlign: "center",
+        marginTop: "16px",
+        fontSize: "12px",
+        color: T.sage,
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        justifyContent: "center",
+      }}
+    >
+      {[
+        { to: "/legal/terms", label: t("auth.legalTerms") },
+        { to: "/legal/privacy", label: t("auth.legalPrivacy") },
+        { to: "/legal/cookies", label: t("auth.legalCookies") },
+      ].map((lnk, i) => (
+        <span
+          key={lnk.to}
+          style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}
+        >
+          {i > 0 && (
+            <span style={{ color: T.sageMid, fontSize: "10px" }}>·</span>
+          )}
+          <Link
+            to={lnk.to}
+            onMouseEnter={() => setHoveredLink(lnk.to)}
+            onMouseLeave={() => setHoveredLink(null)}
+            style={{
+              color: hoveredLink === lnk.to ? T.sageDark : T.sage,
+              fontWeight: 500,
+              textDecoration: "none",
+              letterSpacing: "0.01em",
+              transition: "color 0.18s",
+            }}
+          >
+            {lnk.label}
+          </Link>
+        </span>
+      ))}
+    </div>
+  );
 
   return (
     <div
@@ -754,88 +921,212 @@ export default function AuthPage() {
         </div>
       )}
 
-      {/* ── COLOANĂ FORMULAR (dreapta) ── */}
+      {/* ── ZONA FORMULAR (desktop: coloană dreapta · mobil: hero + panou) ── */}
       <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: isMobile ? "48px 20px 56px" : "40px",
-        }}
+        style={
+          isMobile
+            ? {
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                width: "100%",
+              }
+            : {
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "40px",
+              }
+        }
       >
-        <div style={{ width: "100%", maxWidth: "420px" }}>
-        {/* Brand compact — doar pe mobil (panoul din stânga e ascuns) */}
+        {/* ── HERO VERDE (doar mobil) — logo, titlu, beneficii ── */}
         {isMobile && (
-          <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <div
             style={{
-              width: "48px",
-              height: "48px",
-              borderRadius: "13px",
-              background: T.sage,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 14px",
+              position: "relative",
+              overflow: "hidden",
+              background:
+                "radial-gradient(circle at top left, #5D7D5E 0%, #4F6F52 45%, #35533A 100%)",
+              color: "#F8F8F5",
+              padding: "calc(env(safe-area-inset-top, 0px) + 56px) 24px 44px",
             }}
           >
-            <LeafMark size={26} color={T.white} />
-          </div>
-          <div
-            style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "32px",
-              fontWeight: 700,
-              color: T.espresso,
-              letterSpacing: "-0.5px",
-              marginBottom: "8px",
-            }}
-          >
-            AromaTool
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              marginBottom: "6px",
-            }}
-          >
-            <div style={{ height: "1px", width: "48px", background: T.sageMid }} />
+            {/* Frunză decorativă — filigran subtil din marca brandului */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                bottom: "-10px",
+                right: "-30px",
+                opacity: 0.06,
+                transform: "rotate(18deg)",
+                pointerEvents: "none",
+                zIndex: 0,
+              }}
+            >
+              <LeafMark size={180} color={T.white} strokeWidth={0.8} />
+            </div>
+
             <div
               style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                background: T.sage,
+                position: "relative",
+                zIndex: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginBottom: "26px",
               }}
-            />
-            <div style={{ height: "1px", width: "48px", background: T.sageMid }} />
-          </div>
-          <div
-            style={{
-              fontSize: "11px",
-              color: T.muted,
-              fontStyle: "italic",
-              letterSpacing: "2px",
-            }}
-          >
-            {t("auth.tagline")}
-          </div>
+            >
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  background: "rgba(255,255,255,0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <LeafMark size={24} color={T.white} />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: "24px",
+                    fontWeight: 700,
+                    lineHeight: 1.05,
+                    letterSpacing: "-0.5px",
+                  }}
+                >
+                  AromaTool
+                </div>
+                <div
+                  style={{
+                    fontSize: "10px",
+                    color: "rgba(255,255,255,0.75)",
+                    fontStyle: "italic",
+                    letterSpacing: "2px",
+                    marginTop: "2px",
+                  }}
+                >
+                  {t("auth.tagline")}
+                </div>
+              </div>
+            </div>
+
+            <h1
+              style={{
+                position: "relative",
+                zIndex: 1,
+                fontFamily: "'Playfair Display', serif",
+                fontSize: "32px",
+                lineHeight: 1.2,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+                margin: "0 0 12px",
+                maxWidth: "360px",
+              }}
+            >
+              {t("auth.heroTitle")}
+            </h1>
+            <p
+              style={{
+                position: "relative",
+                zIndex: 1,
+                fontSize: "15px",
+                lineHeight: 1.6,
+                color: "rgba(255,255,255,0.85)",
+                margin: "0 0 24px",
+                maxWidth: "360px",
+              }}
+            >
+              {t("auth.heroSubtitle")}
+            </p>
+
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
+              {[
+                t("auth.heroFeat1"),
+                t("auth.heroFeat2"),
+                t("auth.heroFeat3"),
+              ].map((f, i) => (
+                <div
+                  key={i}
+                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
+                >
+                  <div
+                    style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: "rgba(255,255,255,0.15)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "13px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✓
+                  </div>
+                  <span
+                    style={{ fontSize: "14px", color: "rgba(255,255,255,0.92)" }}
+                  >
+                    {f}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Card */}
+        {/* Wrapper conținut — desktop: lățime fixă centrată · mobil: full-width */}
         <div
-          style={{
-            background: T.white,
-            borderRadius: "20px",
-            padding: "36px 32px",
-            boxShadow: "0 12px 48px rgba(63,91,66,0.10)",
-            border: `1px solid ${T.border}`,
-          }}
+          style={
+            isMobile
+              ? {
+                  width: "100%",
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                }
+              : { width: "100%", maxWidth: "420px" }
+          }
+        >
+        {/* Card (desktop) / Panou alb rotunjit care urcă peste hero (mobil) */}
+        <div
+          style={
+            isMobile
+              ? {
+                  flex: 1,
+                  background: T.card,
+                  borderRadius: "28px 28px 0 0",
+                  marginTop: "-22px",
+                  boxShadow: "0 -20px 60px rgba(0,0,0,0.10)",
+                  padding:
+                    "28px 22px calc(env(safe-area-inset-bottom, 0px) + 28px)",
+                  position: "relative",
+                  zIndex: 1,
+                }
+              : {
+                  background: T.white,
+                  borderRadius: "20px",
+                  padding: "36px 32px",
+                  boxShadow: "0 12px 48px rgba(63,91,66,0.10)",
+                  border: `1px solid ${T.border}`,
+                }
+          }
         >
           {/* După register: panou „verifică-ți emailul" în loc de formular. */}
           {registeredEmail && !recovery ? (
@@ -912,11 +1203,11 @@ export default function AuthPage() {
                   }}
                   style={{
                     flex: 1,
-                    padding: "9px",
+                    padding: isMobile ? "13px" : "9px",
                     border: "none",
                     borderRadius: "9px",
                     cursor: "pointer",
-                    fontSize: "14px",
+                    fontSize: isMobile ? "15px" : "14px",
                     fontWeight: 500,
                     fontFamily: "'Inter', sans-serif",
                     transition: "all 0.2s",
@@ -933,17 +1224,50 @@ export default function AuthPage() {
           )}
 
           {/* Titlu */}
-          <div
-            style={{
-              fontSize: "18px",
-              fontWeight: 600,
-              color: T.espresso,
-              marginBottom: mode === "forgot" || recovery ? "6px" : "20px",
-              textAlign: mode === "forgot" || recovery ? "center" : "left",
-            }}
-          >
-            {heading}
-          </div>
+          {isMobile ? (
+            <>
+              <div
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: "26px",
+                  fontWeight: 700,
+                  color: T.espresso,
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.2,
+                  marginBottom: "6px",
+                  textAlign: centeredHead ? "center" : "left",
+                }}
+              >
+                {heading}
+              </div>
+              {!recovery && mode !== "forgot" && (
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: T.warm,
+                    lineHeight: 1.5,
+                    marginBottom: "22px",
+                  }}
+                >
+                  {mode === "login"
+                    ? t("auth.subtitleLogin")
+                    : t("auth.subtitleRegister")}
+                </div>
+              )}
+            </>
+          ) : (
+            <div
+              style={{
+                fontSize: "18px",
+                fontWeight: 600,
+                color: T.espresso,
+                marginBottom: centeredHead ? "6px" : "20px",
+                textAlign: centeredHead ? "center" : "left",
+              }}
+            >
+              {heading}
+            </div>
+          )}
           {mode === "forgot" && !recovery && (
             <div
               style={{
@@ -973,87 +1297,60 @@ export default function AuthPage() {
 
           <form onSubmit={handleSubmit}>
             {/* Nume — doar la register */}
-            {mode === "register" && !recovery && (
-              <div style={{ marginBottom: "16px" }}>
-                <label style={labelStyle}>{t("auth.labelFullName")}</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder={t("auth.placeholderFullName")}
-                  required
-                  style={inputStyle}
-                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                  onBlur={(e) => Object.assign(e.target.style, inputStyle)}
-                />
-              </div>
-            )}
+            {mode === "register" &&
+              !recovery &&
+              renderField({
+                label: t("auth.labelFullName"),
+                type: "text",
+                value: fullName,
+                onChange: setFullName,
+                placeholder: t("auth.placeholderFullName"),
+                marginBottom: "16px",
+                leftIcon: <IconUser size={20} color={T.muted} />,
+              })}
 
             {/* Email — la login/register/forgot (nu la recovery) */}
-            {!recovery && (
-              <div
-                style={{
-                  marginBottom: mode === "forgot" ? "24px" : "16px",
-                }}
-              >
-                <label style={labelStyle}>{t("auth.labelEmail")}</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t("auth.placeholderEmail")}
-                  required
-                  style={inputStyle}
-                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                  onBlur={(e) => Object.assign(e.target.style, inputStyle)}
-                />
-              </div>
-            )}
+            {!recovery &&
+              renderField({
+                label: t("auth.labelEmail"),
+                type: "email",
+                value: email,
+                onChange: setEmail,
+                placeholder: t("auth.placeholderEmail"),
+                marginBottom: mode === "forgot" ? "24px" : "16px",
+                leftIcon: <IconMail size={20} color={T.muted} />,
+              })}
 
             {/* Parolă — la login/register/recovery (nu la forgot) */}
-            {mode !== "forgot" && (
-              <div
-                style={{
-                  marginBottom:
-                    mode === "register" || recovery ? "16px" : "10px",
-                }}
-              >
-                <label style={labelStyle}>
-                  {recovery ? t("auth.labelPasswordNew") : t("auth.labelPassword")}
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={
-                    mode === "register" || recovery
-                      ? t("auth.placeholderPasswordMin")
-                      : t("auth.placeholderPasswordDots")
-                  }
-                  required
-                  style={inputStyle}
-                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                  onBlur={(e) => Object.assign(e.target.style, inputStyle)}
-                />
-              </div>
-            )}
+            {mode !== "forgot" &&
+              renderField({
+                label: recovery
+                  ? t("auth.labelPasswordNew")
+                  : t("auth.labelPassword"),
+                type: "password",
+                value: password,
+                onChange: setPassword,
+                placeholder:
+                  mode === "register" || recovery
+                    ? t("auth.placeholderPasswordMin")
+                    : t("auth.placeholderPasswordDots"),
+                marginBottom: mode === "register" || recovery ? "16px" : "10px",
+                leftIcon: <IconLock size={20} color={T.muted} />,
+                isPassword: true,
+              })}
 
             {/* Confirmă parola — la register/recovery */}
-            {(mode === "register" || recovery) && (
-              <div style={{ marginBottom: "24px" }}>
-                <label style={labelStyle}>{t("auth.labelConfirmPassword")}</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder={t("auth.placeholderConfirmPassword")}
-                  required
-                  style={inputStyle}
-                  onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                  onBlur={(e) => Object.assign(e.target.style, inputStyle)}
-                />
-              </div>
-            )}
+            {(mode === "register" || recovery) &&
+              renderField({
+                label: t("auth.labelConfirmPassword"),
+                type: "password",
+                value: confirmPassword,
+                onChange: setConfirmPassword,
+                placeholder: t("auth.placeholderConfirmPassword"),
+                marginBottom: "24px",
+                leftIcon: <IconLock size={20} color={T.muted} />,
+                isPassword: true,
+              })}
 
             {/* Acceptare Termeni + Confidențialitate — doar la register */}
             {mode === "register" && !recovery && (
@@ -1171,14 +1468,15 @@ export default function AuthPage() {
               onMouseLeave={() => setBtnHover(false)}
               style={{
                 width: "100%",
-                padding: "13px",
+                minHeight: isMobile ? "56px" : undefined,
+                padding: isMobile ? "0 16px" : "13px",
                 background: loading
                   ? T.sageMid
                   : "linear-gradient(135deg, #5D7D5E, #4F6F52)",
                 border: "none",
-                borderRadius: "12px",
+                borderRadius: isMobile ? "14px" : "12px",
                 color: T.white,
-                fontSize: "15px",
+                fontSize: isMobile ? "16px" : "15px",
                 fontWeight: 600,
                 fontFamily: "'Inter', sans-serif",
                 cursor: loading ? "not-allowed" : "pointer",
@@ -1245,67 +1543,95 @@ export default function AuthPage() {
           )}
           </>
           )}
-        </div>
 
-        {/* Trial — doar pe mobil; pe desktop e deja în badge-ul din panoul stâng. */}
-        {isMobile &&
-          !recovery &&
-          mode !== "forgot" &&
-          registeredEmail === "" && (
+          {/* Trial card — doar mobil, sub formular (nu pe confirmare) */}
+          {isMobile &&
+            !recovery &&
+            mode !== "forgot" &&
+            registeredEmail === "" && (
+              <>
+                <div
+                  style={{
+                    height: "1px",
+                    background: T.border,
+                    margin: "24px 0 0",
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "13px",
+                    marginTop: "20px",
+                    padding: "14px 16px",
+                    borderRadius: "14px",
+                    background: T.sageLight,
+                    border: `1px solid ${T.sageMid}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "11px",
+                      background: T.white,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <IconCalendar size={20} color={T.sage} />
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        color: T.sageDark,
+                      }}
+                    >
+                      {t("auth.trialBadgeTitle")}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: T.warm,
+                        marginTop: "2px",
+                      }}
+                    >
+                      {t("auth.trialBadgeSub")}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+          {/* Mesaj de încredere — doar mobil, centrat sub panou */}
+          {isMobile && (
             <div
               style={{
-                textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
                 marginTop: "20px",
-                fontSize: "11px",
                 color: T.muted,
               }}
             >
-              {t("auth.trialNote")}
+              <IconLock size={15} color={T.muted} />
+              <span style={{ fontSize: "12.5px", fontWeight: 500 }}>
+                {t("auth.trustCard1")}
+              </span>
             </div>
           )}
 
-        {/* Linkuri legale */}
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: "16px",
-            fontSize: "12px",
-            color: T.sage,
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            justifyContent: "center",
-          }}
-        >
-          {[
-            { to: "/legal/terms", label: t("auth.legalTerms") },
-            { to: "/legal/privacy", label: t("auth.legalPrivacy") },
-            { to: "/legal/cookies", label: t("auth.legalCookies") },
-          ].map((lnk, i) => (
-            <span
-              key={lnk.to}
-              style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}
-            >
-              {i > 0 && (
-                <span style={{ color: T.sageMid, fontSize: "10px" }}>·</span>
-              )}
-              <Link
-                to={lnk.to}
-                onMouseEnter={() => setHoveredLink(lnk.to)}
-                onMouseLeave={() => setHoveredLink(null)}
-                style={{
-                  color: hoveredLink === lnk.to ? T.sageDark : T.sage,
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  letterSpacing: "0.01em",
-                  transition: "color 0.18s",
-                }}
-              >
-                {lnk.label}
-              </Link>
-            </span>
-          ))}
+          {/* Linkuri legale — în interiorul panoului pe mobil */}
+          {isMobile && legalFooter}
         </div>
+
+        {/* Linkuri legale — sub card pe desktop */}
+        {!isMobile && legalFooter}
         </div>
       </div>
     </div>
@@ -1337,5 +1663,27 @@ const inputStyle: React.CSSProperties = {
 
 const inputFocusStyle: React.CSSProperties = {
   ...inputStyle,
+  borderColor: T.sage,
+};
+
+// ── Inputuri mobile: ≥56px înălțime + 16px font (evită zoom-ul iOS),
+// fundal cald, colțuri 14px, loc pentru iconiță stânga + eye dreapta. ──
+const mInputStyle: React.CSSProperties = {
+  width: "100%",
+  minHeight: "56px",
+  padding: "0 16px",
+  background: T.card,
+  border: `1.5px solid ${T.border}`,
+  borderRadius: "14px",
+  fontSize: "16px",
+  color: T.espresso,
+  fontFamily: "'Inter', sans-serif",
+  outline: "none",
+  boxSizing: "border-box",
+  transition: "border-color 0.2s",
+};
+
+const mInputFocusStyle: React.CSSProperties = {
+  ...mInputStyle,
   borderColor: T.sage,
 };

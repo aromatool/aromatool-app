@@ -16,3 +16,8 @@ export const INACTIVE_DAYS = 60
 // Zile de la ultimul follow-up după care acesta e considerat „învechit"
 // (trebuie reluat). Era deja centralizat în recommendedAction; îl mutăm aici.
 export const FOLLOWUP_STALE_DAYS = 7
+
+// Zile de la ultima activitate a unui client după care îi sugerăm o
+// reaprovizionare (nudge lunar, aliniat cu comanda Loyalty Rewards). Sub
+// INACTIVE_DAYS — un client „tăcut" devine reactivare/win-back abia după 60 zile.
+export const REORDER_DAYS = 30

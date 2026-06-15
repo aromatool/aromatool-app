@@ -271,7 +271,12 @@ export default function HelpPage() {
   const totalMatches = results.reduce((s, c) => s + c.items.length, 0);
 
   return (
-    <div>
+    <div className="help-page">
+      <style>{`
+        @media (max-width: 768px) {
+          .help-page input, .help-page textarea, .help-page select { font-size: 16px !important; }
+        }
+      `}</style>
       {/* Header */}
       <div style={{ marginBottom: "20px" }}>
         <div style={{ fontSize: "22px", fontWeight: 500, color: T.espresso }}>

@@ -19,12 +19,17 @@
   "qtyPlaceholder": "Qty",
   "discPlaceholder": "Disc%",
   "addToCart": "Add to cart",
-  "invalidPrice": "Enter a valid price (number ≥ 0).",
+  "invalidPrice": "Enter a valid price (number greater than 0).",
   "emailLanguage": "Email language",
   "langRo": "Romanian",
   "langEn": "English",
   "close": "Close",
   "perPiece": "/pc",
+  "locked": {
+    "title": "Inactive account",
+    "body": "The offer builder is available only with an active subscription. Your free trial has ended — subscribe to keep creating offers.",
+    "cta": "See the plan"
+  },
   "totals": {
     "subtotal": "Subtotal",
     "discounts": "Discounts",
@@ -53,6 +58,15 @@
   "textCopied": "Text copied!",
   "copyOfferText": "Copy the offer text",
   "whatsapp": "WhatsApp",
+  "markAsSent": "Mark as sent",
+  "markAsSentChoose": "Which channel did you use?",
+  "markAsSentCancel": "Cancel",
+  "markChannel": {
+    "whatsapp": "WhatsApp",
+    "phone": "Phone",
+    "other": "Other"
+  },
+  "offerMarkedSent": "Offer marked as sent ({{channel}}).",
   "clearCart": "Clear cart",
   "previewEmailTitle": "Offer email preview",
   "previewEmailFrame": "Email preview",

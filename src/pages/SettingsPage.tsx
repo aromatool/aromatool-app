@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 import { COUNTRIES, flagOf } from "../lib/countries";
 import PhoneInput from "../components/PhoneInput";
 import { useSubscription, PLAN } from "../lib/subscription";
+import RedeemCodeForm from "../components/RedeemCodeForm";
 import { useUpgrade } from "../hooks/useUpgrade";
 
 // Declanșează descărcarea unui fișier în browser.
@@ -67,6 +68,20 @@ export default function SettingsPage() {
   const upgradeResult = searchParams.get("upgrade"); // "success" | "cancel"
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState("");
+
+  // Detectare mobil — relaxăm DOAR grid-urile pe 2 coloane pe ecrane mici.
+  // Desktopul rămâne identic.
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   // După întoarcerea din checkout reîmprospătăm starea abonamentului.
   useEffect(() => {
@@ -217,10 +232,26 @@ export default function SettingsPage() {
 
   async function exportAccountJson() {
     setExporting(true);
-    const [profileRes, contactsRes, offersRes] = await Promise.all([
+    // Export GDPR complet: toate datele personale legate de cont, nu doar
+    // profil/contacte/oferte. Includem și resursele, șabloanele PROPRII (nu
+    // cele de sistem cu user_id NULL), jurnalul de follow-up și logul de
+    // emailuri trimise — adică tot ce ține de activitatea utilizatorului.
+    const [
+      profileRes,
+      contactsRes,
+      offersRes,
+      resourcesRes,
+      templatesRes,
+      followupLogRes,
+      emailLogRes,
+    ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", user!.id).single(),
       supabase.from("contacts").select("*").eq("user_id", user!.id),
       supabase.from("offers").select("*").eq("user_id", user!.id),
+      supabase.from("resources").select("*").eq("user_id", user!.id),
+      supabase.from("followup_templates").select("*").eq("user_id", user!.id),
+      supabase.from("followup_log").select("*").eq("user_id", user!.id),
+      supabase.from("email_send_log").select("*").eq("user_id", user!.id),
     ]);
     const bundle = {
       exported_at: new Date().toISOString(),
@@ -228,6 +259,10 @@ export default function SettingsPage() {
       profile: profileRes.data ?? null,
       contacts: contactsRes.data ?? [],
       offers: offersRes.data ?? [],
+      resources: resourcesRes.data ?? [],
+      followup_templates: templatesRes.data ?? [],
+      followup_log: followupLogRes.data ?? [],
+      email_send_log: emailLogRes.data ?? [],
     };
     downloadFile(
       `aromatool-date-cont-${new Date().toISOString().slice(0, 10)}.json`,
@@ -262,6 +297,19 @@ export default function SettingsPage() {
     if (!user) return;
     loadProfile();
   }, [user]);
+
+  // Dacă s-a navigat aici cu #subscription (din banner-ul de trial al altei
+  // pagini), derulăm la cardul Abonament după ce conținutul s-a montat.
+  useEffect(() => {
+    if (loading) return;
+    if (window.location.hash !== "#subscription") return;
+    const id = requestAnimationFrame(() => {
+      document
+        .getElementById("subscription-card")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [loading]);
 
   async function loadProfile() {
     setLoading(true);
@@ -298,6 +346,16 @@ export default function SettingsPage() {
     setSaving(true);
     setError("");
     setSuccess(false);
+
+    // Email-ul de contact e opțional, dar dacă e completat devine reply-to în
+    // emailurile către clienți → un format invalid ar rupe răspunsurile. Validăm
+    // doar când e completat (gol = folosim emailul de login ca fallback).
+    const contactEmail = (profile.contact_email || "").trim();
+    if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+      setError(t("settings.invalidEmail"));
+      setSaving(false);
+      return;
+    }
 
     const { error: updateError } = await supabase
       .from("profiles")
@@ -358,8 +416,14 @@ export default function SettingsPage() {
     );
 
   return (
-    <div style={{ maxWidth: "560px", margin: "0 auto" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div className="set-page" style={{ maxWidth: "560px", margin: "0 auto" }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) {
+          /* font 16px pe mobil = previne auto-zoom-ul iOS la focus pe câmp */
+          .set-page input, .set-page textarea, .set-page select { font-size: 16px !important; }
+        }
+      `}</style>
 
       <div
         style={{
@@ -411,7 +475,7 @@ export default function SettingsPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
               gap: "12px",
             }}
           >
@@ -477,7 +541,7 @@ export default function SettingsPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
               gap: "12px",
             }}
           >
@@ -847,6 +911,7 @@ export default function SettingsPage() {
 
       {/* Abonament / Plan */}
       <div
+        id="subscription-card"
         style={{
           background: C.card,
           border: `1px solid ${C.border2}`,
@@ -1012,17 +1077,35 @@ export default function SettingsPage() {
             >
               {upgradeLoading ? t("settings.subscription.opening") : t("settings.subscription.subscribe")}
             </button>
+          </>
+        )}
+
+        {/* Introdu cod — zile gratuite (nu pentru admin / acces gratuit) */}
+        {!sub.isAdmin && !sub.freeAccess && (
+          <div
+            style={{
+              marginTop: "18px",
+              paddingTop: "18px",
+              borderTop: `1px solid ${C.border2}`,
+            }}
+          >
             <div
               style={{
-                fontSize: "12px",
-                color: C.muted,
-                textAlign: "center",
-                marginTop: "10px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: C.dark,
+                marginBottom: "4px",
               }}
             >
-              {t("settings.subscription.launchCode")}
+              {t("promo.redeem.title")}
             </div>
-          </>
+            <div
+              style={{ fontSize: "12px", color: C.muted, marginBottom: "10px" }}
+            >
+              {t("promo.redeem.hint")}
+            </div>
+            <RedeemCodeForm />
+          </div>
         )}
       </div>
 

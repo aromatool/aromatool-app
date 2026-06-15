@@ -21,6 +21,7 @@ import type { Contact } from "./DashboardPage";
 import type { ContactStatus } from "../lib/relationshipScore";
 import PhoneInput from "../components/PhoneInput";
 import { openWhatsApp } from "../lib/contactActions";
+import { useSendEmail } from "../hooks/useSendEmail";
 
 const T = {
   sage: "#5C7A5C",
@@ -106,6 +107,10 @@ function actionVisual(c: Contact): { icon: string; color: string; bg: string } {
       return { icon: "ti-send", color: T.amber, bg: T.amberLight };
     case "needs_followup":
       return { icon: "ti-mail", color: T.amber, bg: T.amberLight };
+    case "first_order":
+      return { icon: "ti-gift", color: T.amber, bg: T.amberLight };
+    case "reorder":
+      return { icon: "ti-shopping-cart", color: T.amber, bg: T.amberLight };
     case "reactivate":
       return { icon: "ti-refresh", color: T.red, bg: T.redLight };
     case "discuss_business":
@@ -132,6 +137,7 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { requireAccess } = useSubscription();
+  const { markOfferSent } = useSendEmail();
   const navigate = useNavigate();
 
   const ACTION_OPTIONS: { key: "all" | CrmCategory; label: string }[] = [
@@ -155,8 +161,20 @@ export default function ContactsPage() {
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
+  // Mobil: layout cu carduri + quick sheet bottom-sheet (desktopul rămâne tabel)
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px)").matches,
+  );
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
   const [followupContact, setFollowupContact] = useState<Contact | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  // „Marchează oferta ca trimisă" — picker canal + feedback
+  const [markSentContact, setMarkSentContact] = useState<Contact | null>(null);
+  const [markSentSaving, setMarkSentSaving] = useState(false);
+  const [markSentToast, setMarkSentToast] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addData, setAddData] = useState({
     name: "",
@@ -171,6 +189,14 @@ export default function ContactsPage() {
   useEffect(() => {
     if (user) loadContacts();
   }, [user]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   // Citește ?filter= și ?new= din URL (vine din Dashboard)
   useEffect(() => {
@@ -195,6 +221,17 @@ export default function ContactsPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Deep-link ?contact=<id> (vine din „Vezi profil complet" pe mobil) —
+  // deschide profilul complet odată ce contactele s-au încărcat.
+  useEffect(() => {
+    const id = searchParams.get("contact");
+    if (!id || contacts.length === 0) return;
+    const match = contacts.find((c) => c.id === id);
+    if (match) setSelectedContact(match);
+    searchParams.delete("contact");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams, contacts]);
 
   async function loadContacts() {
     setLoading(true);
@@ -393,6 +430,39 @@ export default function ContactsPage() {
     }
   };
 
+  // Marchează oferta ca trimisă (din CRM): loghează o ofertă minimală pe
+  // canalul ales → contactul iese din „Trimite prima ofertă". Actualizare
+  // optimistă, apoi toast de confirmare.
+  const handleMarkSent = async (channel: "whatsapp" | "phone" | "other") => {
+    const c = markSentContact;
+    if (!c) return;
+    setMarkSentSaving(true);
+    const ok = await markOfferSent(c.id, channel);
+    setMarkSentSaving(false);
+    if (!ok) {
+      setMarkSentContact(null);
+      return;
+    }
+    const now = new Date().toISOString();
+    const patch = (x: Contact): Contact => ({
+      ...x,
+      offers_count: (x.offers_count ?? 0) + 1,
+      last_activity_at: now,
+      first_offer_at: x.first_offer_at ?? now,
+    });
+    setContacts((prev) => prev.map((x) => (x.id === c.id ? patch(x) : x)));
+    setSelectedContact((prev) =>
+      prev && prev.id === c.id ? patch(prev) : prev,
+    );
+    setMarkSentToast(
+      t("contacts.markSent.done", {
+        channel: t(`contacts.markSent.${channel}`),
+      }),
+    );
+    setMarkSentContact(null);
+    setTimeout(() => setMarkSentToast(null), 4000);
+  };
+
   // Filtrare + search + sortare
   const visible = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -485,7 +555,7 @@ export default function ContactsPage() {
 
   const openContact = (c: Contact) => setSelectedContact(c);
 
-  if (loading) {
+  if (loading && !isMobile) {
     return (
       <div
         style={{ display: "flex", justifyContent: "center", padding: "60px" }}
@@ -515,6 +585,592 @@ export default function ContactsPage() {
         setSortMenuOpen(false);
       }}
     >
+      {/* ───────────────────────── MOBILE ───────────────────────── */}
+      {isMobile && (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {/* Header mobil */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 14,
+            }}
+          >
+            <div>
+              <div
+                style={{ fontSize: 24, fontWeight: 600, color: T.espresso }}
+              >
+                {t("contacts.list.title")}
+              </div>
+              <div style={{ fontSize: 13, color: T.muted, marginTop: 2 }}>
+                {t("contacts.list.totalCount", { count: contacts.length })}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMobileFiltersOpen((v) => !v);
+                }}
+                aria-label={t("contacts.list.filterTitle")}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background:
+                    actionFilter !== "all" || sortBy !== "activity"
+                      ? T.sageLight
+                      : T.white,
+                  border: `0.5px solid ${
+                    actionFilter !== "all" || sortBy !== "activity"
+                      ? T.sageMid
+                      : T.border
+                  }`,
+                  color:
+                    actionFilter !== "all" || sortBy !== "activity"
+                      ? T.sage
+                      : T.warm,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="ti ti-adjustments-horizontal" style={{ fontSize: 20 }} />
+              </button>
+              <button
+                onClick={() => setShowAddForm(true)}
+                aria-label={t("contacts.list.newContact")}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: T.sage,
+                  border: "none",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="ti ti-plus" style={{ fontSize: 22 }} />
+              </button>
+            </div>
+          </div>
+
+          {/* Search mobil */}
+          <div style={{ position: "relative", marginBottom: 14 }}>
+            <i
+              className="ti ti-search"
+              style={{
+                position: "absolute",
+                left: 16,
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: 18,
+                color: T.muted,
+              }}
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("contacts.list.searchPlaceholder")}
+              style={{
+                width: "100%",
+                height: 52,
+                padding: "0 16px 0 46px",
+                background: T.white,
+                border: `0.5px solid ${T.border}`,
+                borderRadius: 16,
+                fontSize: 15,
+                color: T.espresso,
+                fontFamily: "inherit",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* Panou filtre (acțiune + sortare) */}
+          {mobileFiltersOpen && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: T.white,
+                border: `0.5px solid ${T.border}`,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 14,
+                boxShadow: "0 8px 24px rgba(61,53,48,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: T.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: ".05em",
+                  marginBottom: 8,
+                }}
+              >
+                {t("contacts.list.filterAction")}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 16,
+                }}
+              >
+                {ACTION_OPTIONS.map((o) => (
+                  <button
+                    key={o.key}
+                    onClick={() => {
+                      setActionFilter(o.key);
+                      setPrioritizeAttention(false);
+                    }}
+                    style={chipStyle(actionFilter === o.key, T.sage)}
+                  >
+                    {o.label}{" "}
+                    <span style={chipCount(actionFilter === o.key)}>
+                      {actionCounts[o.key] ?? 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: T.muted,
+                  textTransform: "uppercase",
+                  letterSpacing: ".05em",
+                  marginBottom: 8,
+                }}
+              >
+                {t("contacts.list.filterSort")}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(
+                  [
+                    ["activity", t("contacts.list.sort.activity")],
+                    ["name", t("contacts.list.sort.name")],
+                    ["value", t("contacts.list.sort.value")],
+                  ] as const
+                ).map(([k, l]) => (
+                  <button
+                    key={k}
+                    onClick={() => setSortBy(k)}
+                    style={chipStyle(sortBy === k, T.sage)}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Chips status — scroll orizontal */}
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              overflowX: "auto",
+              paddingBottom: 6,
+              marginBottom: 14,
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+            }}
+          >
+            {BUSINESS_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setBusinessFilter(f.key)}
+                style={{
+                  ...chipStyle(businessFilter === f.key, T.sage),
+                  flexShrink: 0,
+                  padding: "9px 14px",
+                  fontSize: 14,
+                }}
+              >
+                {t(`contacts.list.filters.${f.key}`)}{" "}
+                <span style={chipCount(businessFilter === f.key)}>
+                  {businessCounts[f.key] ?? 0}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Skeleton la încărcare */}
+          {loading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: T.white,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 18,
+                    padding: 16,
+                    boxShadow: "0 8px 24px rgba(61,53,48,0.06)",
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 12 }}
+                  >
+                    <div
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: "50%",
+                        background: T.linen,
+                      }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{
+                          width: "55%",
+                          height: 14,
+                          borderRadius: 7,
+                          background: T.linen,
+                          marginBottom: 8,
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: "35%",
+                          height: 11,
+                          borderRadius: 6,
+                          background: T.linen,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      height: 44,
+                      borderRadius: 12,
+                      background: T.cream,
+                      marginTop: 14,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : visible.length === 0 ? (
+            /* Empty state cald */
+            <div
+              style={{
+                textAlign: "center",
+                padding: "56px 24px",
+                border: `1.5px dashed ${T.border}`,
+                borderRadius: 20,
+                background: T.white,
+                marginTop: 8,
+              }}
+            >
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  background: T.sageLight,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 16px",
+                }}
+              >
+                <i
+                  className="ti ti-users"
+                  style={{ fontSize: 30, color: T.sage }}
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: T.espresso,
+                  marginBottom: 8,
+                }}
+              >
+                {search || businessFilter !== "all" || actionFilter !== "all"
+                  ? t("contacts.list.noResults")
+                  : t("contacts.list.noContacts")}
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  color: T.muted,
+                  lineHeight: 1.55,
+                  maxWidth: 280,
+                  margin: "0 auto 20px",
+                }}
+              >
+                {search || businessFilter !== "all" || actionFilter !== "all"
+                  ? t("contacts.list.emptyHint")
+                  : t("contacts.list.emptyDescription")}
+              </div>
+              {!(
+                search ||
+                businessFilter !== "all" ||
+                actionFilter !== "all"
+              ) && (
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "12px 22px",
+                    background: T.sage,
+                    border: "none",
+                    borderRadius: 12,
+                    color: "white",
+                    fontFamily: "inherit",
+                    fontSize: 15,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  <i className="ti ti-plus" style={{ fontSize: 17 }} />
+                  {t("contacts.list.addFirst")}
+                </button>
+              )}
+            </div>
+          ) : (
+            /* Carduri contacte */
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              {visible.map((c) => {
+                const action = getRecommendedAction(c, t);
+                const reason = shortReason(c, t);
+                const av = actionVisual(c);
+                const pill = statusPill(c.status, t);
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => openContact(c)}
+                    style={{
+                      background: T.white,
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 18,
+                      padding: 16,
+                      boxShadow: "0 8px 24px rgba(61,53,48,0.06)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {/* Rând identitate + status */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: "50%",
+                          flexShrink: 0,
+                          background: T.sageLight,
+                          color: T.sage,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 15,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {initials(c.name, c.email)}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 600,
+                            color: T.espresso,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {c.name || c.email}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: T.muted,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {c.phone || c.email}
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 11,
+                          background: pill.bg,
+                          color: pill.color,
+                          padding: "4px 11px",
+                          borderRadius: 999,
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {pill.label}
+                      </span>
+                    </div>
+
+                    {/* Acțiune recomandată — zonă color-coded */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        background: av.bg,
+                        borderRadius: 12,
+                        padding: "10px 12px",
+                        marginTop: 14,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 9,
+                          flexShrink: 0,
+                          background: T.white,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <i
+                          className={`ti ${av.icon}`}
+                          style={{ fontSize: 18, color: av.color }}
+                        />
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: av.color,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {action.title}
+                        </div>
+                        {reason && (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: T.warm,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {reason}
+                          </div>
+                        )}
+                      </div>
+                      {getActionType(c) === "needs_offer" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMarkSentContact(c);
+                          }}
+                          aria-label={t("contacts.markSent.rowTooltip")}
+                          style={{
+                            flexShrink: 0,
+                            width: 34,
+                            height: 34,
+                            borderRadius: 9,
+                            background: T.white,
+                            border: `0.5px solid ${T.sageMid}`,
+                            color: T.sage,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <i className="ti ti-check" style={{ fontSize: 16 }} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Footer: activitate · oferte · valoare */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginTop: 12,
+                        fontSize: 12,
+                        color: T.muted,
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <i className="ti ti-clock" style={{ fontSize: 13 }} />
+                        {relativeDays(c.last_activity_at, t)}
+                      </span>
+                      <span style={{ color: T.border }}>·</span>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <i className="ti ti-file-invoice" style={{ fontSize: 13 }} />
+                        {t("contacts.list.colOffers")}: {c.offers_count ?? 0}
+                      </span>
+                      <span
+                        style={{
+                          marginLeft: "auto",
+                          fontWeight: 600,
+                          color: T.sage,
+                          fontSize: 14,
+                        }}
+                      >
+                        €{(c.total_eur ?? 0).toFixed(0)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ───────────────────────── DESKTOP ───────────────────────── */}
+      {!isMobile && (
+        <>
       {/* Header */}
       <div
         style={{
@@ -908,6 +1564,31 @@ export default function ContactsPage() {
                       {reason}
                     </div>
                   </div>
+                  {getActionType(c) === "needs_offer" && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarkSentContact(c);
+                      }}
+                      title={t("contacts.markSent.rowTooltip")}
+                      style={{
+                        marginLeft: "auto",
+                        flexShrink: 0,
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        background: T.white,
+                        border: `0.5px solid ${T.sageMid}`,
+                        color: T.sage,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <i className="ti ti-check" style={{ fontSize: 15 }} />
+                    </button>
+                  )}
                 </div>
 
                 {/* Status */}
@@ -957,6 +1638,8 @@ export default function ContactsPage() {
         {(search || businessFilter !== "all" || actionFilter !== "all") &&
           ` ${t("contacts.list.ofTotal", { count: contacts.length })}`}
       </div>
+        </>
+      )}
 
       {/* Modal profil contact */}
       <ContactModal
@@ -979,6 +1662,10 @@ export default function ContactsPage() {
             }),
           );
           navigate("/app/calculator");
+        }}
+        onMarkSent={(c) => {
+          setSelectedContact(null);
+          setMarkSentContact(c);
         }}
         onStatusChange={handleStatusChange}
         onNotesChange={handleNotesChange}
@@ -1018,6 +1705,160 @@ export default function ContactsPage() {
             setFollowupContact(null);
           }}
         />
+      )}
+
+      {/* Picker canal „Marchează oferta ca trimisă" */}
+      {markSentContact && (
+        <div
+          onClick={() => !markSentSaving && setMarkSentContact(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(61,53,48,0.45)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: T.white,
+              borderRadius: 18,
+              padding: 24,
+              maxWidth: 380,
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(61,53,48,0.25)",
+            }}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: T.sageLight,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 14,
+              }}
+            >
+              <i
+                className="ti ti-circle-check"
+                style={{ fontSize: 22, color: T.sage }}
+              />
+            </div>
+            <div
+              style={{
+                fontSize: 17,
+                fontWeight: 600,
+                color: T.espresso,
+                marginBottom: 6,
+              }}
+            >
+              {t("contacts.markSent.title")}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: T.warm,
+                lineHeight: 1.55,
+                marginBottom: 18,
+              }}
+            >
+              {t("contacts.markSent.subtitle")}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(
+                [
+                  ["whatsapp", "ti-brand-whatsapp"],
+                  ["phone", "ti-phone"],
+                  ["other", "ti-dots"],
+                ] as const
+              ).map(([ch, icon]) => (
+                <button
+                  key={ch}
+                  onClick={() => handleMarkSent(ch)}
+                  disabled={markSentSaving}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 16px",
+                    background: T.cream,
+                    border: `0.5px solid ${T.border}`,
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: T.espresso,
+                    cursor: markSentSaving ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                    opacity: markSentSaving ? 0.6 : 1,
+                  }}
+                >
+                  <i
+                    className={`ti ${icon}`}
+                    style={{ fontSize: 18, color: T.sage }}
+                  />
+                  {t(`contacts.markSent.${ch}`)}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setMarkSentContact(null)}
+              disabled={markSentSaving}
+              style={{
+                width: "100%",
+                marginTop: 12,
+                padding: "10px",
+                background: "none",
+                border: "none",
+                color: T.muted,
+                fontSize: 13,
+                cursor: markSentSaving ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {markSentSaving
+                ? t("contacts.markSent.saving")
+                : t("contacts.markSent.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast confirmare marcare */}
+      {markSentToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 10001,
+            background: T.espresso,
+            color: T.white,
+            padding: "12px 20px",
+            borderRadius: 12,
+            fontSize: 13,
+            fontWeight: 500,
+            boxShadow: "0 8px 30px rgba(61,53,48,0.3)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            maxWidth: "90vw",
+          }}
+        >
+          <i
+            className="ti ti-circle-check"
+            style={{ fontSize: 17, color: T.sageMid }}
+          />
+          {markSentToast}
+        </div>
       )}
 
       {/* Add Contact Modal */}

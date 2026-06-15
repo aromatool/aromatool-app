@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "./auth";
 import { supabase } from "./supabase";
 import { useUpgrade } from "../hooks/useUpgrade";
+import RedeemCodeForm from "../components/RedeemCodeForm";
 
 // ============================================================
 // SUBSCRIPTION — sursa unică de adevăr pentru acces în aplicație.
@@ -334,16 +335,25 @@ function Paywall({ onClose }: { onClose: () => void }) {
         >
           {loading ? t("paywall.opening") : t("paywall.subscribe")}
         </button>
-        <p
+        <div
           style={{
-            fontSize: "12px",
-            color: C.muted,
-            textAlign: "center",
-            margin: "10px 0 0",
+            marginTop: "20px",
+            paddingTop: "18px",
+            borderTop: `1px solid ${C.border}`,
           }}
         >
-          {t("paywall.launchCodeHint")}
-        </p>
+          <p
+            style={{
+              fontSize: "13px",
+              fontWeight: 600,
+              color: C.espresso,
+              margin: "0 0 8px",
+            }}
+          >
+            {t("promo.redeem.title")}
+          </p>
+          <RedeemCodeForm onSuccess={onClose} />
+        </div>
       </div>
     </div>
   );

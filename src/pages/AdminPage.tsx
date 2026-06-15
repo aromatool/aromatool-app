@@ -125,7 +125,22 @@ interface ErrorEvent {
   at: string;
 }
 
-type Tab = "users" | "feedback" | "focus" | "catalog" | "errors";
+// Cod promoțional (extindere trial). Oglindește tabelul promo_codes.
+interface PromoCode {
+  id: string;
+  code: string;
+  kind: string;
+  trial_days: number;
+  max_redemptions: number | null;
+  redeemed_count: number;
+  expires_at: string | null;
+  active: boolean;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+type Tab = "users" | "feedback" | "focus" | "catalog" | "codes" | "errors";
 
 // Statusuri feedback (operare: triaj simplu). Eticheta vine din i18n
 // (admin.feedbackStatus.<key>); aici păstrăm doar culorile.
@@ -242,6 +257,18 @@ export default function AdminPage() {
   // ── Error Center ─────────────────────────────────────────
   const [failedImports, setFailedImports] = useState<FailedImport[]>([]);
 
+  // ── Coduri promoționale ──────────────────────────────────
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoErr, setPromoErr] = useState("");
+  // Creare cod unic
+  const [pcCode, setPcCode] = useState("");
+  const [pcDays, setPcDays] = useState("15");
+  const [pcMax, setPcMax] = useState("1");
+  const [pcExpires, setPcExpires] = useState("");
+  const [pcNote, setPcNote] = useState("");
+  const [pcCreating, setPcCreating] = useState(false);
+
   // ── Guard: doar adminii ──────────────────────────────────
   useEffect(() => {
     let active = true;
@@ -322,6 +349,14 @@ export default function AdminPage() {
     };
   }, [authorized]);
 
+  // Încarcă codurile prima dată când se deschide tabul „Coduri".
+  useEffect(() => {
+    if (authorized !== true || tab !== "codes") return;
+    if (promoCodes.length > 0 || promoLoading) return;
+    loadPromoCodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorized, tab]);
+
   async function loadLastJob() {
     const { data } = await supabase
       .from("product_import_jobs")
@@ -351,6 +386,55 @@ export default function AdminPage() {
       if (row.country_code && !latest[row.country_code]) latest[row.country_code] = row;
     }
     setCountryJobs(latest);
+  }
+
+  // ── Coduri promoționale ──────────────────────────────────
+  async function loadPromoCodes() {
+    setPromoLoading(true);
+    setPromoErr("");
+    const { data, error } = await supabase.rpc("admin_list_promo_codes");
+    if (error) setPromoErr(t("promo.admin.createError"));
+    else setPromoCodes((data as PromoCode[]) ?? []);
+    setPromoLoading(false);
+  }
+
+  async function createPromoCode() {
+    const days = parseInt(pcDays, 10);
+    if (!days || days <= 0 || pcCreating) return;
+    setPcCreating(true);
+    setPromoErr("");
+    const maxTrim = pcMax.trim();
+    const { error } = await supabase.rpc("admin_create_promo_code", {
+      p_code: pcCode.trim() || null,
+      p_trial_days: days,
+      p_max_redemptions: maxTrim === "" ? null : parseInt(maxTrim, 10),
+      p_expires_at: pcExpires ? new Date(pcExpires).toISOString() : null,
+      p_note: pcNote.trim() || null,
+    });
+    setPcCreating(false);
+    if (error) {
+      setPromoErr(error.message || t("promo.admin.createError"));
+      return;
+    }
+    setPcCode("");
+    setPcNote("");
+    setPcExpires("");
+    await loadPromoCodes();
+  }
+
+  async function togglePromoActive(pc: PromoCode) {
+    setPromoErr("");
+    const { error } = await supabase.rpc("admin_set_promo_code_active", {
+      p_id: pc.id,
+      p_value: !pc.active,
+    });
+    if (error) {
+      setPromoErr(t("promo.admin.createError"));
+      return;
+    }
+    setPromoCodes((prev) =>
+      prev.map((c) => (c.id === pc.id ? { ...c, active: !c.active } : c)),
+    );
   }
 
   // Transformă o eroare de la `functions.invoke` într-un mesaj lizibil:
@@ -829,6 +913,11 @@ export default function AdminPage() {
               key: "catalog",
               label: t("admin.tabs.catalog"),
               icon: "ti-package",
+            },
+            {
+              key: "codes",
+              label: t("promo.admin.tab"),
+              icon: "ti-ticket",
             },
             {
               key: "errors",
@@ -2073,6 +2162,274 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ── TAB: CODURI ─────────────────────────────────────── */}
+      {tab === "codes" && (
+        <div>
+          <div
+            style={{
+              fontSize: "20px",
+              fontWeight: 700,
+              color: T.espresso,
+              margin: "0 4px 16px",
+            }}
+          >
+            {t("promo.admin.heading")}
+          </div>
+
+          {promoErr && (
+            <div
+              style={{
+                background: T.redLight,
+                color: T.red,
+                border: `1px solid ${T.red}`,
+                borderRadius: "10px",
+                padding: "10px 14px",
+                fontSize: "13px",
+                marginBottom: "14px",
+              }}
+            >
+              {promoErr}
+            </div>
+          )}
+
+          {/* Formular: creare cod */}
+          <div style={{ maxWidth: "520px", marginBottom: "18px" }}>
+            {/* Creare cod unic */}
+            <div
+              style={{
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+                padding: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: T.espresso,
+                  marginBottom: "16px",
+                }}
+              >
+                <i className="ti ti-ticket" style={{ color: T.sage }} />
+                {t("promo.admin.createTitle")}
+              </div>
+
+              <FieldLabel>{t("promo.admin.codeLabel")}</FieldLabel>
+              <input
+                value={pcCode}
+                onChange={(e) => setPcCode(e.target.value.toUpperCase())}
+                placeholder={t("promo.admin.codePlaceholder")}
+                style={inputStyle}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <FieldLabel>{t("promo.admin.daysLabel")}</FieldLabel>
+                  <input
+                    type="number"
+                    min={1}
+                    value={pcDays}
+                    onChange={(e) => setPcDays(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <FieldLabel>{t("promo.admin.maxLabel")}</FieldLabel>
+                  <input
+                    type="number"
+                    min={1}
+                    value={pcMax}
+                    onChange={(e) => setPcMax(e.target.value)}
+                    placeholder={t("promo.admin.maxHint")}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>{t("promo.admin.expiresLabel")}</FieldLabel>
+                <input
+                  type="date"
+                  value={pcExpires}
+                  onChange={(e) => setPcExpires(e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>{t("promo.admin.noteLabel")}</FieldLabel>
+                <input
+                  value={pcNote}
+                  onChange={(e) => setPcNote(e.target.value)}
+                  placeholder={t("promo.admin.notePlaceholder")}
+                  style={inputStyle}
+                />
+              </div>
+
+              <button
+                onClick={createPromoCode}
+                disabled={pcCreating}
+                style={{
+                  ...primaryBtn,
+                  marginTop: "16px",
+                  opacity: pcCreating ? 0.6 : 1,
+                  cursor: pcCreating ? "default" : "pointer",
+                }}
+              >
+                {pcCreating
+                  ? t("promo.admin.creating")
+                  : t("promo.admin.create")}
+              </button>
+            </div>
+          </div>
+
+          {/* Listă coduri existente */}
+          <div
+            style={{
+              fontSize: "15px",
+              fontWeight: 600,
+              color: T.espresso,
+              margin: "0 4px 10px",
+            }}
+          >
+            {t("promo.admin.listTitle")}
+          </div>
+
+          {promoLoading ? (
+            <div style={{ padding: "40px", textAlign: "center", color: T.muted }}>
+              {t("promo.admin.loading")}
+            </div>
+          ) : promoCodes.length === 0 ? (
+            <div
+              style={{
+                padding: "32px",
+                textAlign: "center",
+                color: T.muted,
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+              }}
+            >
+              {t("promo.admin.noCodes")}
+            </div>
+          ) : (
+            <div
+              style={{
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+                overflowX: "auto",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: "640px",
+                }}
+              >
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                    <th style={thStyle}>{t("promo.admin.colCode")}</th>
+                    <th style={thStyle}>{t("promo.admin.colDays")}</th>
+                    <th style={thStyle}>{t("promo.admin.colUsed")}</th>
+                    <th style={thStyle}>{t("promo.admin.colExpires")}</th>
+                    <th style={thStyle}>{t("promo.admin.colStatus")}</th>
+                    <th style={thStyle}>{t("promo.admin.colNote")}</th>
+                    <th style={thStyle} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {promoCodes.map((pc) => (
+                    <tr
+                      key={pc.id}
+                      style={{ borderBottom: `1px solid ${T.border}` }}
+                    >
+                      <td style={tdStyle}>
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: T.espresso,
+                          }}
+                        >
+                          {pc.code}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>{pc.trial_days}</td>
+                      <td style={tdStyle}>
+                        {pc.redeemed_count} /{" "}
+                        {pc.max_redemptions == null
+                          ? t("promo.admin.unlimited")
+                          : pc.max_redemptions}
+                      </td>
+                      <td style={{ ...tdStyle, color: T.muted, fontSize: "13px" }}>
+                        {pc.expires_at
+                          ? fmtDate(pc.expires_at)
+                          : t("promo.admin.never")}
+                      </td>
+                      <td style={tdStyle}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            borderRadius: "6px",
+                            padding: "2px 8px",
+                            background: pc.active ? T.greenLight : T.linen,
+                            color: pc.active ? T.green : T.muted,
+                          }}
+                        >
+                          {pc.active
+                            ? t("promo.admin.active")
+                            : t("promo.admin.inactive")}
+                        </span>
+                      </td>
+                      <td style={{ ...tdStyle, color: T.muted, fontSize: "13px" }}>
+                        {pc.note || "—"}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "right" }}>
+                        <button
+                          onClick={() => togglePromoActive(pc)}
+                          style={{
+                            background: "transparent",
+                            border: `1px solid ${T.border}`,
+                            borderRadius: "8px",
+                            padding: "5px 12px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: pc.active ? T.red : T.sageDark,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {pc.active
+                            ? t("promo.admin.disable")
+                            : t("promo.admin.enable")}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── TAB: ERORI ──────────────────────────────────────── */}
       {tab === "errors" && (
         <div>
@@ -2184,3 +2541,45 @@ const tdStyle: React.CSSProperties = {
   padding: "12px 14px",
   verticalAlign: "middle",
 };
+
+// ── Stiluri formular pentru tabul „Coduri" ─────────────────
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 12px",
+  background: T.cream,
+  border: `1px solid ${T.border}`,
+  borderRadius: "10px",
+  fontSize: "13px",
+  color: T.espresso,
+  fontFamily: "inherit",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const primaryBtn: React.CSSProperties = {
+  width: "100%",
+  padding: "11px 16px",
+  background: T.sage,
+  color: T.white,
+  border: "none",
+  borderRadius: "10px",
+  fontSize: "14px",
+  fontWeight: 600,
+  fontFamily: "inherit",
+};
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label
+      style={{
+        display: "block",
+        fontSize: "12px",
+        fontWeight: 600,
+        color: T.espresso,
+        marginBottom: "6px",
+      }}
+    >
+      {children}
+    </label>
+  );
+}

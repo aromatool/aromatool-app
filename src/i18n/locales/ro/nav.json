@@ -1,6 +1,6 @@
 {
-  "home": "Home",
-  "crm": "CRM",
+  "home": "Acasă",
+  "crm": "Contacte",
   "buildOffer": "Construiește oferta",
   "offers": "Oferte",
   "resources": "Resurse",
@@ -15,8 +15,8 @@
   "newOffer": "Ofertă nouă",
   "bannerPastDue": "Plata abonamentului a eșuat. Actualizează metoda de plată ca să nu pierzi accesul.",
   "bannerManage": "Gestionează",
-  "bannerTrialExpiresTomorrow": "Perioada gratuită expiră mâine.",
-  "bannerTrialDaysLeft": "Perioada gratuită: {{days}} zile rămase.",
+  "bannerTrialExpiresTomorrow": "Perioada ta gratuită expiră mâine. Abonează-te ca să păstrezi accesul.",
+  "bannerTrialDaysLeft": "Perioada ta gratuită expiră în {{days}} zile. Abonează-te ca să păstrezi accesul.",
   "bannerSeePlan": "Vezi planul",
   "bannerTrialEnded": "Perioada gratuită s-a încheiat. Abonează-te ca să continui să adaugi contacte și să trimiți mesaje.",
   "bannerSubscribe": "Abonează-te"

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { useSubscription } from "../lib/subscription";
 import { EMAIL_HEADER_HTML } from "../lib/emailLogo";
 import { buildEmailFooter } from "../lib/emailFooter";
 import { useResources } from "../hooks/useResources";
@@ -40,9 +41,15 @@ const VARIABLES = [
 const TABS = [
   { key: "needs_offer" },
   { key: "needs_followup" },
+  { key: "first_order" },
+  { key: "reorder" },
   { key: "reactivate" },
   { key: "discuss_business" },
 ];
+
+// Acțiunile care vizează clienți (nu prospecți) — pentru trigger_status la
+// crearea unui mesaj propriu (câmp legacy, nu afectează fluxul pe acțiune).
+const CLIENT_ACTIONS = ["discuss_business", "first_order", "reorder"];
 
 interface Template {
   id: string;
@@ -111,10 +118,12 @@ function SystemMessageCard({
   template,
   userName,
   onPersonalize,
+  locked,
 }: {
   template: Template;
   userName: string;
   onPersonalize: (t: Template) => void;
+  locked: boolean;
 }) {
   const { t: tr } = useTranslation();
   const { user } = useAuth();
@@ -162,9 +171,11 @@ function SystemMessageCard({
           </div>
         </div>
         <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-          <button onClick={() => setShowPreview(!showPreview)} style={ghostBtn}>
-            {showPreview ? tr("templates.hide") : "👁"}
-          </button>
+          {!locked && (
+            <button onClick={() => setShowPreview(!showPreview)} style={ghostBtn}>
+              {showPreview ? tr("templates.hide") : "👁"}
+            </button>
+          )}
           <button
             onClick={() => onPersonalize(template)}
             style={{ ...ghostBtn, color: C.primary, borderColor: C.border2 }}
@@ -207,12 +218,14 @@ function TemplateEditor({
   onToggle,
   onDelete,
   userName,
+  locked,
 }: {
   template: Template;
   onSave: (id: string, data: Partial<Template>) => void;
   onToggle: (id: string, active: boolean) => void;
   onDelete: (id: string) => void;
   userName: string;
+  locked: boolean;
 }) {
   const { t: tr } = useTranslation();
   const { user } = useAuth();
@@ -592,21 +605,23 @@ function TemplateEditor({
               >
                 {saving ? tr("templates.saving") : saved ? tr("templates.saved") : tr("templates.saveMessage")}
               </button>
-              <button
-                onClick={() => setShowPreview(!showPreview)}
-                style={{
-                  padding: "10px 14px",
-                  background: C.bg2,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: "9px",
-                  color: C.dark,
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: "13px",
-                  cursor: "pointer",
-                }}
-              >
-                {showPreview ? tr("templates.hide") : tr("templates.preview")}
-              </button>
+              {!locked && (
+                <button
+                  onClick={() => setShowPreview(!showPreview)}
+                  style={{
+                    padding: "10px 14px",
+                    background: C.bg2,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: "9px",
+                    color: C.dark,
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {showPreview ? tr("templates.hide") : tr("templates.preview")}
+                </button>
+              )}
             </div>
 
             {showPreview && (
@@ -642,6 +657,8 @@ function TemplateEditor({
 export default function TemplatesPage() {
   const { t: tr } = useTranslation();
   const { user } = useAuth();
+  const { hasAccess } = useSubscription();
+  const locked = !hasAccess;
   const [activeTab, setActiveTab] = useState("needs_offer");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -657,6 +674,20 @@ export default function TemplatesPage() {
     closing: "Cu drag",
   };
   const [newTemplate, setNewTemplate] = useState(emptyNew);
+
+  // Detectare mobil — folosită DOAR ca să relaxăm layout-ul pe ecrane mici
+  // (taburi scrollabile, butoane full-width). Desktopul rămâne identic.
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -704,7 +735,7 @@ export default function TemplatesPage() {
       .insert({
         user_id: user!.id,
         trigger_action: activeTab,
-        trigger_status: activeTab === "discuss_business" ? "client_nou" : "prospect",
+        trigger_status: CLIENT_ACTIONS.includes(activeTab) ? "client_nou" : "prospect",
         trigger_day: 0,
         subject: newTemplate.subject,
         title: newTemplate.title || newTemplate.subject,
@@ -738,17 +769,28 @@ export default function TemplatesPage() {
   }
 
   async function handleSave(id: string, updates: Partial<Template>) {
-    await supabase.from("followup_templates").update(updates).eq("id", id);
+    const { error } = await supabase
+      .from("followup_templates")
+      .update(updates)
+      .eq("id", id);
+    if (error) {
+      alert(tr("templates.saveError"));
+      return;
+    }
     setTemplates((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     );
   }
 
   async function handleToggle(id: string, active: boolean) {
-    await supabase
+    const { error } = await supabase
       .from("followup_templates")
       .update({ active: !active })
       .eq("id", id);
+    if (error) {
+      alert(tr("templates.saveError"));
+      return;
+    }
     setTemplates((prev) =>
       prev.map((t) => (t.id === id ? { ...t, active: !active } : t)),
     );
@@ -756,7 +798,21 @@ export default function TemplatesPage() {
 
   async function handleDelete(id: string) {
     if (!confirm(tr("templates.deleteConfirm"))) return;
-    await supabase.from("followup_templates").delete().eq("id", id);
+    // Nu scoatem optimist din UI: ștergerea poate eșua (ex. mesajul a fost deja
+    // folosit la o trimitere → FK din followup_log). Verificăm eroarea întâi.
+    const { error } = await supabase
+      .from("followup_templates")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      // 23503 = foreign_key_violation (mesaj referit în followup_log).
+      alert(
+        error.code === "23503"
+          ? tr("templates.deleteErrorInUse")
+          : tr("templates.deleteError"),
+      );
+      return;
+    }
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   }
 
@@ -782,8 +838,15 @@ export default function TemplatesPage() {
     );
 
   return (
-    <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    <div className="tpl-page" style={{ maxWidth: "720px", margin: "0 auto" }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .tpl-tabs::-webkit-scrollbar { display: none; }
+        @media (max-width: 768px) {
+          /* font 16px pe mobil = previne auto-zoom-ul iOS la focus pe input */
+          .tpl-page input, .tpl-page textarea { font-size: 16px !important; }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
@@ -850,8 +913,9 @@ export default function TemplatesPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — pe mobil scrollabile orizontal (textul rămâne pe un rând) */}
       <div
+        className="tpl-tabs"
         style={{
           display: "flex",
           background: C.bg2,
@@ -859,6 +923,13 @@ export default function TemplatesPage() {
           padding: "4px",
           marginBottom: "20px",
           gap: "2px",
+          ...(isMobile
+            ? {
+                overflowX: "auto",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+              }
+            : {}),
         }}
       >
         {TABS.map((tab) => (
@@ -869,8 +940,8 @@ export default function TemplatesPage() {
               setShowNewForm(false);
             }}
             style={{
-              flex: 1,
-              padding: "10px 6px",
+              flex: isMobile ? "0 0 auto" : 1,
+              padding: isMobile ? "10px 14px" : "10px 6px",
               border: "none",
               borderRadius: "9px",
               cursor: "pointer",
@@ -883,6 +954,7 @@ export default function TemplatesPage() {
                 activeTab === tab.key ? "0 1px 6px rgba(92,122,92,0.12)" : "none",
               transition: "all 0.15s",
               textAlign: "center",
+              whiteSpace: isMobile ? "nowrap" : "normal",
             }}
           >
             {tr(`templates.tabs.${tab.key}.label`)}
@@ -890,12 +962,14 @@ export default function TemplatesPage() {
         ))}
       </div>
 
-      {/* Tab description + add */}
+      {/* Tab description + add — pe mobil stivuit, buton full-width */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: isMobile ? "stretch" : "center",
+          flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
+          gap: isMobile ? "10px" : "8px",
           marginBottom: "14px",
         }}
       >
@@ -903,13 +977,15 @@ export default function TemplatesPage() {
         <button
           onClick={() => setShowNewForm(!showNewForm)}
           style={{
-            padding: "7px 14px",
+            width: isMobile ? "100%" : "auto",
+            flexShrink: 0,
+            padding: isMobile ? "11px 14px" : "7px 14px",
             border: showNewForm ? `1px solid ${C.border2}` : "none",
             borderRadius: "9px",
             background: showNewForm ? C.bg2 : C.primary,
             color: showNewForm ? C.dark : "white",
             fontFamily: "'DM Sans', sans-serif",
-            fontSize: "12px",
+            fontSize: isMobile ? "13px" : "12px",
             fontWeight: 500,
             cursor: "pointer",
           }}
@@ -1022,6 +1098,7 @@ export default function TemplatesPage() {
               onToggle={handleToggle}
               onDelete={handleDelete}
               userName={userName}
+              locked={locked}
             />
           ))}
         </>
@@ -1037,6 +1114,7 @@ export default function TemplatesPage() {
               template={t}
               userName={userName}
               onPersonalize={personalize}
+              locked={locked}
             />
           ))}
         </>

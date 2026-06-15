@@ -371,11 +371,15 @@ function CartSection() {
   const { resources } = useResources();
   const {
     sendOffer,
+    logOffer,
     loading: sending,
     error: sendError,
     success: sendSuccess,
     setSuccess: setSendSuccess,
   } = useSendEmail();
+  // „Marchează ca trimisă" — log ofertă pe alt canal decât emailul.
+  const [showMarkSent, setShowMarkSent] = useState(false);
+  const [markedChannel, setMarkedChannel] = useState<string | null>(null);
 
   // Banner-ul de succes dispare automat după câteva secunde
   useEffect(() => {
@@ -448,6 +452,47 @@ function CartSection() {
     window.open(url, "_blank", "noopener");
   }
 
+  // Loghează oferta ca trimisă pe alt canal decât emailul (WhatsApp/telefon/alt).
+  // Salvează aceeași ofertă în istoric (sent_via=canal) și golește coșul.
+  async function markOfferSent(channel: "whatsapp" | "phone" | "other") {
+    if (!requireAccess()) return;
+    const ok = await logOffer(
+      {
+        clientName,
+        clientEmail,
+        clientPhone,
+        notes,
+        items,
+        transport,
+        totalDisplay: total,
+        totalEur,
+        exchangeRate: displayRate,
+        currency: activeCurrency,
+        baseCurrency,
+        lang: offerLang,
+        contactId: prefillContactId || undefined,
+        enrollLink: enrollLink || undefined,
+        resourceIds:
+          selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
+      },
+      channel,
+    );
+    if (ok) {
+      setMarkedChannel(channel);
+      setShowMarkSent(false);
+      clearCart();
+      setClientName("");
+      setClientEmail("");
+      setClientPhone("");
+      setNotes("");
+      setPrefillContactId(null);
+      setSelectedResourceIds([]);
+      setShowResourcePicker(false);
+      setShowOfferText(false);
+      setTimeout(() => setMarkedChannel(null), 4000);
+    }
+  }
+
   // ── Resurse: selectare din biblioteca userului, trimise ca linkuri ──
   function toggleResource(id: string) {
     setSelectedResourceIds((prev) =>
@@ -496,7 +541,11 @@ function CartSection() {
             }}
           >
             <i className="ti ti-circle-check" style={{ fontSize: "18px" }} />
-            {tr("calculator.offerSentTo", { email: successEmail })}
+            {markedChannel
+              ? tr("calculator.offerMarkedSent", {
+                  channel: tr(`calculator.markChannel.${markedChannel}`),
+                })
+              : tr("calculator.offerSentTo", { email: successEmail })}
           </div>
         )}
         <div
@@ -882,8 +931,10 @@ function CartSection() {
             onClick={() => {
               if (!customName.trim() || !customPrice) return;
               const priceInCurrency = parseFloat(customPrice);
-              // Validare preț: trebuie să fie un număr finit ≥ 0 (C3).
-              if (!Number.isFinite(priceInCurrency) || priceInCurrency < 0) {
+              // Validare preț: trebuie să fie un număr finit STRICT pozitiv (C3).
+              // „0" e string truthy, deci trecea de garda de mai sus → o linie de
+              // 0 într-o ofertă e aproape sigur o greșeală (preț uitat/typo).
+              if (!Number.isFinite(priceInCurrency) || priceInCurrency <= 0) {
                 alert(tr("calculator.invalidPrice"));
                 return;
               }
@@ -1051,6 +1102,7 @@ function CartSection() {
             placeholder={tr("calculator.clientNamePlaceholder")}
             style={{
               flex: 1,
+              minWidth: 0,
               padding: "10px 12px",
               background: C.bg2,
               border: `1.5px solid ${C.border2}`,
@@ -1067,6 +1119,7 @@ function CartSection() {
             placeholder={tr("calculator.phonePlaceholder")}
             style={{
               flex: 1,
+              minWidth: 0,
               padding: "10px 12px",
               background: C.bg2,
               border: `1.5px solid ${C.border2}`,
@@ -1650,6 +1703,108 @@ function CartSection() {
                 {tr("calculator.whatsapp")}
               </button>
             </div>
+
+            {/* Marchează ca trimisă — log pe alt canal decât emailul */}
+            <div
+              style={{
+                marginTop: "12px",
+                paddingTop: "12px",
+                borderTop: `1px solid ${C.border2}`,
+              }}
+            >
+              {!showMarkSent ? (
+                <button
+                  onClick={() => setShowMarkSent(true)}
+                  disabled={sending}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    background: "transparent",
+                    border: `1px solid ${C.border2}`,
+                    borderRadius: "9px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: C.text2,
+                    fontFamily: "'DM Sans', sans-serif",
+                    cursor: sending ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <i className="ti ti-checkbox" style={{ fontSize: "15px" }} />
+                  {tr("calculator.markAsSent")}
+                </button>
+              ) : (
+                <div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: C.muted,
+                      marginBottom: "8px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {tr("calculator.markAsSentChoose")}
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    {(
+                      [
+                        { ch: "whatsapp", icon: "ti-brand-whatsapp" },
+                        { ch: "phone", icon: "ti-phone" },
+                        { ch: "other", icon: "ti-dots" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.ch}
+                        onClick={() => markOfferSent(opt.ch)}
+                        disabled={sending}
+                        style={{
+                          flex: 1,
+                          padding: "11px 6px",
+                          background: C.bg2,
+                          border: `1px solid ${C.border2}`,
+                          borderRadius: "9px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: C.dark,
+                          fontFamily: "'DM Sans', sans-serif",
+                          cursor: sending ? "not-allowed" : "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "5px",
+                        }}
+                      >
+                        <i
+                          className={`ti ${opt.icon}`}
+                          style={{ fontSize: "18px" }}
+                        />
+                        {tr(`calculator.markChannel.${opt.ch}`)}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowMarkSent(false)}
+                    disabled={sending}
+                    style={{
+                      width: "100%",
+                      marginTop: "8px",
+                      padding: "6px",
+                      background: "none",
+                      border: "none",
+                      fontSize: "12px",
+                      color: C.muted,
+                      fontFamily: "'DM Sans', sans-serif",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {tr("calculator.markAsSentCancel")}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1885,6 +2040,7 @@ export default function CalculatorPage() {
     setClientName, setClientEmail, setClientPhone, setPrefillContactId, setOfferLang,
   } = useCartStore();
   const count = getCount();
+  const { hasAccess, loading: subLoading, openPaywall } = useSubscription();
   const [activeTab, setActiveTab] = useState<"search" | "cart">("search");
 
   // Banner "Ofertă în curs" — apare dacă coșul era plin și NU vine dintr-un contact
@@ -1921,8 +2077,54 @@ export default function CalculatorPage() {
     setShowDraftBanner(false);
   };
 
+  // Fără acces (trial expirat / fără abonament): deschide DIRECT modalul de
+  // plată, iar builder-ul rămâne blurat în spate (vezi return-ul). Bannerul
+  // din AppLayout rămâne calea de re-deschidere dacă userul închide modalul.
+  useEffect(() => {
+    if (!subLoading && !hasAccess) openPaywall();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subLoading, hasAccess]);
+
+  // ── POARTĂ DE ACCES ───────────────────────────────────────
+  // Constructorul de oferte e disponibil DOAR cu acces activ (abonament,
+  // trial valid, admin sau free_access). Trial expirat / fără abonament →
+  // ecran de blocare, ca utilizatorul să nu poată folosi offer builder-ul
+  // fără cont activ. Cât timp se încarcă abonamentul, arătăm un spinner
+  // (altfel ar clipi blocajul pentru cei care AU acces).
+  if (subLoading) {
+    return (
+      <div
+        className="calc-page"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "80px 20px",
+        }}
+      >
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            border: `3px solid ${C.bg2}`,
+            borderTopColor: C.primary,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+      </div>
+    );
+  }
   return (
-    <div>
+    <div
+      className="calc-page"
+      style={
+        !hasAccess
+          ? { filter: "blur(6px)", pointerEvents: "none", userSelect: "none" }
+          : undefined
+      }
+    >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* BANNER OFERTĂ ÎN CURS */}
@@ -2120,6 +2322,9 @@ export default function CalculatorPage() {
       <style>{`
         @media (min-width: 769px) { .calculator-mobile { display: none; } }
         @media (max-width: 768px) { .calculator-desktop { display: none !important; } }
+        @media (max-width: 768px) {
+          .calc-page input, .calc-page textarea, .calc-page select { font-size: 16px !important; }
+        }
       `}</style>
     </div>
   );

@@ -12,6 +12,9 @@ export interface ContactTimeline {
   type: "offer" | "followup" | "email" | "whatsapp" | "event";
   amount?: string;
   offerId?: string;
+  // Ofertă logată manual (marcată ca trimisă pe alt canal): fără produse / total 0.
+  external?: boolean;
+  sentVia?: string;
 }
 
 export interface LastOfferInfo {
@@ -20,6 +23,9 @@ export interface LastOfferInfo {
   productCount: number;
   totalEur: number;
   productNames: string[];
+  // Marcată ca trimisă extern (WhatsApp/telefon/alt canal), fără produse.
+  external?: boolean;
+  sentVia?: string;
 }
 
 export interface Contact {

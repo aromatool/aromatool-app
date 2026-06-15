@@ -42,6 +42,7 @@
     "emailSent": "Email trimis",
     "followupSent": "Follow-up trimis",
     "offerSentNumbered": "Ofertă trimisă #{{number}}",
+    "offerSentExternal": "Ofertă trimisă extern · {{channel}}",
     "contactCreated": "Contact creat"
   },
   "loading": "Se încarcă...",
@@ -71,5 +72,13 @@
   "noActivity": "Nicio activitate încă.",
   "deletedContact": "Contact șters",
   "today": "Azi",
-  "daysAgo": "Acum {{count}} zile"
+  "daysAgo": "Acum {{count}} zile",
+  "focusActionsForToday": "acțiuni pentru azi",
+  "completed": "finalizat",
+  "focusAllDone": "Toate acțiunile de azi sunt făcute! 🎉",
+  "moreActions_one": "+{{count}} altă acțiune",
+  "moreActions_few": "+{{count}} alte acțiuni",
+  "moreActions_other": "+{{count}} de acțiuni",
+  "showLess": "Arată mai puține",
+  "seeAllActivity": "Vezi toată activitatea"
 }

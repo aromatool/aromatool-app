@@ -42,6 +42,7 @@
     "emailSent": "Email sent",
     "followupSent": "Follow-up sent",
     "offerSentNumbered": "Offer sent #{{number}}",
+    "offerSentExternal": "Offer sent externally · {{channel}}",
     "contactCreated": "Contact created"
   },
   "loading": "Loading...",
@@ -70,5 +71,12 @@
   "noActivity": "No activity yet.",
   "deletedContact": "Deleted contact",
   "today": "Today",
-  "daysAgo": "{{count}} days ago"
+  "daysAgo": "{{count}} days ago",
+  "focusActionsForToday": "actions for today",
+  "completed": "completed",
+  "focusAllDone": "All of today's actions are done! 🎉",
+  "moreActions_one": "+{{count}} more action",
+  "moreActions_other": "+{{count}} more actions",
+  "showLess": "Show less",
+  "seeAllActivity": "See all activity"
 }

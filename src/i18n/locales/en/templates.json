@@ -15,7 +15,9 @@
   "tabs": {
     "needs_offer": { "label": "📨 First offer", "desc": "Messages for sending the first offer" },
     "needs_followup": { "label": "🔄 Follow-up", "desc": "Messages to follow up after an offer" },
-    "reactivate": { "label": "🌱 Reactivation", "desc": "Messages for dormant contacts" },
+    "first_order": { "label": "🎉 New client", "desc": "Welcome messages after the first order" },
+    "reorder": { "label": "🔁 Reorder", "desc": "Messages for the monthly order / restock" },
+    "reactivate": { "label": "🌱 Reactivation", "desc": "Messages for dormant contacts / win-back" },
     "discuss_business": { "label": "🤝 Business", "desc": "Messages about the business opportunity" }
   },
   "newMessage": "+ New message",
@@ -50,6 +52,9 @@
   "inactive": "✗ Off",
   "deleteTitle": "Delete message",
   "deleteConfirm": "Delete this message?",
+  "saveError": "The change could not be saved. Please try again.",
+  "deleteError": "The message could not be deleted. Please try again.",
+  "deleteErrorInUse": "This message was already used in a send, so it can't be deleted yet. Apply the database update (FK ON DELETE SET NULL) and then try again.",
   "myMessages": "My messages",
   "systemMessages": "AromaTool messages (suggestions)",
   "emptyTitle": "No message for this action",

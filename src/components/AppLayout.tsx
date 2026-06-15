@@ -38,7 +38,7 @@ const NAV_LEFT = [
 ];
 const NAV_RIGHT = [
   { path: "/app/offers", icon: "ti-file-text", labelKey: "nav.offers" },
-  { path: "/app/templates", icon: "ti-template", labelKey: "nav.more" },
+  { path: "/app/more", icon: "ti-dots", labelKey: "nav.more" },
 ];
 const ALL_NAV = [
   { path: "/app/dashboard", icon: "ti-layout-dashboard", labelKey: "nav.home" },
@@ -57,9 +57,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showFabMenu, setShowFabMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -87,6 +89,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
       }
       if (fabRef.current && !fabRef.current.contains(e.target as Node)) {
         setShowFabMenu(false);
+      }
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -354,7 +359,22 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </header>
 
       {/* ── BANNER ABONAMENT ─────────────────────────────── */}
-      <SubscriptionBanner sub={sub} onAction={() => navigate("/app/settings")} />
+      <SubscriptionBanner
+        sub={sub}
+        onAction={() => {
+          // Dacă suntem deja pe Setări, derulăm la cardul Abonament (altfel
+          // navigate("/app/settings") ar fi un no-op). De pe alte pagini,
+          // navigăm cu hash-ul #subscription, pe care SettingsPage îl prinde
+          // și derulează după montare.
+          if (location.pathname === "/app/settings") {
+            document
+              .getElementById("subscription-card")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          } else {
+            navigate("/app/settings#subscription");
+          }
+        }}
+      />
 
       {/* ── MAIN CONTENT ─────────────────────────────────── */}
       <main
@@ -428,6 +448,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   }}
                 />
               </div>
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  color: active ? T.sage : T.muted,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t(item.labelKey)}
+              </span>
             </button>
           );
         })}
@@ -504,10 +535,31 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
           )}
 
+          {/* Leagăn rotunjit: bara se curbează în jurul FAB-ului (halou alb
+              care iese ușor peste linia de sus a barei, ca să nu mai fie
+              dreaptă în zona butonului +). */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "-28px",
+              transform: "translateX(-50%)",
+              width: "72px",
+              height: "72px",
+              background: T.white,
+              borderRadius: "50%",
+              boxShadow: "0 -3px 8px rgba(61,53,48,0.06)",
+              zIndex: 0,
+            }}
+          />
+
           {/* FAB button */}
           <button
             onClick={() => setShowFabMenu(!showFabMenu)}
             style={{
+              position: "relative",
+              zIndex: 1,
               width: "52px",
               height: "52px",
               background: T.sage,
@@ -518,7 +570,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
               justifyContent: "center",
               cursor: "pointer",
               boxShadow: "0 4px 12px rgba(92,122,92,0.35)",
-              transform: showFabMenu ? "rotate(45deg)" : "rotate(0deg)",
+              transform: showFabMenu
+                ? "translateY(-18px) rotate(45deg)"
+                : "translateY(-18px) rotate(0deg)",
               transition: "transform 0.2s ease",
               marginBottom: "4px",
               flexShrink: 0,
@@ -533,18 +587,152 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
         {/* Right items */}
         {NAV_RIGHT.map((item) => {
-          // "Mai mult" deschide settings
           const isMore = item.labelKey === "nav.more";
-          const handleClick = isMore
-            ? () => navigate("/app/settings")
-            : () => navigate(item.path);
-          const effectivePath = isMore ? "/app/settings" : item.path;
-          const effectiveActive = isActive(effectivePath);
 
+          // "Mai mult" — meniu cu paginile care nu încap în bară
+          if (isMore) {
+            const moreItems = [
+              {
+                path: "/app/resources",
+                icon: "ti-folder",
+                labelKey: "nav.resources",
+              },
+              {
+                path: "/app/templates",
+                icon: "ti-template",
+                labelKey: "nav.messages",
+              },
+            ];
+            const moreActive =
+              showMoreMenu ||
+              moreItems.some((mi) => isActive(mi.path));
+
+            return (
+              <div
+                key={item.path}
+                ref={moreRef}
+                style={{
+                  flex: 1,
+                  position: "relative",
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                {showMoreMenu && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "calc(100% + 10px)",
+                      right: 0,
+                      background: T.white,
+                      border: `1px solid ${T.border}`,
+                      borderRadius: "14px",
+                      boxShadow: "0 8px 28px rgba(61,53,48,0.16)",
+                      padding: "6px",
+                      minWidth: "190px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "2px",
+                      zIndex: 200,
+                    }}
+                  >
+                    {moreItems.map((mi) => {
+                      const itemActive = isActive(mi.path);
+                      return (
+                        <button
+                          key={mi.path}
+                          onClick={() => {
+                            navigate(mi.path);
+                            setShowMoreMenu(false);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            width: "100%",
+                            padding: "11px 12px",
+                            border: "none",
+                            background: itemActive ? T.sageLight : "transparent",
+                            borderRadius: "10px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: 500,
+                            fontFamily: "inherit",
+                            textAlign: "left",
+                            color: itemActive ? T.sage : T.espresso,
+                          }}
+                        >
+                          <i
+                            className={`ti ${mi.icon}`}
+                            style={{
+                              fontSize: "17px",
+                              color: itemActive ? T.sage : T.muted,
+                            }}
+                          />
+                          {t(mi.labelKey)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowMoreMenu((v) => !v)}
+                  style={{
+                    flex: 1,
+                    width: "100%",
+                    border: "none",
+                    background: "transparent",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "3px",
+                    padding: "6px 0",
+                    cursor: "pointer",
+                    minHeight: "44px",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      background: moreActive ? T.sageLight : "transparent",
+                      borderRadius: "10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <i
+                      className={`ti ${item.icon}`}
+                      style={{
+                        fontSize: "20px",
+                        color: moreActive ? T.sage : T.muted,
+                      }}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 500,
+                      lineHeight: 1,
+                      color: moreActive ? T.sage : T.muted,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {t(item.labelKey)}
+                  </span>
+                </button>
+              </div>
+            );
+          }
+
+          const effectiveActive = isActive(item.path);
           return (
             <button
               key={item.path}
-              onClick={handleClick}
+              onClick={() => navigate(item.path)}
               style={{
                 flex: 1,
                 border: "none",
@@ -579,6 +767,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   }}
                 />
               </div>
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 500,
+                  lineHeight: 1,
+                  color: effectiveActive ? T.sage : T.muted,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t(item.labelKey)}
+              </span>
             </button>
           );
         })}
@@ -592,6 +791,20 @@ export default function AppLayout({ children }: AppLayoutProps) {
             position: "fixed",
             inset: 0,
             background: "rgba(61,53,48,0.3)",
+            zIndex: 99,
+          }}
+          className="mobile-nav-backdrop"
+        />
+      )}
+
+      {/* More-menu backdrop (transparent tap-catcher) */}
+      {showMoreMenu && (
+        <div
+          onClick={() => setShowMoreMenu(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "transparent",
             zIndex: 99,
           }}
           className="mobile-nav-backdrop"
@@ -657,14 +870,15 @@ function SubscriptionBanner({
     );
   }
 
-  // Trial activ — afișăm un memento discret.
+  // Trial activ — nu îl deranjăm pe user toată perioada. Afișăm un memento
+  // prietenos DOAR în ultimele 3 zile, ca să anunțăm din timp expirarea.
   if (sub.isTrialing) {
-    const urgent = sub.daysLeft <= 3;
+    if (sub.daysLeft > 3) return null;
     return (
       <BannerBar
-        bg={urgent ? "#FBF3E8" : "#E8F0E8"}
-        border={urgent ? "#E8D5B5" : "#C8D8C8"}
-        color={urgent ? "#9A6A2A" : "#4A6A4A"}
+        bg="#FBF3E8"
+        border="#E8D5B5"
+        color="#9A6A2A"
         icon="ti-clock"
         text={
           sub.daysLeft === 1

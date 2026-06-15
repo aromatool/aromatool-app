@@ -14,6 +14,9 @@ interface OfferRow {
   total_eur: number;
   products: string[];
   status?: string | null;
+  // Ofertă logată manual pe alt canal (WhatsApp/telefon): fără produse, €0.
+  external?: boolean;
+  sentVia?: string | null;
 }
 interface TimelineItem {
   date: string;
@@ -31,6 +34,7 @@ interface Props {
   onWhatsApp?: (c: Contact) => void;
   onEmail?: (c: Contact) => void;
   onOffer?: (c: Contact) => void;
+  onMarkSent?: (c: Contact) => void;
   onStatusChange?: (id: string, s: ContactStatus) => Promise<void> | void;
   onNotesChange?: (id: string, notes: string) => Promise<void> | void;
   onOpenOffer?: (offerId: string) => void;
@@ -92,6 +96,15 @@ function fmtTime(iso: string | null | undefined, locale: string): string {
   });
 }
 
+// Eticheta canalului pentru ofertele logate manual (WhatsApp/telefon/alt canal).
+function channelLabelFor(sv: string | null | undefined, t: TFunction): string {
+  return sv === "phone"
+    ? t("contacts.markSent.phone")
+    : sv === "other"
+      ? t("contacts.markSent.other")
+      : t("contacts.markSent.whatsapp");
+}
+
 function statusPill(status: string, t: TFunction) {
   const label = displayStatus(status as ContactStatus, t);
   switch (statusGroup(status as ContactStatus)) {
@@ -131,6 +144,7 @@ export default function ContactModal({
   onWhatsApp,
   onEmail,
   onOffer,
+  onMarkSent,
   onStatusChange,
   onNotesChange,
   onOpenOffer,
@@ -157,6 +171,19 @@ export default function ContactModal({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [savingComm, setSavingComm] = useState<"email_opt_out" | "communication_blocked" | null>(null);
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px)").matches,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -183,7 +210,7 @@ export default function ContactModal({
     const [{ data: offData }, { data: fuData }] = await Promise.all([
       supabase
         .from("offers")
-        .select("id,sent_at,total_eur,products_json")
+        .select("id,sent_at,total_eur,products_json,sent_via")
         .eq("user_id", user!.id)
         .eq("contact_id", c.id)
         .order("sent_at", { ascending: false }),
@@ -195,13 +222,19 @@ export default function ContactModal({
         .order("sent_at", { ascending: false }),
     ]);
 
-    const offerRows: OfferRow[] = (offData ?? []).map((o: any) => ({
-      id: o.id,
-      sent_at: o.sent_at,
-      total_eur: o.total_eur ?? 0,
-      products: (o.products_json ?? []).map((p: any) => p.name),
-      status: o.status,
-    }));
+    const offerRows: OfferRow[] = (offData ?? []).map((o: any) => {
+      const products = (o.products_json ?? []).map((p: any) => p.name);
+      return {
+        id: o.id,
+        sent_at: o.sent_at,
+        total_eur: o.total_eur ?? 0,
+        products,
+        status: o.status,
+        // Fără produse = ofertă marcată manual ca trimisă pe alt canal (€0).
+        external: products.length === 0,
+        sentVia: o.sent_via,
+      };
+    });
     setOffers(offerRows);
 
     const events: (TimelineItem & { sortKey: number })[] = [];
@@ -210,14 +243,22 @@ export default function ContactModal({
         date: fmtDate(o.sent_at, locale),
         time: fmtTime(o.sent_at, locale),
         sortKey: new Date(o.sent_at).getTime(),
-        label: t("contacts.timeline.offerSent"),
-        sub: t("contacts.timeline.offerSub", {
-          n: offerRows.length - idx,
-          value: o.total_eur.toFixed(0),
-        }),
+        // Oferta externă (€0, fără produse) NU arată valoarea — doar canalul.
+        label: o.external
+          ? t("contacts.timeline.offerSentExternal", {
+              channel: channelLabelFor(o.sentVia, t),
+            })
+          : t("contacts.timeline.offerSent"),
+        sub: o.external
+          ? t("contacts.slideOver.sentExternalShort")
+          : t("contacts.timeline.offerSub", {
+              n: offerRows.length - idx,
+              value: o.total_eur.toFixed(0),
+            }),
         type: "offer",
-        amount: `€${o.total_eur.toFixed(0)}`,
-        offerId: o.id,
+        amount: o.external ? undefined : `€${o.total_eur.toFixed(0)}`,
+        // Fără ofertă reală de deschis pentru cele externe.
+        offerId: o.external ? undefined : o.id,
       });
     });
     (fuData ?? []).forEach((f: any) => {
@@ -402,7 +443,7 @@ export default function ContactModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "3vh 2vw",
+        padding: isMobile ? 0 : "3vh 2vw",
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
@@ -413,30 +454,33 @@ export default function ContactModal({
         }}
         style={{
           background: T.white,
-          borderRadius: 18,
-          width: "min(1240px, 95vw)",
-          height: "92vh",
+          borderRadius: isMobile ? 0 : 18,
+          width: isMobile ? "100vw" : "min(1240px, 95vw)",
+          height: isMobile ? "100dvh" : "92vh",
+          paddingTop: isMobile ? "env(safe-area-inset-top)" : 0,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          boxShadow: "0 24px 80px rgba(61,53,48,0.25)",
+          boxShadow: isMobile ? "none" : "0 24px 80px rgba(61,53,48,0.25)",
         }}
       >
         {/* HEADER */}
         <div
           style={{
-            padding: "18px 24px",
+            padding: isMobile ? "14px 16px" : "18px 24px",
             borderBottom: `0.5px solid ${T.border}`,
             display: "flex",
-            alignItems: "center",
-            gap: 14,
+            alignItems: isMobile ? "flex-start" : "center",
+            gap: isMobile ? 12 : 14,
             flexShrink: 0,
+            flexWrap: isMobile ? "wrap" : "nowrap",
+            position: "relative",
           }}
         >
           <div
             style={{
-              width: 56,
-              height: 56,
+              width: isMobile ? 50 : 56,
+              height: isMobile ? 50 : 56,
               borderRadius: "50%",
               flexShrink: 0,
               background: T.sageLight,
@@ -450,7 +494,13 @@ export default function ContactModal({
           >
             {initials(contact.name, contact.email)}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              flex: isMobile ? "1 1 100%" : 1,
+              minWidth: 0,
+              marginRight: isMobile ? 44 : 0,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -495,7 +545,7 @@ export default function ContactModal({
               )}
               {inCRM !== null && (
                 <span style={{ fontSize: 12, color: T.muted }}>
-                  {t("contacts.modal.inCrmPrefix", { days: inCRM })}
+                  {t("contacts.modal.inCrmPrefix", { count: inCRM })}
                 </span>
               )}
             </div>
@@ -549,6 +599,8 @@ export default function ContactModal({
               <i className="ti ti-edit" style={{ fontSize: 15 }} /> {t("contacts.modal.editContact")}
             </button>
           )}
+          {!editMode && (
+          <>
           <div
             style={{ position: "relative" }}
             onClick={(e) => e.stopPropagation()}
@@ -681,6 +733,8 @@ export default function ContactModal({
               </div>
             )}
           </div>
+          </>
+          )}
           <button
             onClick={onClose}
             aria-label={t("contacts.common.close")}
@@ -696,6 +750,9 @@ export default function ContactModal({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
+              ...(isMobile
+                ? { position: "absolute", top: 14, right: 16 }
+                : {}),
             }}
           >
             <i className="ti ti-x" style={{ fontSize: 18 }} />
@@ -855,10 +912,13 @@ export default function ContactModal({
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: 20,
+            WebkitOverflowScrolling: "touch",
+            overscrollBehavior: "contain",
+            padding: isMobile ? 14 : 20,
+            paddingBottom: isMobile ? "calc(14px + env(safe-area-inset-bottom))" : 20,
             display: "flex",
             flexDirection: "column",
-            gap: 16,
+            gap: isMobile ? 14 : 16,
             background: T.cream,
           }}
         >
@@ -963,8 +1023,8 @@ export default function ContactModal({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.3fr 1.7fr",
-              gap: 16,
+              gridTemplateColumns: isMobile ? "1fr" : "1.3fr 1.7fr",
+              gap: isMobile ? 14 : 16,
             }}
           >
             {/* Acțiune recomandată */}
@@ -1061,6 +1121,16 @@ export default function ContactModal({
                     <i className="ti ti-file-text" style={{ fontSize: 15 }} />{" "}
                     {t("contacts.cta.newOffer")}
                   </button>
+                  {action.type === "needs_offer" && onMarkSent && (
+                    <button
+                      onClick={() => onMarkSent(contact)}
+                      title={t("contacts.markSent.rowTooltip")}
+                      style={ghostBtn()}
+                    >
+                      <i className="ti ti-check" style={{ fontSize: 15 }} />{" "}
+                      {t("contacts.markSent.button")}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1069,7 +1139,9 @@ export default function ContactModal({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
+                gridTemplateColumns: isMobile
+                  ? "repeat(2, 1fr)"
+                  : "repeat(4, 1fr)",
                 gap: 10,
               }}
             >
@@ -1092,7 +1164,7 @@ export default function ContactModal({
                 icon="ti-clock"
                 iconBg={T.lavenderLight}
                 iconColor={T.lavender}
-                value={lastContact !== null ? t("contacts.common.days", { count: lastContact }) : "—"}
+                value={lastContact !== null ? t("contacts.common.dur", { count: lastContact }) : "—"}
                 label={t("contacts.modal.statLastContact")}
               />
               <Kpi
@@ -1109,8 +1181,8 @@ export default function ContactModal({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "340px 1fr",
-              gap: 16,
+              gridTemplateColumns: isMobile ? "1fr" : "340px 1fr",
+              gap: isMobile ? 14 : 16,
               alignItems: "start",
             }}
           >
@@ -1505,8 +1577,8 @@ export default function ContactModal({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1.6fr 1fr",
-              gap: 16,
+              gridTemplateColumns: isMobile ? "1fr" : "1.6fr 1fr",
+              gap: isMobile ? 14 : 16,
               alignItems: "start",
             }}
           >
@@ -1601,9 +1673,9 @@ export default function ContactModal({
                         {offers.map((o, idx) => (
                           <tr
                             key={o.id}
-                            onClick={() => onOpenOffer?.(o.id)}
+                            onClick={() => !o.external && onOpenOffer?.(o.id)}
                             style={{
-                              cursor: "pointer",
+                              cursor: o.external ? "default" : "pointer",
                               borderTop: `0.5px solid ${T.linen}`,
                             }}
                           >
@@ -1641,10 +1713,12 @@ export default function ContactModal({
                                 padding: "10px 8px",
                                 fontSize: 13,
                                 fontWeight: 500,
-                                color: T.green,
+                                color: o.external ? T.muted : T.green,
                               }}
                             >
-                              €{o.total_eur.toFixed(0)}
+                              {o.external
+                                ? channelLabelFor(o.sentVia, t)
+                                : `€${o.total_eur.toFixed(0)}`}
                             </td>
                             <td style={{ padding: "10px 8px" }}>
                               <div
