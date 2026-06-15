@@ -1107,13 +1107,13 @@ function CartSection() {
           <input
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
-            placeholder={tr("calculator.clientNamePlaceholder")}
+            placeholder={`${tr("calculator.clientNamePlaceholder")} *`}
             style={{
               flex: 1,
               minWidth: 0,
               padding: "10px 12px",
               background: C.bg2,
-              border: `1.5px solid ${offerNameOk ? C.border2 : C.red}`,
+              border: `1.5px solid ${C.border2}`,
               borderRadius: "8px",
               fontSize: "14px",
               color: C.dark,
@@ -1362,7 +1362,7 @@ function CartSection() {
             type="email"
             value={clientEmail}
             onChange={(e) => setClientEmail(e.target.value)}
-            placeholder={tr("calculator.emailPlaceholder")}
+            placeholder={`${tr("calculator.emailPlaceholder")} *`}
             style={{
               flex: 1,
               padding: "10px 12px",
