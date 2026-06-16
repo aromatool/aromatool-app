@@ -84,6 +84,7 @@
     "clicks_other": "clicks",
     "trackingUnavailable": "Available after activating the domain",
     "trackingUnavailableSub": "Enable Resend to track sent emails.",
+    "trackingHint": "Data appears automatically once the contact opens or clicks a link in an email.",
     "viewFullProfile": "View full profile",
     "changeStatus": "Change status",
     "byYou": "by you",

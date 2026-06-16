@@ -1111,99 +1111,63 @@ export default function ContactSlideOver({
           {/* Email tracking */}
           <div style={{ marginBottom: 8 }}>
             <SectionLabel>{t("contacts.slideOver.emailTracking")}</SectionLabel>
-            {hasEmailTracking ? (
-              <div style={{ display: "flex", gap: 8 }}>
-                <div
-                  style={{
-                    flex: 1,
-                    background: T.lavLt,
-                    border: `0.5px solid ${T.lavBd}`,
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <i
-                    className="ti ti-mail-opened"
-                    style={{ fontSize: 16, color: T.lav }}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
-                      {emailOpens}
-                    </div>
-                    <div style={{ fontSize: 11, color: T.warm }}>
-                      {t("contacts.slideOver.opens", { count: emailOpens })}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    flex: 1,
-                    background: T.lavLt,
-                    border: `0.5px solid ${T.lavBd}`,
-                    borderRadius: 8,
-                    padding: "10px 12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <i
-                    className="ti ti-click"
-                    style={{ fontSize: 16, color: T.lav }}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
-                      {emailClicks}
-                    </div>
-                    <div style={{ fontSize: 11, color: T.warm }}>
-                      {t("contacts.slideOver.clicks", { count: emailClicks })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
+            <div style={{ display: "flex", gap: 8 }}>
               <div
                 style={{
+                  flex: 1,
                   background: T.lavLt,
                   border: `0.5px solid ${T.lavBd}`,
                   borderRadius: 8,
                   padding: "10px 12px",
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 8,
                 }}
               >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 7,
-                    background: T.wh,
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <i
-                    className="ti ti-mail"
-                    style={{ fontSize: 16, color: T.lav }}
-                    aria-hidden="true"
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: T.lav }}>
-                    {t("contacts.slideOver.trackingUnavailable")}
+                <i
+                  className="ti ti-mail-opened"
+                  style={{ fontSize: 16, color: T.lav }}
+                  aria-hidden="true"
+                />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
+                    {emailOpens}
                   </div>
-                  <div style={{ fontSize: 11, color: T.warm, marginTop: 1 }}>
-                    {t("contacts.slideOver.trackingUnavailableSub")}
+                  <div style={{ fontSize: 11, color: T.warm }}>
+                    {t("contacts.slideOver.opens", { count: emailOpens })}
                   </div>
                 </div>
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  background: T.lavLt,
+                  border: `0.5px solid ${T.lavBd}`,
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <i
+                  className="ti ti-click"
+                  style={{ fontSize: 16, color: T.lav }}
+                  aria-hidden="true"
+                />
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
+                    {emailClicks}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.warm }}>
+                    {t("contacts.slideOver.clicks", { count: emailClicks })}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {!hasEmailTracking && (
+              <div style={{ fontSize: 11, color: T.warm, marginTop: 6, lineHeight: 1.5 }}>
+                {t("contacts.slideOver.trackingHint")}
               </div>
             )}
           </div>
