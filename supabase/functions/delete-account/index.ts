@@ -18,8 +18,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Tabele deținute de user, în ordinea ștergerii (copii înainte de părinți).
-// followup_log / resource_links referă oferte/resurse; le ștergem primele.
+// Tabele deținute de user, filtrate pe user_id, în ordinea ștergerii
+// (copii înainte de părinți). followup_log / resource_links referă
+// oferte/resurse; le ștergem primele. `contacts` vine ULTIMUL pentru că
+// webhook_log se corelează pe contact_id (vezi purgeWebhookLog) și trebuie
+// curățat înainte ca rândurile de contacte să dispară.
+//
+// NU includem aici:
+//   • companies / daily_focus_jobs — tabele GLOBALE, fără coloană user_id
+//     (companies = date partajate Young Living; ștergerea ar afecta alți useri).
+//   • account_email_jobs — log de rulări global (monitorizare), fără user_id.
+//   • webhook_log — fără user_id, se curăță separat pe contact_id.
+//   • product_import_jobs — cheia e triggered_by (date admin), curățat separat.
 const USER_TABLES = [
   'followup_log',
   'resource_links',
@@ -28,13 +38,12 @@ const USER_TABLES = [
   // user_id NULL → nu sunt atinse de filtrul .eq('user_id', userId). Vine după
   // followup_log (care le referă cu RESTRICT) și template_resources (cascade).
   'followup_templates',
-  'daily_focus_jobs',
   'feedback',
-  'product_import_jobs',
+  'email_send_log',
+  'account_email_log',
   'offers',
   'resources',
   'contacts',
-  'companies',
 ]
 
 // Listează RECURSIV toate căile de fișiere dintr-un prefix de bucket.
@@ -60,6 +69,33 @@ async function listAllFiles(supabase: any, bucket: string, prefix: string): Prom
   return out
 }
 
+// webhook_log NU are user_id — păstrează `contact_id` și emailul contactului
+// în `payload` (date personale ale unei terțe persoane). Îl curățăm corelat
+// pe contactele userului, ÎNAINTE ca rândurile de contacte să fie șterse.
+// Returnează un mesaj de eroare dacă ceva pică (pentru fail-loud), altfel null.
+// deno-lint-ignore no-explicit-any
+async function purgeWebhookLog(supabase: any, userId: string): Promise<string | null> {
+  // 1) ID-urile contactelor userului.
+  const { data: contacts, error: selErr } = await supabase
+    .from('contacts')
+    .select('id')
+    .eq('user_id', userId)
+  if (selErr) return `webhook_log: nu am putut citi contactele: ${selErr.message}`
+  const ids = (contacts ?? []).map((c: { id: string }) => c.id)
+  if (ids.length === 0) return null
+
+  // 2) Ștergem în batch-uri (lista IN poate fi mare).
+  for (let i = 0; i < ids.length; i += 200) {
+    const batch = ids.slice(i, i + 200)
+    const { error } = await supabase
+      .from('webhook_log')
+      .delete()
+      .in('contact_id', batch)
+    if (error) return `webhook_log: ${error.message}`
+  }
+  return null
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -82,6 +118,11 @@ serve(async (req) => {
     if (userError || !user) return json({ error: 'Unauthorized' }, 401)
 
     const userId = user.id
+
+    // Acumulăm erorile de ștergere a DATELOR (DB + Storage). Dacă rămâne ceva
+    // ne-șters, NU mai ștergem userul auth — altfel am orfana date personale
+    // imposibil de mai legat de cineva (încălcare „dreptul la ștergere").
+    const errors: string[] = []
 
     // ── 1. STRIPE: anulează abonament + șterge clientul ──────
     // Best-effort: dacă pică, continuăm ștergerea (nu blocăm GDPR).
@@ -113,28 +154,52 @@ serve(async (req) => {
       const allPaths = await listAllFiles(supabase, 'resources', userId)
       // Supabase remove acceptă ~max câteva sute de căi/cerere; batch-uim la 100.
       for (let i = 0; i < allPaths.length; i += 100) {
-        await supabase.storage
+        const { error } = await supabase.storage
           .from('resources')
           .remove(allPaths.slice(i, i + 100))
+        if (error) errors.push(`storage: ${error.message}`)
       }
     } catch (e) {
-      console.error('Storage cleanup failed (continuăm):', e)
+      errors.push(`storage: ${(e as Error).message}`)
     }
 
-    // ── 3. DATE: șterge rândurile userului, în ordine ────────
+    // ── 3. WEBHOOK_LOG: curăță logul corelat pe contacte ─────
+    // ÎNAINTE de ștergerea contactelor (se corelează pe contact_id).
+    const whErr = await purgeWebhookLog(supabase, userId)
+    if (whErr) errors.push(whErr)
+
+    // ── 4. PRODUCT_IMPORT_JOBS: cheia e triggered_by (admin) ──
+    {
+      const { error } = await supabase
+        .from('product_import_jobs')
+        .delete()
+        .eq('triggered_by', userId)
+      if (error) errors.push(`product_import_jobs: ${error.message}`)
+    }
+
+    // ── 5. DATE: șterge rândurile userului, în ordine ────────
     for (const table of USER_TABLES) {
       const { error } = await supabase.from(table).delete().eq('user_id', userId)
-      if (error) {
-        // Coloana user_id poate lipsi la unele tabele (ex: companies).
-        // Logăm și continuăm — ștergerea userului auth va cascada restul.
-        console.error(`Delete from ${table} failed (continuăm):`, error.message)
-      }
+      if (error) errors.push(`${table}: ${error.message}`)
     }
 
     // profiles are cheia primară = id (nu user_id)
-    await supabase.from('profiles').delete().eq('id', userId)
+    {
+      const { error } = await supabase.from('profiles').delete().eq('id', userId)
+      if (error) errors.push(`profiles: ${error.message}`)
+    }
 
-    // ── 4. AUTH: șterge userul (necesită service role) ───────
+    // ── 6. GATE: nu ștergem userul auth dacă au rămas date ───
+    // Returnăm 500 cu detaliile, ca operațiunea să poată fi reîncercată.
+    if (errors.length > 0) {
+      console.error('delete-account: ștergere incompletă, NU ștergem userul auth:', errors)
+      return json({
+        error: 'Nu am putut șterge complet datele contului. Reîncearcă sau contactează-ne.',
+        details: errors,
+      }, 500)
+    }
+
+    // ── 7. AUTH: șterge userul (necesită service role) ───────
     const { error: delErr } = await supabase.auth.admin.deleteUser(userId)
     if (delErr) {
       console.error('Auth deleteUser failed:', delErr.message)

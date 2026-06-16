@@ -349,6 +349,29 @@ $$;
 ALTER FUNCTION "public"."is_admin"() OWNER TO "postgres";
 
 
+-- has_active_access(): gate-ul de abonament folosit în politicile RLS de
+-- scriere (INSERT/UPDATE) pe contacts/offers/followup_log/resources/
+-- template_resources/followup_templates. Replică computeHasAccess() din
+-- send-email/index.ts. Vezi migrația 20260713.
+CREATE OR REPLACE FUNCTION "public"."has_active_access"() RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+  select coalesce((
+    select
+      p.is_admin
+      or p.free_access
+      or p.subscription_status = 'active'
+      or (p.trial_ends_at is not null and p.trial_ends_at > now())
+    from public.profiles p
+    where p.id = auth.uid()
+  ), false)
+$$;
+
+
+ALTER FUNCTION "public"."has_active_access"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."list_product_countries"() RETURNS TABLE("country_code" "text")
     LANGUAGE "sql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -1240,15 +1263,16 @@ CREATE POLICY "Companies viewable by authenticated users" ON "public"."companies
 
 
 
-CREATE POLICY "Exchange rates viewable by all" ON "public"."exchange_rates" FOR SELECT USING (true);
+-- NOTĂ: politicile permisive "Exchange rates viewable by all", "Products
+-- viewable by all" și "Guides viewable by authenticated users" (USING true)
+-- au fost ELIMINATE de migrația 20260630 (expuneau catalogul/ghidurile
+-- cross-company, inclusiv anon). Rămân doar variantele scoped pe companie.
 
 
 
-CREATE POLICY "Guides viewable by authenticated users" ON "public"."guides" FOR SELECT TO "authenticated" USING (true);
-
-
-
-CREATE POLICY "Products viewable by all" ON "public"."products" FOR SELECT USING (true);
+CREATE POLICY "Guides viewable by company members" ON "public"."guides" FOR SELECT TO "authenticated" USING (("company_id" = ( SELECT "profiles"."company_id"
+   FROM "public"."profiles"
+  WHERE ("profiles"."id" = "auth"."uid"()))));
 
 
 
@@ -1262,11 +1286,19 @@ CREATE POLICY "Resource links are owner-only" ON "public"."resource_links" TO "a
 
 
 
-CREATE POLICY "Resources are owner-only" ON "public"."resources" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
+-- resources / template_resources: SELECT+DELETE deschise pe owner; INSERT+UPDATE
+-- cu gate de abonament (has_active_access) — vezi migrația 20260713.
+CREATE POLICY "Resources: select own" ON "public"."resources" FOR SELECT TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Resources: delete own" ON "public"."resources" FOR DELETE TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Resources: insert own with access" ON "public"."resources" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
+CREATE POLICY "Resources: update own with access" ON "public"."resources" FOR UPDATE TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
 
 
 
-CREATE POLICY "Template resources are owner-only" ON "public"."template_resources" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
+CREATE POLICY "Template resources: select own" ON "public"."template_resources" FOR SELECT TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Template resources: delete own" ON "public"."template_resources" FOR DELETE TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Template resources: insert own with access" ON "public"."template_resources" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
+CREATE POLICY "Template resources: update own with access" ON "public"."template_resources" FOR UPDATE TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
 
 
 
@@ -1278,7 +1310,12 @@ CREATE POLICY "Users can insert own profile" ON "public"."profiles" FOR INSERT T
 
 
 
-CREATE POLICY "Users can manage own contacts" ON "public"."contacts" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
+-- contacts: SELECT+DELETE deschise pe owner; INSERT+UPDATE cu gate de
+-- abonament (has_active_access) — vezi migrația 20260713.
+CREATE POLICY "Contacts: select own" ON "public"."contacts" FOR SELECT TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Contacts: delete own" ON "public"."contacts" FOR DELETE TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Contacts: insert own with access" ON "public"."contacts" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
+CREATE POLICY "Contacts: update own with access" ON "public"."contacts" FOR UPDATE TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
 
 
 
@@ -1286,11 +1323,22 @@ CREATE POLICY "Users can manage own import jobs" ON "public"."product_import_job
 
 
 
-CREATE POLICY "Users can manage own offers" ON "public"."offers" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
+-- offers: SELECT+DELETE deschise pe owner; INSERT+UPDATE cu gate de
+-- abonament (has_active_access) — vezi migrația 20260713.
+CREATE POLICY "Offers: select own" ON "public"."offers" FOR SELECT TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Offers: delete own" ON "public"."offers" FOR DELETE TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Offers: insert own with access" ON "public"."offers" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
+CREATE POLICY "Offers: update own with access" ON "public"."offers" FOR UPDATE TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
 
 
 
-CREATE POLICY "Users can manage own templates" ON "public"."followup_templates" TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR ("user_id" IS NULL))) WITH CHECK (("user_id" = "auth"."uid"()));
+-- followup_templates: citire = proprii + sistem (user_id IS NULL); scrierea
+-- doar pe cele proprii. INSERT+UPDATE cu gate de abonament. Template-urile de
+-- sistem sunt read-only (vezi migrațiile 20260630 + 20260713).
+CREATE POLICY "Templates: read own or system" ON "public"."followup_templates" FOR SELECT TO "authenticated" USING ((("user_id" = "auth"."uid"()) OR ("user_id" IS NULL)));
+CREATE POLICY "Templates: delete own" ON "public"."followup_templates" FOR DELETE TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Templates: insert own with access" ON "public"."followup_templates" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
+CREATE POLICY "Templates: update own with access" ON "public"."followup_templates" FOR UPDATE TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
 
 
 
@@ -1298,7 +1346,12 @@ CREATE POLICY "Users can update own profile" ON "public"."profiles" FOR UPDATE T
 
 
 
-CREATE POLICY "Users can view own followup log" ON "public"."followup_log" TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK (("user_id" = "auth"."uid"()));
+-- followup_log: SELECT+DELETE deschise pe owner; INSERT+UPDATE cu gate de
+-- abonament (has_active_access) — vezi migrația 20260713.
+CREATE POLICY "Followup log: select own" ON "public"."followup_log" FOR SELECT TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Followup log: delete own" ON "public"."followup_log" FOR DELETE TO "authenticated" USING (("user_id" = "auth"."uid"()));
+CREATE POLICY "Followup log: insert own with access" ON "public"."followup_log" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
+CREATE POLICY "Followup log: update own with access" ON "public"."followup_log" FOR UPDATE TO "authenticated" USING (("user_id" = "auth"."uid"())) WITH CHECK ((("user_id" = "auth"."uid"()) AND "public"."has_active_access"()));
 
 
 
