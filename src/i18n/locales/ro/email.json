@@ -1,6 +1,6 @@
 {
-  "subjectWithName": "{{name}}, iată oferta ta — {{user}}",
-  "subject": "Oferta ta — {{user}}",
+  "subjectWithName": "{{name}}, selecția ta personală e gata 🌿",
+  "subject": "Selecția ta personală e gata 🌿",
   "greeting": "Bună ziua",
   "intro": "Oferta de mai jos a fost pregătită special pentru dumneavoastră<br>de către <strong style=\"color:#5C7A5C\">{{user}}</strong>.",
   "colProduct": "Produs",

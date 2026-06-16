@@ -1,6 +1,6 @@
 {
-  "subjectWithName": "{{name}}, here is your offer — {{user}}",
-  "subject": "Your offer — {{user}}",
+  "subjectWithName": "{{name}}, your personal selection is ready 🌿",
+  "subject": "Your personal selection is ready 🌿",
   "greeting": "Hello",
   "intro": "The offer below was prepared especially for you<br>by <strong style=\"color:#5C7A5C\">{{user}}</strong>.",
   "colProduct": "Product",
