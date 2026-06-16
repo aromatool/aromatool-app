@@ -63,7 +63,11 @@ const T = {
 
 function daysSince(iso: string | null | undefined): number {
   if (!iso) return 999;
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  const then = new Date(iso);
+  const now = new Date();
+  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000));
 }
 
 function greeting(t: TFunction): string {

@@ -370,9 +370,13 @@ export default function FollowupModal({
     "{{email}}": contact.email ?? "",
     "{{zile}}": lastOffer?.sent_at
       ? String(
-          Math.floor(
-            (Date.now() - new Date(lastOffer.sent_at).getTime()) / 86400000,
-          ),
+          (() => {
+            const then = new Date(lastOffer.sent_at);
+            const now = new Date();
+            const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+            const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000));
+          })(),
         )
       : "?",
     "{{produse}}":

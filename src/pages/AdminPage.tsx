@@ -210,9 +210,12 @@ function fmtDateTime(iso: string): string {
 // „Ultim login" relativ, scurt (azi / acum 3 zile / dd mmm).
 function fmtLastSeen(iso: string | null, t: TFunction): string {
   if (!iso) return t("admin.neverLoggedIn");
-  const d = new Date(iso).getTime();
-  if (Number.isNaN(d)) return "—";
-  const days = Math.floor((Date.now() - d) / 86_400_000);
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return "—";
+  const now = new Date();
+  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
   if (days <= 0) return t("admin.today");
   if (days === 1) return t("admin.yesterday");
   if (days < 7) return t("admin.daysAgo", { n: days });

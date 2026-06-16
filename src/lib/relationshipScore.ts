@@ -22,8 +22,11 @@ export interface ScoreBreakdown {
 
 function daysSince(isoDate: string | null): number {
   if (!isoDate) return 999
-  const diff = Date.now() - new Date(isoDate).getTime()
-  return Math.floor(diff / (1000 * 60 * 60 * 24))
+  const then = new Date(isoDate)
+  const now = new Date()
+  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate())
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000))
 }
 
 export function computeRelationshipScore(input: ScoreInput): ScoreBreakdown {

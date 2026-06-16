@@ -47,7 +47,13 @@ export function buildWhatsAppGreeting(contact: Contact, senderName?: string): st
   const nume = firstName(contact.name)
   const lang = contact.language_code === 'en' ? 'en' : 'ro'
   const daysSinceActivity = contact.last_activity_at
-    ? Math.floor((Date.now() - new Date(contact.last_activity_at).getTime()) / 86400000)
+    ? (() => {
+        const then = new Date(contact.last_activity_at)
+        const now = new Date()
+        const a = new Date(then.getFullYear(), then.getMonth(), then.getDate())
+        const b = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000))
+      })()
     : null
 
   let kind: WaKind

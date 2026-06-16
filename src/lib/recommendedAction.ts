@@ -30,11 +30,16 @@ export interface RecommendedAction {
 
 function daysSince(iso: string | null | undefined): number {
   if (!iso) return 9999
-  const ts = new Date(iso).getTime()
+  const then = new Date(iso)
+  const ts = then.getTime()
   // Dată coruptă/neparsabilă → tratăm ca „necunoscut" (foarte vechi), nu NaN.
   if (!Number.isFinite(ts)) return 9999
+  // Diferență pe zile calendaristice (miezul nopții local), nu timp brut scurs.
+  const now = new Date()
+  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate())
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   // Dată în viitor (fus orar, ceas greșit) → 0, niciodată negativ.
-  return Math.max(0, Math.floor((Date.now() - ts) / 86400000))
+  return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000))
 }
 
 const ACCENT = {
@@ -379,7 +384,11 @@ export function getNextAction(c: Contact, t: TFunction, followUpDays: number = 5
   }
 
   const nextDate = new Date(baseDate.getTime() + followUpDays * 86400000)
-  const daysUntil = Math.ceil((nextDate.getTime() - Date.now()) / 86400000)
+  // Diferență pe zile calendaristice (miezul nopții local), nu timp brut.
+  const now = new Date()
+  const nd = new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate())
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const daysUntil = Math.round((nd.getTime() - today.getTime()) / 86400000)
 
   // Doar viitor. Azi/restant (daysUntil < 1) rămâne în pasul 1.
   if (daysUntil < 1) return null
