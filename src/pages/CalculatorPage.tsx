@@ -779,62 +779,6 @@ function CartSection() {
         );
       })}
 
-      {/* Transport */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          background: C.card,
-          border: `1px solid ${C.border2}`,
-          borderRadius: "10px",
-          padding: "10px 13px",
-          marginBottom: "8px",
-        }}
-      >
-        <i className="ti ti-truck" style={{ fontSize: "15px", color: C.muted }} />
-        <span style={{ fontSize: "13px", color: C.muted, flex: 1 }}>
-          {tr("calculator.transportCost")}
-        </span>
-        <input
-          type="number"
-          min={0}
-          step={0.01}
-          value={
-            transport > 0
-              ? parseFloat(convertFromBase(transport, baseCurrency, activeCurrency).toFixed(2))
-              : ""
-          }
-          placeholder="0"
-          onChange={(e) => {
-            const valueInCurrency = parseFloat(e.target.value) || 0;
-            // Stocăm transportul în moneda de bază la precizie completă (fără round-trip drift).
-            const valueInBase = valueInCurrency * effectiveRate(activeCurrency, baseCurrency);
-            setTransport(valueInBase);
-          }}
-          style={{
-            width: "80px",
-            background: C.bg2,
-            border: `1px solid ${C.border2}`,
-            borderRadius: "6px",
-            padding: "5px 8px",
-            fontSize: "13px",
-            color: C.dark,
-            fontFamily: "'DM Sans', sans-serif",
-            textAlign: "right",
-            outline: "none",
-          }}
-        />
-        <span style={{ fontSize: "12px", color: C.muted }}>
-          {activeCurrency}
-        </span>
-        {activeCurrency !== baseCurrency && transport > 0 && (
-          <span style={{ fontSize: "11px", color: C.muted }}>
-            {formatAmount(transport, baseCurrency)}
-          </span>
-        )}
-      </div>
-
       {/* Custom product */}
       <button
         onClick={() => setShowCustom(!showCustom)}
@@ -994,6 +938,62 @@ function CartSection() {
           </button>
         </div>
       )}
+
+      {/* Transport */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          background: C.card,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "10px",
+          padding: "10px 13px",
+          marginBottom: "8px",
+        }}
+      >
+        <i className="ti ti-truck" style={{ fontSize: "15px", color: C.muted }} />
+        <span style={{ fontSize: "13px", color: C.muted, flex: 1 }}>
+          {tr("calculator.transportCost")}
+        </span>
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          value={
+            transport > 0
+              ? parseFloat(convertFromBase(transport, baseCurrency, activeCurrency).toFixed(2))
+              : ""
+          }
+          placeholder="0"
+          onChange={(e) => {
+            const valueInCurrency = parseFloat(e.target.value) || 0;
+            // Stocăm transportul în moneda de bază la precizie completă (fără round-trip drift).
+            const valueInBase = valueInCurrency * effectiveRate(activeCurrency, baseCurrency);
+            setTransport(valueInBase);
+          }}
+          style={{
+            width: "80px",
+            background: C.bg2,
+            border: `1px solid ${C.border2}`,
+            borderRadius: "6px",
+            padding: "5px 8px",
+            fontSize: "13px",
+            color: C.dark,
+            fontFamily: "'DM Sans', sans-serif",
+            textAlign: "right",
+            outline: "none",
+          }}
+        />
+        <span style={{ fontSize: "12px", color: C.muted }}>
+          {activeCurrency}
+        </span>
+        {activeCurrency !== baseCurrency && transport > 0 && (
+          <span style={{ fontSize: "11px", color: C.muted }}>
+            {formatAmount(transport, baseCurrency)}
+          </span>
+        )}
+      </div>
 
       {/* Totals */}
       <div
