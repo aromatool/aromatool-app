@@ -143,6 +143,10 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
       <tbody>${rows}</tbody>
     </table>
 
+    <div style="text-align:center;font-size:12px;color:#A89888;margin-top:10px">
+      ${t('email.productCount', { count: items.length })}
+    </div>
+
     ${transport > 0 ? `
     <table style="width:100%;border-collapse:collapse;margin-top:8px;">
       <tr>
@@ -189,6 +193,10 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
         ${t('email.enrollFooter')}
       </div>
     </div>` : ''}
+
+    <p style="font-size:13px;color:#6A5A50;margin:22px 0 0;line-height:1.7;text-align:center">
+      ${t('email.closingQuestions')}<br><br>${t('email.closingWarm')}
+    </p>
   </div>
 
   ${buildEmailFooter({ userName, userPhone, userEmail, userSignature, lang: lng })}
@@ -233,6 +241,7 @@ export function buildEmailText(params: SendOfferParams, userName: string, userPh
       lines.push(`- ${item.name} × ${item.qty} — ${fmtCurrency(lineDisplay, displayCurrency)}${secondary}`)
     }
   }
+  lines.push(t('email.productCount', { count: items.length }))
   lines.push('')
 
   if (transport > 0) {
@@ -264,6 +273,12 @@ export function buildEmailText(params: SendOfferParams, userName: string, userPh
     lines.push(`${t('email.enrollButton')} ${enrollLink}`)
     lines.push('')
   }
+
+  // Încheiere caldă + invitație la răspuns.
+  lines.push(t('email.closingQuestions'))
+  lines.push('')
+  lines.push(t('email.closingWarm'))
+  lines.push('')
 
   // Semnătură / contact distribuitor.
   lines.push('—')
