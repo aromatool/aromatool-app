@@ -197,15 +197,20 @@ function buildEmailHtml(
   const productsHtml =
     lastOffer?.products_json
       ?.map((p) => {
-        const total =
-          p.price_eur *
-          p.qty *
-          (1 - p.disc / 100) *
-          (lastOffer.exchange_rate || 1);
+        const rate = lastOffer.exchange_rate || 1;
+        const cur = lastOffer.currency || "RON";
+        const fmt = (v: number) =>
+          `${v.toLocaleString(ET.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
+        const discounted = p.price_eur * p.qty * (1 - p.disc / 100) * rate;
+        // La reducere: prețul întreg TĂIAT (gri) + prețul redus (bold).
+        const priceCell =
+          p.disc > 0
+            ? `<span style="font-size:11px;color:#A89888;font-weight:400;text-decoration:line-through">${fmt(p.price_eur * p.qty * rate)}</span><br><span style="font-weight:700;color:#4A6A4A">${fmt(discounted)}</span>`
+            : `${fmt(discounted)}`;
         return `<tr>
       <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#3D3530">${escapeHtml(p.name)}${p.disc > 0 ? ` <span style="color:#C94F6A;font-size:11px">−${p.disc}%</span>` : ""}</td>
       <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#A89888;text-align:center">×${p.qty}</td>
-      <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;font-weight:600;color:#4A6A4A;text-align:right">${total.toLocaleString(ET.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${lastOffer.currency || "RON"}</td>
+      <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;font-weight:600;color:#4A6A4A;text-align:right">${priceCell}</td>
     </tr>`;
       })
       .join("") || "";
@@ -381,7 +386,19 @@ export default function FollowupModal({
       : "?",
     "{{produse}}":
       lastOffer?.products_json
-        ?.map((p) => `• ${p.name} ×${p.qty}`)
+        ?.map((p) => {
+          const rate = lastOffer.exchange_rate || 1;
+          const cur = lastOffer.currency || "RON";
+          const loc = emailText(emailLang).locale;
+          const fmt = (v: number) =>
+            `${v.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
+          const discounted = p.price_eur * p.qty * (1 - p.disc / 100) * rate;
+          // La reducere: prețul întreg → prețul redus, ca să se vadă reducerea.
+          if (p.disc > 0) {
+            return `• ${p.name} ×${p.qty} — ${fmt(p.price_eur * p.qty * rate)} → ${fmt(discounted)} (-${p.disc}%)`;
+          }
+          return `• ${p.name} ×${p.qty} — ${fmt(discounted)}`;
+        })
         .join("\n") || "",
     "{{total}}": lastOffer
       ? `${lastOffer.total_display?.toLocaleString(emailText(emailLang).locale, { minimumFractionDigits: 2 })} ${lastOffer.currency}`
