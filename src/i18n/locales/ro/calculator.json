@@ -82,12 +82,12 @@
   "previewEmailTitle": "Preview email ofertă",
   "previewEmailFrame": "Preview email",
   "offerText": {
-    "greetingNamed": "Bună {{name}}! 🌿",
-    "greeting": "Bună! 🌿",
+    "greetingNamed": "Bună {{name}}!",
+    "greeting": "Bună!",
     "intro": "Oferta ta personalizată:",
-    "transport": "🚚 Transport: {{amount}}",
-    "total": "💚 Total: {{amount}}",
-    "enrollLink": "🔗 Link înscriere Young Living:"
+    "transport": "Transport: {{amount}}",
+    "total": "Total: {{amount}}",
+    "enrollLink": "Link înscriere Young Living:"
   },
   "catalog": {
     "label": "Catalog produse"

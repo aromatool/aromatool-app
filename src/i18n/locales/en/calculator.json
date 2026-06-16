@@ -82,12 +82,12 @@
   "previewEmailTitle": "Offer email preview",
   "previewEmailFrame": "Email preview",
   "offerText": {
-    "greetingNamed": "Hi {{name}}! 🌿",
-    "greeting": "Hi! 🌿",
+    "greetingNamed": "Hi {{name}}!",
+    "greeting": "Hi!",
     "intro": "Your personalized offer:",
-    "transport": "🚚 Shipping: {{amount}}",
-    "total": "💚 Total: {{amount}}",
-    "enrollLink": "🔗 Young Living enrollment link:"
+    "transport": "Shipping: {{amount}}",
+    "total": "Total: {{amount}}",
+    "enrollLink": "Young Living enrollment link:"
   },
   "catalog": {
     "label": "Product catalog"

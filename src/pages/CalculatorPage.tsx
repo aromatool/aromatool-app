@@ -440,7 +440,7 @@ function CartSection() {
     if (transport > 0)
       msg += `\n\n${i18n.t("calculator.offerText.transport", { lng: offerLang, amount: formatAmount(convertFromBase(transport, baseCurrency, activeCurrency), activeCurrency) })}`;
     msg += `\n${"─".repeat(25)}\n${i18n.t("calculator.offerText.total", { lng: offerLang, amount: formatAmount(total, activeCurrency) })}`;
-    if (notes) msg += `\n\n📝 ${notes}`;
+    if (notes) msg += `\n\n${notes}`;
     if (enrollLink)
       msg += `\n\n${i18n.t("calculator.offerText.enrollLink", { lng: offerLang })}\n${enrollLink}`;
     return msg;

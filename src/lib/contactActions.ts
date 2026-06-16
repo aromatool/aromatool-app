@@ -30,16 +30,16 @@ type WaKind = 'reactivate' | 'firstOffer' | 'followup' | 'generic'
 
 const WA_TEXT: Record<'ro' | 'en', Record<WaKind, (nume: string) => string>> = {
   ro: {
-    reactivate: (n) => `Bună ${n}! 🌿\n\nMi-am amintit de tine și voiam să te întreb cum te mai simți. Dacă ai nevoie de ceva sau vrei să reîncerci ceva din produse, sunt aici cu drag!`,
-    firstOffer: (n) => `Bună ${n}! 🌿\n\nMă bucur că ne-am cunoscut. Dacă vrei, îți pot pregăti o ofertă personalizată cu produsele care ți se potrivesc cel mai bine. Spune-mi ce te interesează!`,
-    followup: (n) => `Bună ${n}! 🌿\n\nVoiam doar să verific dacă ai apucat să te uiți peste oferta pe care ți-am trimis-o. Sunt aici pentru orice întrebare!`,
-    generic: (n) => `Bună ${n}! 🌿\n\nCe mai faci? Sunt aici dacă ai nevoie de ceva sau vrei să discutăm despre produse.`,
+    reactivate: (n) => `Bună ${n}!\n\nMi-am amintit de tine și voiam să te întreb cum te mai simți. Dacă ai nevoie de ceva sau vrei să reîncerci ceva din produse, sunt aici cu drag!`,
+    firstOffer: (n) => `Bună ${n}!\n\nMă bucur că ne-am cunoscut. Dacă vrei, îți pot pregăti o ofertă personalizată cu produsele care ți se potrivesc cel mai bine. Spune-mi ce te interesează!`,
+    followup: (n) => `Bună ${n}!\n\nVoiam doar să verific dacă ai apucat să te uiți peste oferta pe care ți-am trimis-o. Sunt aici pentru orice întrebare!`,
+    generic: (n) => `Bună ${n}!\n\nCe mai faci? Sunt aici dacă ai nevoie de ceva sau vrei să discutăm despre produse.`,
   },
   en: {
-    reactivate: (n) => `Hi ${n}! 🌿\n\nYou crossed my mind and I wanted to check in on how you're doing. If you need anything or want to give the products another try, I'm here and happy to help!`,
-    firstOffer: (n) => `Hi ${n}! 🌿\n\nLovely meeting you. If you'd like, I can put together a personalised offer with the products that suit you best. Just let me know what you're interested in!`,
-    followup: (n) => `Hi ${n}! 🌿\n\nJust wanted to check whether you had a chance to look over the offer I sent you. I'm here for any questions!`,
-    generic: (n) => `Hi ${n}! 🌿\n\nHow are you? I'm here if you need anything or would like to chat about the products.`,
+    reactivate: (n) => `Hi ${n}!\n\nYou crossed my mind and I wanted to check in on how you're doing. If you need anything or want to give the products another try, I'm here and happy to help!`,
+    firstOffer: (n) => `Hi ${n}!\n\nLovely meeting you. If you'd like, I can put together a personalised offer with the products that suit you best. Just let me know what you're interested in!`,
+    followup: (n) => `Hi ${n}!\n\nJust wanted to check whether you had a chance to look over the offer I sent you. I'm here for any questions!`,
+    generic: (n) => `Hi ${n}!\n\nHow are you? I'm here if you need anything or would like to chat about the products.`,
   },
 }
 
