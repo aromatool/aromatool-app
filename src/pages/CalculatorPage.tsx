@@ -405,10 +405,17 @@ function CartSection() {
   // (interpretat „per 1 unitate din moneda catalogului"). Acest factor merge și
   // în email și în oferta salvată (exchange_rate).
   const displayRate = effectiveRate(baseCurrency, activeCurrency);
-  // Limba emailului către client. Implicit = limba contactului (din prefill)
-  // sau, în lipsa ei, limba pieței catalogului (RO → română; restul → engleză).
-  // Liderul o poate schimba din selectorul de mai jos.
-  const offerLang = storeOfferLang || (catalogCountry === "RO" ? "ro" : "en");
+  // Limba emailului către client. Implicit = limba contactului (din prefill);
+  // în lipsa ei, limba interfeței alese de lider (Setări); abia apoi limba
+  // pieței catalogului (RO → română; restul → engleză). Liderul o poate
+  // schimba oricând din selectorul de mai jos.
+  const uiLang = i18n.language?.startsWith("en")
+    ? "en"
+    : i18n.language?.startsWith("ro")
+      ? "ro"
+      : "";
+  const offerLang =
+    storeOfferLang || uiLang || (catalogCountry === "RO" ? "ro" : "en");
 
   // Prefill-ul e gestionat în CalculatorPage (mai sus) — nu mai e nevoie aici
 
