@@ -1,8 +1,8 @@
 {
-  "subjectWithName": "{{name}}, selecția ta personală e gata 🌿",
-  "subject": "Selecția ta personală e gata 🌿",
+  "subjectWithName": "{{user}} ți-a pregătit o ofertă",
+  "subject": "{{user}} ți-a pregătit o ofertă",
   "greeting": "Bună ziua",
-  "intro": "Oferta de mai jos a fost pregătită special pentru dumneavoastră<br>de către <strong style=\"color:#5C7A5C\">{{user}}</strong>.",
+  "intro": "Am pregătit această ofertă personalizată special pentru tine.",
   "colProduct": "Produs",
   "colQty": "Cant.",
   "colTotal": "Total",
