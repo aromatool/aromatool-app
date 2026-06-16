@@ -83,15 +83,24 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
   const t = (key: string, opts?: Record<string, unknown>) => i18n.t(key, { lng, ...opts })
 
   const rows = items.map(item => {
+    const hasDisc = item.disc > 0
     const lineEur = round2(item.price_eur * item.qty * (1 - item.disc / 100))
     const lineDisplay = round2(lineEur * rate)
-    const disc = item.disc > 0 ? `<span style="color:#C94F6A;font-size:11px"> −${item.disc}%</span>` : ''
+    // Prețul întreg (fără reducere), rotunjit la fel ca linia redusă.
+    const origDisplay = round2(round2(item.price_eur * item.qty) * rate)
+    const disc = hasDisc ? `<span style="color:#C94F6A;font-size:11px"> −${item.disc}%</span>` : ''
     const secondaryEur = displayCurrency !== base ? `<div style="font-size:11px;color:#A89888;margin-top:2px">${fmtCurrency(lineEur, base)}</div>` : ''
+    // Când există reducere: prețul întreg TĂIAT (mic, gri) + prețul redus
+    // (bold). Clientul vede clar „costa X, plătești Y".
+    const priceCell = hasDisc
+      ? `<span style="font-size:12px;color:#A89888;font-weight:400;text-decoration:line-through">${fmtCurrency(origDisplay, displayCurrency)}</span>
+        <div style="font-weight:700;color:#3D3530">${fmtCurrency(lineDisplay, displayCurrency)}</div>${secondaryEur}`
+      : `${fmtCurrency(lineDisplay, displayCurrency)}${secondaryEur}`
     return `<tr>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530">${escapeHtml(item.name)}${disc}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#A89888;text-align:center">${item.qty}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530;text-align:right;font-weight:600">
-        ${fmtCurrency(lineDisplay, displayCurrency)}${secondaryEur}
+        ${priceCell}
       </td>
     </tr>`
   }).join('')
@@ -211,13 +220,18 @@ export function buildEmailText(params: SendOfferParams, userName: string, userPh
   lines.push(t('email.intro', { user: userName }))
   lines.push('')
 
-  // Produse: o linie per produs, cu discount și (opțional) prețul în moneda de bază.
+  // Produse: o linie per produs. La reducere afișăm prețul întreg → prețul
+  // redus (text/plain nu are tăiere fiabilă, deci folosim săgeata).
   for (const item of items) {
     const lineEur = round2(item.price_eur * item.qty * (1 - item.disc / 100))
     const lineDisplay = round2(lineEur * rate)
-    const discTxt = item.disc > 0 ? ` (−${item.disc}%)` : ''
     const secondary = displayCurrency !== base ? ` (${fmtCurrency(lineEur, base)})` : ''
-    lines.push(`- ${item.name}${discTxt} × ${item.qty} — ${fmtCurrency(lineDisplay, displayCurrency)}${secondary}`)
+    if (item.disc > 0) {
+      const origDisplay = round2(round2(item.price_eur * item.qty) * rate)
+      lines.push(`- ${item.name} × ${item.qty} — ${fmtCurrency(origDisplay, displayCurrency)} → ${fmtCurrency(lineDisplay, displayCurrency)} (−${item.disc}%)${secondary}`)
+    } else {
+      lines.push(`- ${item.name} × ${item.qty} — ${fmtCurrency(lineDisplay, displayCurrency)}${secondary}`)
+    }
   }
   lines.push('')
 

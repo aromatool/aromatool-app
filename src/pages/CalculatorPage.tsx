@@ -428,9 +428,14 @@ function CartSection() {
         // aceleași sume ca emailul.
         const lineTotalEur = round2(i.price_eur * i.qty * (1 - i.disc / 100));
         const lineTotalDisplay = round2(lineTotalEur * displayRate);
-        const disc = i.disc > 0 ? ` (-${i.disc}%)` : "";
         const qty = i.qty > 1 ? ` x${i.qty}` : "";
-        return `• ${i.name}${qty}${disc} — ${formatAmount(lineTotalDisplay, activeCurrency)}`;
+        // La reducere: prețul întreg TĂIAT (~...~ = strikethrough în WhatsApp)
+        // → prețul redus, ca să se vadă reducerea.
+        if (i.disc > 0) {
+          const origDisplay = round2(round2(i.price_eur * i.qty) * displayRate);
+          return `• ${i.name}${qty} — ~${formatAmount(origDisplay, activeCurrency)}~ → ${formatAmount(lineTotalDisplay, activeCurrency)} (-${i.disc}%)`;
+        }
+        return `• ${i.name}${qty} — ${formatAmount(lineTotalDisplay, activeCurrency)}`;
       })
       .join("\n");
     const salut = clientName
