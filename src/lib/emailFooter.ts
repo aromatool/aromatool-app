@@ -41,6 +41,7 @@ export function buildEmailFooter(opts: FooterOpts): string {
   const digits = waDigits(userPhone)
   const sig = sigToHtml(userSignature)
   const closing = i18n.t('email.closing', { lng: lang })
+  const disclaimer = i18n.t('email.independentDisclaimer', { lng: lang })
 
   // Celule de contact, toate aliniate vertical la mijloc printr-un tabel.
   const cells: string[] = []
@@ -68,8 +69,11 @@ export function buildEmailFooter(opts: FooterOpts): string {
     ? `<p style="font-size:13px;color:#6A5A50;margin:0 0 12px;line-height:1.7;font-family:'Helvetica Neue',Arial,sans-serif">${sig}</p>`
     : `<p style="font-size:13px;color:#6A5A50;margin:0 0 12px;line-height:1.6;font-family:'Helvetica Neue',Arial,sans-serif">${closing}${userName ? `, <strong style="color:#4A6A4A">${userName}</strong>` : ''}</p>`
 
+  const disclaimerRow = `<p style="font-size:11px;color:#A89C90;margin:14px 0 0;line-height:1.5;font-family:'Helvetica Neue',Arial,sans-serif">${disclaimer}</p>`
+
   return `<div style="border-top:1px solid #EDE8E0;padding:20px 28px;text-align:center;">
     ${sigBlock}
     ${contactRow}
+    ${disclaimerRow}
   </div>`
 }

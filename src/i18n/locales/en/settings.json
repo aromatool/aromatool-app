@@ -14,7 +14,7 @@
     "emailPlaceholder": "email@you.com",
     "appearsInEmails": "Shown in emails sent to clients",
     "signatureLabel": "Email signature",
-    "signaturePlaceholder": "Warm regards,\nMaria Popescu\nIndependent Young Living distributor",
+    "signaturePlaceholder": "Warm regards,\nMaria Popescu\nIndependent Young Living Brand Partner",
     "signatureHint": "Shown at the end of emails sent to clients (offer and follow-up). Leave empty for the standard message.",
     "countryLabel": "Country",
     "followupDaysLabel": "Days until follow-up reminder",
