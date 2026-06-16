@@ -71,7 +71,11 @@ const T = {
 
 function daysSince(d?: string | null): number | null {
   if (!d) return null;
-  return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  const then = new Date(d);
+  const now = new Date();
+  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
 }
 function initials(name?: string | null, email?: string): string {
   return (name || email || "?")
