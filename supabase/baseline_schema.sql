@@ -390,12 +390,35 @@ ALTER FUNCTION "public"."list_product_countries"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."purge_old_email_logs"() RETURNS "void"
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
+begin
+  -- Istoric comunicare (12 luni)
   delete from public.followup_log
   where sent_at is not null
     and sent_at < now() - interval '12 months';
+
+  -- Webhook-uri (conțin date personale în payload) — 12 luni
+  delete from public.webhook_log
+  where processed_at is not null
+    and processed_at < now() - interval '12 months';
+
+  -- Dedupe lifecycle (12 luni)
+  delete from public.account_email_log
+  where sent_at < now() - interval '12 months';
+
+  -- Contoare rate-limit — păstrăm 2 luni marjă
+  delete from public.email_send_log
+  where sent_at < now() - interval '2 months';
+
+  -- Monitorizare rulări cron (6 luni)
+  delete from public.daily_focus_jobs
+  where run_at < now() - interval '6 months';
+
+  delete from public.account_email_jobs
+  where run_at < now() - interval '6 months';
+end;
 $$;
 
 

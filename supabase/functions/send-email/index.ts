@@ -82,6 +82,11 @@ function validReplyTo(email?: string): string | undefined {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : undefined
 }
 
+// Curăță subiectul de CR/LF (anti header-injection) + limită rezonabilă.
+function sanitizeSubject(subject: string): string {
+  return subject.replace(/[\r\n]+/g, ' ').trim().slice(0, 200)
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -173,29 +178,38 @@ serve(async (req) => {
       return json({ error: 'Ai atins limita de emailuri pe zi. Încearcă mâine.' }, 429)
     }
 
-    // ── VERIFICARE DESTINATAR ────────────────────────────────
-    // Dacă contact_id e furnizat, verifică că aparține userului.
-    // Previne trimiterea de emailuri prin infrastructura noastră
-    // către adrese care nu sunt contactele userului autentificat.
-    if (contact_id) {
-      const { data: contact } = await supabase
-        .from('contacts')
-        .select('id, email_opt_out, communication_blocked')
-        .eq('id', contact_id)
-        .eq('user_id', user.id)
-        .single()
+    // ── VERIFICARE DESTINATAR (H, anti-abuz) ─────────────────
+    // Trimiterea se face DOAR către un contact al userului autentificat.
+    // contact_id e obligatoriu (appul îl rezolvă/creează înainte de send) și
+    // destinatarul real = emailul contactului din DB. Astfel infrastructura
+    // noastră Resend nu poate fi folosită ca să trimită la adrese arbitrare.
+    if (!contact_id) {
+      return json({ error: 'contact_id este obligatoriu.' }, 400)
+    }
 
-      if (!contact) {
-        return json({ error: 'Contact not found or access denied' }, 403)
-      }
+    const { data: contact } = await supabase
+      .from('contacts')
+      .select('id, email, email_opt_out, communication_blocked')
+      .eq('id', contact_id)
+      .eq('user_id', user.id)
+      .single()
 
-      // ── COMMUNICATION CONTROLS ───────────────────────────────
-      if (contact.communication_blocked) {
-        return json({ error: 'Comunicarea este blocată pentru acest contact.' }, 403)
-      }
-      if (contact.email_opt_out) {
-        return json({ error: 'Emailul este dezactivat pentru acest contact.' }, 403)
-      }
+    if (!contact) {
+      return json({ error: 'Contact not found or access denied' }, 403)
+    }
+
+    // ── COMMUNICATION CONTROLS ───────────────────────────────
+    if (contact.communication_blocked) {
+      return json({ error: 'Comunicarea este blocată pentru acest contact.' }, 403)
+    }
+    if (contact.email_opt_out) {
+      return json({ error: 'Emailul este dezactivat pentru acest contact.' }, 403)
+    }
+
+    // Destinatarul real = emailul contactului (nu cel trimis de client).
+    const recipient = (contact.email || '').trim()
+    if (!recipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      return json({ error: 'Contactul nu are un email valid.' }, 400)
     }
 
     // ── DEZABONARE (conformitate email UE) ───────────────────
@@ -220,8 +234,8 @@ serve(async (req) => {
     // From: numele utilizatorului pe domeniul nostru; Reply ajunge la el.
     const payload: Record<string, unknown> = {
       from: buildFrom(from_name),
-      to,
-      subject,
+      to: recipient,
+      subject: sanitizeSubject(subject),
       html: finalHtml,
     }
     // text/plain alături de HTML → multipart/alternative (mai bună livrabilitate).
