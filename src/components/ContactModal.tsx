@@ -1849,17 +1849,8 @@ export default function ContactModal({
                 <i className="ti ti-mail" style={{ fontSize: 15 }} /> {t("contacts.modal.emailTrackingTitle")}
               </div>
 
-              {/* Stat: Deschideri */}
+              {/* Statistici angajament (click real first-party + oferte) */}
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <TrackingStat
-                  icon="ti-eye"
-                  iconBg={T.lavenderLight}
-                  iconColor={T.lavender}
-                  label={t("contacts.modal.trackOpens")}
-                  value={contact.email_opens ?? 0}
-                  suffix={t("contacts.modal.trackOpensSuffix")}
-                  active={(contact.email_opens ?? 0) > 0}
-                />
                 <TrackingStat
                   icon="ti-cursor-text"
                   iconBg={T.sageLight}
@@ -1905,7 +1896,7 @@ export default function ContactModal({
                 </div>
               </div>
 
-              {(contact.email_opens ?? 0) === 0 && (contact.email_clicks ?? 0) === 0 && (
+              {(contact.email_clicks ?? 0) === 0 && (
                 <div style={{ marginTop: 14, fontSize: 11, color: T.muted, lineHeight: 1.6 }}>
                   {t("contacts.modal.trackingHint")}
                 </div>

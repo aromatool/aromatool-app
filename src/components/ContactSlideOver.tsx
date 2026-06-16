@@ -295,9 +295,8 @@ export default function ContactSlideOver({
     ? daysSince(contact.last_activity_at)
     : null;
 
-  const emailOpens = contact.email_opens ?? 0;
   const emailClicks = contact.email_clicks ?? 0;
-  const hasEmailTracking = emailOpens > 0 || emailClicks > 0;
+  const hasEmailTracking = emailClicks > 0;
 
   const handleStatusSelect = async (newStatus: ContactStatus) => {
     // Dacă alegerea corespunde aceluiași status canonic, nu schimbăm nimic
@@ -1115,57 +1114,28 @@ export default function ContactSlideOver({
           {/* Email tracking */}
           <div style={{ marginBottom: 8 }}>
             <SectionLabel>{t("contacts.slideOver.emailTracking")}</SectionLabel>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div
-                style={{
-                  flex: 1,
-                  background: T.lavLt,
-                  border: `0.5px solid ${T.lavBd}`,
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <i
-                  className="ti ti-mail-opened"
-                  style={{ fontSize: 16, color: T.lav }}
-                  aria-hidden="true"
-                />
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
-                    {emailOpens}
-                  </div>
-                  <div style={{ fontSize: 11, color: T.warm }}>
-                    {t("contacts.slideOver.opens", { count: emailOpens })}
-                  </div>
+            <div
+              style={{
+                background: T.lavLt,
+                border: `0.5px solid ${T.lavBd}`,
+                borderRadius: 8,
+                padding: "10px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <i
+                className="ti ti-click"
+                style={{ fontSize: 16, color: T.lav }}
+                aria-hidden="true"
+              />
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
+                  {emailClicks}
                 </div>
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  background: T.lavLt,
-                  border: `0.5px solid ${T.lavBd}`,
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <i
-                  className="ti ti-click"
-                  style={{ fontSize: 16, color: T.lav }}
-                  aria-hidden="true"
-                />
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: T.lav }}>
-                    {emailClicks}
-                  </div>
-                  <div style={{ fontSize: 11, color: T.warm }}>
-                    {t("contacts.slideOver.clicks", { count: emailClicks })}
-                  </div>
+                <div style={{ fontSize: 11, color: T.warm }}>
+                  {t("contacts.slideOver.clicks", { count: emailClicks })}
                 </div>
               </div>
             </div>

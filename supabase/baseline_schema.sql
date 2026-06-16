@@ -523,10 +523,19 @@ CREATE OR REPLACE FUNCTION "public"."touch_resource_link"("p_token" "text") RETU
     LANGUAGE "sql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
-  update public.resource_links
-  set clicked_at = coalesce(clicked_at, now()),
-      click_count = click_count + 1
-  where token = p_token;
+  with bumped as (
+    update public.resource_links
+    set clicked_at = coalesce(clicked_at, now()),
+        click_count = click_count + 1
+    where token = p_token
+    returning contact_id
+  )
+  update public.contacts c
+  set email_clicks    = coalesce(c.email_clicks, 0) + 1,
+      last_clicked_at = now()
+  from bumped b
+  where b.contact_id is not null
+    and c.id = b.contact_id;
 $$;
 
 
@@ -602,6 +611,7 @@ CREATE TABLE IF NOT EXISTS "public"."contacts" (
     "communication_blocked_reason" "text",
     "email_opens" integer DEFAULT 0,
     "email_clicks" integer DEFAULT 0,
+    "last_clicked_at" timestamp with time zone,
     "language_code" "text" DEFAULT 'ro'::"text",
     CONSTRAINT "contacts_status_check" CHECK (("status" = ANY (ARRAY['prospect'::"text", 'in_followup'::"text", 'client_nou'::"text", 'client_fidel'::"text", 'team_member'::"text", 'inactiv'::"text"])))
 );
