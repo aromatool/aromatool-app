@@ -63,16 +63,28 @@ function injectUnsubText(text: string, link: string): string {
 const MAIL_FROM = Deno.env.get('MAIL_FROM') || 'onboarding@resend.dev'
 
 // Curăță numele afișat de caractere care ar strica header-ul „From"
-// (newline, ghilimele, paranteze unghiulare). Apoi îl punem între ghilimele.
+// (newline, ghilimele, paranteze unghiulare).
 function sanitizeName(name?: string): string {
   if (!name) return ''
   return name.replace(/[<>"\r\n]/g, '').trim().slice(0, 80)
 }
 
-// Construiește header-ul „From": "Nume utilizator <adresa-ta>".
+// Codează numele afișat pentru header-ul „From":
+//  • ASCII pur → simplu, între ghilimele ("Alex Maja").
+//  • Cu diacritice (ă, î, ș, ț) → „encoded-word" RFC 2047 (base64 UTF-8),
+//    altfel unele servere strică numele și clientul arată doar adresa brută.
+function encodeName(name: string): string {
+  if (/^[\x20-\x7E]*$/.test(name)) return `"${name}"`
+  const bytes = new TextEncoder().encode(name)
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return `=?UTF-8?B?${btoa(bin)}?=`
+}
+
+// Construiește header-ul „From": Nume utilizator <adresa-ta>.
 function buildFrom(fromName?: string): string {
   const clean = sanitizeName(fromName)
-  return clean ? `"${clean}" <${MAIL_FROM}>` : `AromaTool <${MAIL_FROM}>`
+  return clean ? `${encodeName(clean)} <${MAIL_FROM}>` : `AromaTool <${MAIL_FROM}>`
 }
 
 // Reply-To valid doar dacă pare un email (altfel îl ignorăm).
