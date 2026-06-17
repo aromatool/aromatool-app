@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/auth";
+import { supabase } from "../../lib/supabase";
 import { setUiLang, type Lang } from "../../i18n";
 import LeafMark from "../../components/LeafMark";
 
@@ -182,6 +183,10 @@ export default function AuthPage() {
   const [langOpen, setLangOpen] = useState(false);
   // Toggle vizibilitate parolă (eye icon) — doar pe inputurile mobile.
   const [showPassword, setShowPassword] = useState(false);
+  // Zilele de trial configurate în Admin (app_config → trial_days).
+  // Funcția SQL trial_days() e SECURITY DEFINER + grant pentru anon, deci
+  // pagina de login (neautentificată) o poate apela direct. Implicit 14.
+  const [trialDays, setTrialDays] = useState<number>(14);
   const { signIn, signUp, user, recovery, resetPassword, updatePassword } =
     useAuth();
   const navigate = useNavigate();
@@ -196,6 +201,19 @@ export default function AuthPage() {
     const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    // Preia numărul de zile de trial setat în Admin (fallback 14).
+    let active = true;
+    supabase.rpc("trial_days").then(({ data, error }) => {
+      if (!active || error) return;
+      const n = Number(data);
+      if (Number.isFinite(n) && n > 0) setTrialDays(n);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   function resetFields() {
@@ -693,7 +711,7 @@ export default function AuthPage() {
               ))}
             </div>
 
-            {/* Badge trial — iconiță calendar + 14 zile (durata reală) */}
+            {/* Badge trial — iconiță calendar + zilele setate în Admin */}
             <div
               style={{
                 display: "flex",
@@ -729,7 +747,7 @@ export default function AuthPage() {
                     letterSpacing: "0.01em",
                   }}
                 >
-                  {t("auth.trialBadgeTitle")}
+                  {t("auth.trialBadgeTitle", { days: trialDays })}
                 </div>
                 <div
                   style={{
@@ -1591,7 +1609,7 @@ export default function AuthPage() {
                         color: T.sageDark,
                       }}
                     >
-                      {t("auth.trialBadgeTitle")}
+                      {t("auth.trialBadgeTitle", { days: trialDays })}
                     </div>
                     <div
                       style={{
