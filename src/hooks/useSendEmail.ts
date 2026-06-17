@@ -193,10 +193,6 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
         ${t('email.enrollFooter')}
       </div>
     </div>` : ''}
-
-    <p style="font-size:13px;color:#6A5A50;margin:22px 0 0;line-height:1.7;text-align:center">
-      ${t('email.closingQuestions')}<br><br>${t('email.closingWarm')}
-    </p>
   </div>
 
   ${buildEmailFooter({ userName, userPhone, userEmail, userSignature, lang: lng })}

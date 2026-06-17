@@ -42,6 +42,8 @@ export function buildEmailFooter(opts: FooterOpts): string {
   const sig = sigToHtml(userSignature)
   const closing = i18n.t('email.closing', { lng: lang })
   const disclaimer = i18n.t('email.independentDisclaimer', { lng: lang })
+  const closingQuestions = i18n.t('email.closingQuestions', { lng: lang })
+  const closingWarm = i18n.t('email.closingWarm', { lng: lang })
 
   // Celule de contact, toate aliniate vertical la mijloc printr-un tabel.
   const cells: string[] = []
@@ -71,7 +73,12 @@ export function buildEmailFooter(opts: FooterOpts): string {
 
   const disclaimerRow = `<p style="font-size:11px;color:#A89C90;margin:14px 0 0;line-height:1.5;font-family:'Helvetica Neue',Arial,sans-serif">${disclaimer}</p>`
 
-  return `<div style="border-top:1px solid #EDE8E0;padding:20px 28px;text-align:center;">
+  // Încheiere standard, deasupra liniei despărțitoare — apare în toate
+  // emailurile către client (ofertă, follow-up, mesaj custom), o singură dată.
+  const closingRow = `<p style="font-size:13px;color:#6A5A50;margin:0;padding:4px 28px 18px;line-height:1.7;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif">${closingQuestions}<br><br>${closingWarm}</p>`
+
+  return `${closingRow}
+  <div style="border-top:1px solid #EDE8E0;padding:20px 28px;text-align:center;">
     ${sigBlock}
     ${contactRow}
     ${disclaimerRow}
