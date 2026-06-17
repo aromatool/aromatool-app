@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { useProducts, useExchangeRate, useProductCountries } from "../hooks/useProducts";
-import { useCartStore } from "../hooks/useCartStore";
+import { useCartStore, priceFor } from "../hooks/useCartStore";
 import { useSendEmail, buildEmailHtml, round2, computeOfferTotals } from "../hooks/useSendEmail";
 import { useResources } from "../hooks/useResources";
 import EnrollLink from "../components/EnrollLink";
@@ -40,7 +40,7 @@ function SearchSection() {
   const catalogCountry = useCartStore((s) => s.catalogCountry);
   const { data: products, isLoading, error } = useProducts(catalogCountry);
   const { data: rateData } = useExchangeRate();
-  const { addItem, items, setExchangeRate, currency, catalogCurrency, setCatalogCurrency } = useCartStore();
+  const { addItem, items, setExchangeRate, currency, catalogCurrency, setCatalogCurrency, priceMode, setPriceMode } = useCartStore();
   const { convertFromBase, formatAmount } = useExchangeRates();
   const activeCurrency = currency || "RON";
 
@@ -201,6 +201,56 @@ function SearchSection() {
         )}
       </div>
 
+      {/* Selector preț: Angro / Retail — vizibil, controlează ce preț apare
+          în listă, în coș și în oferta trimisă. Implicit Angro. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontSize: "12px", color: C.muted, fontWeight: 500 }}>
+          {tr("calculator.priceMode.label")}
+        </span>
+        <div
+          style={{
+            display: "inline-flex",
+            background: C.bg2,
+            border: `1px solid ${C.border2}`,
+            borderRadius: "9px",
+            padding: "2px",
+          }}
+        >
+          {(["wholesale", "retail"] as const).map((m) => {
+            const active = priceMode === m;
+            return (
+              <button
+                key={m}
+                onClick={() => setPriceMode(m)}
+                title={tr(`calculator.priceMode.${m}Hint`)}
+                style={{
+                  border: "none",
+                  borderRadius: "7px",
+                  padding: "5px 14px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                  background: active ? C.primary : "transparent",
+                  color: active ? "white" : C.muted,
+                  transition: "all 0.15s",
+                }}
+              >
+                {tr(`calculator.priceMode.${m}`)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Results */}
       <div
         style={{
@@ -224,7 +274,9 @@ function SearchSection() {
           results.map((p: Product) => {
             // Moneda de bază = moneda nativă a produsului (EUR, GBP, ...).
             const base = p.currency || "EUR";
-            const priceDisplay = convertFromBase(p.price_eur, base, activeCurrency);
+            // Prețul afișat depinde de modul selectat (angro / retail).
+            const activePrice = priceFor(p, priceMode);
+            const priceDisplay = convertFromBase(activePrice, base, activeCurrency);
             const added = inCart(p.id);
             return (
               <div
@@ -282,7 +334,7 @@ function SearchSection() {
                         fontWeight: 400,
                       }}
                     >
-                      {formatAmount(p.price_eur, base)}
+                      {formatAmount(activePrice, base)}
                     </div>
                   )}
                 </div>
@@ -332,6 +384,7 @@ function CartSection() {
     catalogCurrency,
     prefillContactId,
     offerLang: storeOfferLang,
+    priceMode,
     setOfferLang,
     removeItem,
     updateQty,
@@ -352,6 +405,14 @@ function CartSection() {
   const { convertFromBase, formatAmount, effectiveRate } = useExchangeRates();
   // Moneda de bază a ofertei (în care sunt stocate prețurile `price_eur`).
   const baseCurrency = catalogCurrency || "EUR";
+
+  // Articole cu prețul „rezolvat" pe modul selectat (angro / retail): setăm
+  // price_eur = prețul activ, ca tot ce e în aval (totaluri, email, text,
+  // oferta salvată) să folosească exact prețul ales, fără a mai ști de mod.
+  const resolvedItems = useMemo(
+    () => items.map((i) => ({ ...i, price_eur: priceFor(i, priceMode) })),
+    [items, priceMode],
+  );
 
   const [showCustom, setShowCustom] = useState(false);
   const [enrollLink, setEnrollLink] = useState("");
@@ -433,13 +494,14 @@ function CartSection() {
         // Rotunjim linia în EUR ÎNAINTE de conversie — identic cu emailul și cu
         // oferta salvată (penny rounding), ca textul WhatsApp să arate exact
         // aceleași sume ca emailul.
-        const lineTotalEur = round2(i.price_eur * i.qty * (1 - i.disc / 100));
+        const unitPrice = priceFor(i, priceMode);
+        const lineTotalEur = round2(unitPrice * i.qty * (1 - i.disc / 100));
         const lineTotalDisplay = round2(lineTotalEur * displayRate);
         const qty = i.qty > 1 ? ` x${i.qty}` : "";
         // La reducere: prețul întreg TĂIAT (~...~ = strikethrough în WhatsApp)
         // → prețul redus, ca să se vadă reducerea.
         if (i.disc > 0) {
-          const origDisplay = round2(round2(i.price_eur * i.qty) * displayRate);
+          const origDisplay = round2(round2(unitPrice * i.qty) * displayRate);
           return `• ${i.name}${qty} — ~${formatAmount(origDisplay, activeCurrency)}~ → ${formatAmount(lineTotalDisplay, activeCurrency)} (-${i.disc}%)`;
         }
         return `• ${i.name}${qty} — ${formatAmount(lineTotalDisplay, activeCurrency)}`;
@@ -486,7 +548,7 @@ function CartSection() {
         clientEmail,
         clientPhone,
         notes,
-        items,
+        items: resolvedItems,
         transport,
         totalDisplay: total,
         totalEur,
@@ -540,7 +602,7 @@ function CartSection() {
   // Totalul afișat folosește ACEEAȘI sursă unică (penny rounding) ca emailul și
   // oferta salvată: Σ(linii rotunjite) + transport rotunjit. Astfel panoul,
   // textul WhatsApp, previzualizarea, emailul și suma stocată sunt identice.
-  const offerTotals = computeOfferTotals(items, transport, displayRate);
+  const offerTotals = computeOfferTotals(resolvedItems, transport, displayRate);
   const total = offerTotals.totalDisplay;
   const totalEurRounded = offerTotals.totalEur;
 
@@ -618,7 +680,7 @@ function CartSection() {
 
       {/* Cart items */}
       {items.map((item) => {
-        const priceEur = item.price_eur;
+        const priceEur = priceFor(item, priceMode);
         const itemBase = item.currency || baseCurrency;
         // Rotunjim linia în EUR înainte de conversie (penny rounding) — la fel ca
         // emailul, textul și oferta salvată, ca sumele afișate să fie identice.
@@ -1586,7 +1648,7 @@ function CartSection() {
                 clientEmail,
                 clientPhone,
                 notes,
-                items,
+                items: resolvedItems,
                 transport,
                 totalDisplay: total,
                 totalEur,
@@ -2015,7 +2077,7 @@ function CartSection() {
             clientEmail: clientEmail || 'preview@example.com',
             clientPhone,
             notes,
-            items,
+            items: resolvedItems,
             transport,
             totalDisplay: total,
             totalEur,

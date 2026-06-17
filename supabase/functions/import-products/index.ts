@@ -52,6 +52,7 @@ interface YlItem {
   pointValue?: number
   loyaltyPoints?: number
   wholesaleDisplayPrice?: number
+  retailDisplayPrice?: number
   isNFR?: boolean
   canPurchase?: boolean
   // YL trimite moneda fie ca string ("GBP"), fie ca obiect { code, symbol }.
@@ -196,6 +197,8 @@ serve(async (req) => {
         // YL trimite punctele și prețul ×100 (ex: 12220 = 122.20)
         points: Number(it.pointValue ?? it.loyaltyPoints ?? 0) / 100,
         price_eur: Number(it.wholesaleDisplayPrice) / 100,
+        // Prețul retail (de listă, mai mare). Lipsă → 0 (app cade pe price_eur).
+        retail_price_eur: Number(it.retailDisplayPrice ?? 0) / 100,
       }))
       .filter((p) => p.name && p.sku)
 

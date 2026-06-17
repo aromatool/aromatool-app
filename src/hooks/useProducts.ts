@@ -11,6 +11,9 @@ export interface Product {
   // e istoric „price_eur”, dar valoarea e EUR doar pentru zona euro; pentru
   // UK e GBP etc. Interpretarea corectă se face mereu prin `currency`.
   price_eur: number;
+  // Prețul RETAIL (de listă, mai mare), în aceeași monedă ca `price_eur`.
+  // 0 = produs importat înainte de coloana retail → se folosește price_eur.
+  retail_price_eur: number;
   // Moneda în care e exprimat `price_eur` (EUR, GBP, ...).
   currency: string;
 }
@@ -31,7 +34,7 @@ export function useProducts(countryCode = "RO") {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, sku, points, price_eur, currency")
+        .select("id, name, sku, points, price_eur, retail_price_eur, currency")
         .eq("company_id", companyId!)
         .eq("country_code", countryCode)
         .eq("active", true)

@@ -92,6 +92,13 @@
   "catalog": {
     "label": "Product catalog"
   },
+  "priceMode": {
+    "label": "Displayed price:",
+    "wholesale": "Wholesale",
+    "retail": "Retail",
+    "wholesaleHint": "Brand Partner (wholesale) price — default",
+    "retailHint": "List (retail) price, higher"
+  },
   "draftBanner": {
     "title_one": "You have an offer in progress — {{count}} product{{forName}}",
     "title_other": "You have an offer in progress — {{count}} products{{forName}}",

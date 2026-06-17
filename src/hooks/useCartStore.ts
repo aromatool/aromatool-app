@@ -2,6 +2,21 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Product } from '../hooks/useProducts'
 
+// Ce preț folosim în ofertă: angro (Brand Partner) sau retail (de listă).
+export type PriceMode = 'wholesale' | 'retail'
+
+// Prețul activ al unui produs/articol în funcție de mod. Retail doar dacă
+// există (> 0); altfel cădem pe angro (produse importate înainte de retail).
+export function priceFor(
+  p: { price_eur: number; retail_price_eur?: number | null },
+  mode: PriceMode,
+): number {
+  if (mode === 'retail' && p.retail_price_eur != null && p.retail_price_eur > 0) {
+    return p.retail_price_eur
+  }
+  return p.price_eur
+}
+
 export interface CartItem extends Product {
   qty: number
   disc: number
@@ -48,6 +63,7 @@ function sanitizeCartItem(raw: unknown): CartItem | null {
     id: o.id,
     name: o.name,
     price_eur: price,
+    retail_price_eur: sanitizePrice((o.retail_price_eur as number) ?? 0),
     qty: sanitizeQty(o.qty as number),
     disc: sanitizeDisc(o.disc as number),
     guideSelected: Boolean(o.guideSelected),
@@ -70,6 +86,7 @@ interface CartStore {
   catalogCurrency: string // base currency of the catalog (EUR, GBP, ...)
                           // — `price_eur` values are expressed in THIS currency
   offerLang: string       // email language for the client ('ro' | 'en'); '' = auto by catalog
+  priceMode: PriceMode    // which price to use in the offer: 'wholesale' (default) | 'retail'
 
   addItem: (product: Product) => void
   removeItem: (id: string) => void
@@ -87,6 +104,7 @@ interface CartStore {
   setCatalogCountry: (country: string) => void
   setCatalogCurrency: (currency: string) => void
   setOfferLang: (lang: string) => void
+  setPriceMode: (mode: PriceMode) => void
   setCustomRate: (currency: string, rate: number) => void
   prefillContactId: string | null
   setPrefillContactId: (id: string | null) => void
@@ -115,6 +133,7 @@ export const useCartStore = create<CartStore>()(
       catalogCountry: 'RO',
       catalogCurrency: 'EUR',
       offerLang: '',
+      priceMode: 'wholesale',
       prefillContactId: null,
 
       addItem: (product) => set(state => {
@@ -161,6 +180,7 @@ export const useCartStore = create<CartStore>()(
             sku: 'CUSTOM',
             points: 0,
             price_eur: safePrice, // stored in catalog base currency
+            retail_price_eur: safePrice, // produs custom: același preț în ambele moduri
             currency: state.catalogCurrency || 'EUR',
             qty: sanitizeQty(qty),
             disc: sanitizeDisc(disc),
@@ -191,6 +211,7 @@ export const useCartStore = create<CartStore>()(
       )),
       setCatalogCurrency: (catalogCurrency) => set({ catalogCurrency }),
       setOfferLang: (offerLang) => set({ offerLang }),
+      setPriceMode: (priceMode) => set({ priceMode }),
       setPrefillContactId: (prefillContactId) => set({ prefillContactId }),
       setCustomRate: (currency, rate) => set(state => ({
         customRates: { ...state.customRates, [currency]: rate }
@@ -199,16 +220,16 @@ export const useCartStore = create<CartStore>()(
 
       // All in EUR
       getSubtotalEur: () => {
-        const { items } = get()
+        const { items, priceMode } = get()
         return items.reduce((sum, item) => {
-          return sum + item.price_eur * item.qty
+          return sum + priceFor(item, priceMode) * item.qty
         }, 0)
       },
 
       getDiscountEur: () => {
-        const { items } = get()
+        const { items, priceMode } = get()
         return items.reduce((sum, item) => {
-          return sum + item.price_eur * item.qty * (item.disc / 100)
+          return sum + priceFor(item, priceMode) * item.qty * (item.disc / 100)
         }, 0)
       },
 
@@ -256,6 +277,7 @@ export const useCartStore = create<CartStore>()(
         catalogCountry: state.catalogCountry,
         catalogCurrency: state.catalogCurrency,
         offerLang: state.offerLang,
+        priceMode: state.priceMode,
         prefillContactId: state.prefillContactId,
       }),
     }

@@ -92,6 +92,13 @@
   "catalog": {
     "label": "Catalog produse"
   },
+  "priceMode": {
+    "label": "Preț afișat:",
+    "wholesale": "Angro",
+    "retail": "Retail",
+    "wholesaleHint": "Preț Brand Partner (angro) — implicit",
+    "retailHint": "Preț de listă (retail), mai mare"
+  },
   "draftBanner": {
     "title_one": "Ai o ofertă în curs — {{count}} produs{{forName}}",
     "title_few": "Ai o ofertă în curs — {{count}} produse{{forName}}",
