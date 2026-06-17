@@ -185,8 +185,9 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   // Zilele de trial configurate în Admin (app_config → trial_days).
   // Funcția SQL trial_days() e SECURITY DEFINER + grant pentru anon, deci
-  // pagina de login (neautentificată) o poate apela direct. Implicit 14.
-  const [trialDays, setTrialDays] = useState<number>(14);
+  // pagina de login (neautentificată) o poate apela direct. Implicit 15
+  // (valoarea curentă din Admin) ca să nu pâlpâie 14 → 15 la încărcare.
+  const [trialDays, setTrialDays] = useState<number>(15);
   const { signIn, signUp, user, recovery, resetPassword, updatePassword } =
     useAuth();
   const navigate = useNavigate();
@@ -204,7 +205,7 @@ export default function AuthPage() {
   }, []);
 
   useEffect(() => {
-    // Preia numărul de zile de trial setat în Admin (fallback 14).
+    // Preia numărul de zile de trial setat în Admin (fallback 15).
     let active = true;
     supabase.rpc("trial_days").then(({ data, error }) => {
       if (!active || error) return;
