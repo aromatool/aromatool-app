@@ -199,6 +199,18 @@ export default function ContactModal({
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
+  // Blochează scroll-ul paginii din spate cât timp modalul e deschis. Pe mobil,
+  // fără asta lista de contacte se mișcă în spatele modalului, iar bara de
+  // adrese care apare/dispare lasă spațiu gol sub modal.
+  useEffect(() => {
+    if (!contact) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [contact]);
+
   useEffect(() => {
     setTab("offers");
     setEditingNotes(false);
@@ -1026,6 +1038,10 @@ export default function ContactModal({
             </div>
           )}
 
+          {/* În modul editare arătăm DOAR formularul de mai sus — restul
+              detaliilor (acțiune, KPI, oferte, tracking) se ascund. */}
+          {!editMode && (
+            <>
           {/* RÂND 1: Acțiune recomandată + KPI-uri */}
           <div
             style={{
@@ -1655,7 +1671,6 @@ export default function ContactModal({
                             t("contacts.modal.colOffer"),
                             t("contacts.modal.colDate"),
                             t("contacts.modal.colValue"),
-                            t("contacts.modal.colProducts"),
                             t("contacts.modal.colStatus"),
                             "",
                           ].map((h, hi) => (
@@ -1726,37 +1741,6 @@ export default function ContactModal({
                               {o.external
                                 ? channelLabelFor(o.sentVia, t)
                                 : `€${o.total_eur.toFixed(0)}`}
-                            </td>
-                            <td style={{ padding: "10px 8px" }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  flexWrap: "wrap",
-                                  gap: 4,
-                                }}
-                              >
-                                {o.products.slice(0, 2).map((p, i) => (
-                                  <span
-                                    key={i}
-                                    style={{
-                                      fontSize: 10,
-                                      background: T.lavenderLight,
-                                      color: T.lavender,
-                                      borderRadius: 999,
-                                      padding: "2px 8px",
-                                    }}
-                                  >
-                                    {p}
-                                  </span>
-                                ))}
-                                {o.products.length > 2 && (
-                                  <span
-                                    style={{ fontSize: 10, color: T.muted }}
-                                  >
-                                    +{o.products.length - 2}
-                                  </span>
-                                )}
-                              </div>
                             </td>
                             <td style={{ padding: "10px 8px" }}>
                               <span
@@ -1903,6 +1887,8 @@ export default function ContactModal({
               )}
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -9,14 +9,34 @@ import roActions from '../../../src/i18n/locales/ro/actions.json' with { type: '
 // recommendedAction.ts. Citește din ro/actions.json și interpolează {{param}}.
 // deno-lint-ignore no-explicit-any
 function tServer(key: string, params?: Record<string, unknown>): any {
-  const path = key.split('.')
   // Cheile sunt de forma „actions.title.x", iar conținutul ro/actions.json
   // stă la RĂDĂCINĂ (fără wrapper „actions" — vezi fixul de i18n). Mapăm
   // namespace-ul „actions" pe întreg fișierul, ca în i18next (out[ns]=mod).
   // deno-lint-ignore no-explicit-any
-  let v: any = { actions: roActions as any }
-  for (const p of path) v = v?.[p]
-  let s = typeof v === 'string' ? v : key
+  const root: any = { actions: roActions as any }
+  const resolve = (k: string): string | undefined => {
+    // deno-lint-ignore no-explicit-any
+    let v: any = root
+    for (const p of k.split('.')) v = v?.[p]
+    return typeof v === 'string' ? v : undefined
+  }
+
+  let s = resolve(key)
+
+  // Pluralizare în stil i18next: multe motive (ex: inactiveDays, noOfferYet)
+  // există DOAR în variante cu sufix (_zero/_one/_few/_other), nu ca cheie
+  // directă. Fără asta apăreau ca text brut în emailul Daily Focus
+  // („actions.reason.inactiveDays"). Selectăm forma după regulile CLDR ro.
+  if (s === undefined && params && typeof params.count === 'number') {
+    const n = params.count
+    if (n === 0) s = resolve(`${key}_zero`)
+    if (s === undefined) {
+      const cat = new Intl.PluralRules('ro-RO').select(n) // one | few | other
+      s = resolve(`${key}_${cat}`) ?? resolve(`${key}_other`)
+    }
+  }
+
+  if (s === undefined) s = key
   if (params) {
     for (const [k, val] of Object.entries(params)) {
       s = s.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), String(val))
