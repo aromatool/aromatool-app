@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { setUiLang, type Lang } from "../../i18n";
+import { usePlanPrice } from "../../lib/subscription";
 import LeafMark from "../../components/LeafMark";
 
 // ── CALM PREMIUM WELLNESS (design system — doar /auth) ──────
@@ -188,6 +189,9 @@ export default function AuthPage() {
   // pagina de login (neautentificată) o poate apela direct. Implicit 15
   // (valoarea curentă din Admin) ca să nu pâlpâie 14 → 15 la încărcare.
   const [trialDays, setTrialDays] = useState<number>(15);
+  // Preț live din Stripe (RON pt. RO, EUR pt. restul). `null` cât timp
+  // se încarcă → nu afișăm linia de preț ca să nu pâlpâie.
+  const { priceLabel } = usePlanPrice();
   const { signIn, signUp, user, recovery, resetPassword, updatePassword } =
     useAuth();
   const navigate = useNavigate();
@@ -759,6 +763,18 @@ export default function AuthPage() {
                 >
                   {t("auth.trialBadgeSub")}
                 </div>
+                {priceLabel && (
+                  <div
+                    style={{
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.92)",
+                      marginTop: "5px",
+                    }}
+                  >
+                    {t("auth.trialBadgePrice", { price: priceLabel })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1621,6 +1637,18 @@ export default function AuthPage() {
                     >
                       {t("auth.trialBadgeSub")}
                     </div>
+                    {priceLabel && (
+                      <div
+                        style={{
+                          fontSize: "12.5px",
+                          fontWeight: 700,
+                          color: T.sageDark,
+                          marginTop: "4px",
+                        }}
+                      >
+                        {t("auth.trialBadgePrice", { price: priceLabel })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </>
