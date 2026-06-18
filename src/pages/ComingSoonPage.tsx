@@ -11,7 +11,6 @@ import LeafMark from "../components/LeafMark";
 // ============================================================
 
 const SAGE = "#5C7A5C";
-const SAGE_SOFT = "#7B9479";
 const PAGE = "#F5F4EF";
 const ESPRESSO = "#2B2723";
 const MUTED = "#6A5F57";
