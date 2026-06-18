@@ -3,8 +3,9 @@ import LeafMark from "../components/LeafMark";
 
 // ============================================================
 // COMING SOON — landing public pentru getaromatool.com până la lansare.
-// Colectează emailuri (pre-înscriere) + consimțământ GDPR. La lansare,
-// funcția `waitlist-launch` trimite codul de 15 zile gratis.
+// Colectează DOAR emailuri (pre-înscriere) + consimțământ GDPR. Nu afișăm
+// preț / zile gratis / cod aici — acelea ar ridica întrebări fără context.
+// La lansare, funcția `waitlist-launch` trimite emailul cu codul.
 //
 // Postează la `waitlist-signup` (deploy --no-verify-jwt) → FĂRĂ auth.
 // Bilingv RO/EN (comutator sus). Imaginea de produs (hero) e PNG cu
@@ -38,7 +39,6 @@ const COPY: Record<Lang, {
   emailPlaceholder: string;
   button: string;
   sending: string;
-  bullets: [string, string, string];
   consentBefore: string;
   consentLink: string;
   consentAfter: string;
@@ -61,17 +61,16 @@ const COPY: Record<Lang, {
     launchTitle: "Lansăm în curând",
     launchSub: "Fii printre primii care află când AromaTool e live.",
     cardTitle: "Înscrie-te la lansare",
-    cardSub: "La lansare îți trimitem un email cu codul tău de 15 zile gratis. Verifică-ți inbox-ul în curând.",
+    cardSub: "Lasă-ți adresa de email și te anunțăm imediat ce AromaTool e live.",
     emailPlaceholder: "Adresa ta de email",
     button: "Vreau să fiu anunțat",
     sending: "Se trimite...",
-    bullets: ["15 zile gratis", "Reducere de lansare", "Fără card bancar"],
     consentBefore: "Sunt de acord să fiu contactat prin email la lansare. Vezi ",
     consentLink: "Politica de confidențialitate",
     consentAfter: ".",
     successTitle: "Te-am adăugat pe listă!",
     successBody:
-      "La lansare îți trimitem un email cu codul tău de 15 zile gratis. Verifică-ți inbox-ul în curând.",
+      "Gata! Te anunțăm pe email imediat ce AromaTool e live.",
     errEmail: "Adresa de email pare invalidă.",
     errGeneric: "Ceva n-a mers. Mai încearcă o dată în câteva momente.",
     features: [
@@ -94,17 +93,16 @@ const COPY: Record<Lang, {
     launchTitle: "Launching soon",
     launchSub: "Be among the first to know when AromaTool is live.",
     cardTitle: "Join the launch list",
-    cardSub: "At launch we'll email you your 15-day free code. Keep an eye on your inbox.",
+    cardSub: "Leave your email and we'll let you know the moment AromaTool is live.",
     emailPlaceholder: "Your email address",
     button: "Notify me",
     sending: "Sending...",
-    bullets: ["15-day free trial", "Launch discount", "No credit card required"],
     consentBefore: "I agree to be contacted by email at launch. See the ",
     consentLink: "Privacy Policy",
     consentAfter: ".",
     successTitle: "You're on the list!",
     successBody:
-      "At launch we'll email you your 15-day free code. Keep an eye on your inbox.",
+      "All set! We'll email you the moment AromaTool is live.",
     errEmail: "That email looks invalid.",
     errGeneric: "Something went wrong. Please try again in a moment.",
     features: [
@@ -182,6 +180,42 @@ function LeafBranch({ size = 240, color = SAGE }: { size?: number; color?: strin
   );
 }
 
+// ── Frunziș verde, bogat (plantă) — ca în design, pe margine ─
+// Un mănunchi de frunze lanceolate, umplute cu gradient verde.
+// Folosit blurat + semi-transparent ca să imite o plantă din spate.
+function Foliage({ height = 560, flip = false }: { height?: number; flip?: boolean }) {
+  // o frunză „pointing up", baza în (0,0), vârful în (0,-118)
+  const leaf = "M0,0 C22,-30 22,-86 0,-120 C-22,-86 -22,-30 0,0 Z";
+  const leaves: { x: number; y: number; r: number; s: number }[] = [
+    { x: 0, y: 0, r: 0, s: 1.0 },
+    { x: -36, y: 30, r: -42, s: 0.86 },
+    { x: 38, y: 26, r: 40, s: 0.88 },
+    { x: -64, y: 96, r: -70, s: 0.74 },
+    { x: 66, y: 88, r: 66, s: 0.76 },
+    { x: -20, y: 120, r: -14, s: 0.7 },
+    { x: 30, y: 150, r: 22, s: 0.66 },
+  ];
+  return (
+    <svg width={height * 0.62} height={height} viewBox="-150 -150 300 460" fill="none" aria-hidden="true"
+      style={{ transform: flip ? "scaleX(-1)" : undefined }}>
+      <defs>
+        <linearGradient id="folg" x1="0" y1="-130" x2="0" y2="20" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#7FA07C" />
+          <stop offset="1" stopColor="#4A6A4A" />
+        </linearGradient>
+      </defs>
+      {/* stem */}
+      <path d="M0,300 C-10,180 6,80 0,-10" stroke="#4A6A4A" strokeWidth="5" strokeLinecap="round" fill="none" />
+      {leaves.map((l, i) => (
+        <g key={i} transform={`translate(${l.x},${l.y}) rotate(${l.r}) scale(${l.s})`}>
+          <path d={leaf} fill="url(#folg)" />
+          <path d="M0,-6 L0,-108" stroke="#3C5A3C" strokeWidth="2" strokeLinecap="round" opacity="0.45" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 export default function ComingSoonPage() {
   const [lang, setLang] = useState<Lang>("ro");
   const [email, setEmail] = useState("");
@@ -236,15 +270,23 @@ export default function ComingSoonPage() {
           PAGE,
       }}
     >
-      {/* Frunze decorative — pur ornamentale, sub conținut */}
-      <div aria-hidden style={{ position: "absolute", top: -40, right: -50, opacity: 0.07, pointerEvents: "none", transform: "rotate(8deg)" }}>
-        <LeafBranch size={narrow ? 220 : 360} />
-      </div>
+      {/* Frunziș verde pe marginea dreaptă — ca în design (plantă) */}
+      {!narrow && (
+        <>
+          <div aria-hidden style={{ position: "absolute", top: -70, right: -90, opacity: 0.5, pointerEvents: "none", filter: "blur(2px)", transform: "rotate(18deg)" }}>
+            <Foliage height={520} />
+          </div>
+          <div aria-hidden style={{ position: "absolute", bottom: 220, right: -130, opacity: 0.42, pointerEvents: "none", filter: "blur(3px)", transform: "rotate(150deg)" }}>
+            <Foliage height={440} flip />
+          </div>
+        </>
+      )}
+      {/* Frunză discretă jos-stânga */}
       <div aria-hidden style={{ position: "absolute", bottom: 120, left: -60, opacity: 0.06, pointerEvents: "none", transform: "rotate(-160deg)" }}>
         <LeafBranch size={narrow ? 180 : 300} />
       </div>
 
-      <div style={{ position: "relative", maxWidth: 1140, margin: "0 auto", padding: narrow ? "0 18px" : "0 36px" }}>
+      <div style={{ position: "relative", maxWidth: 1480, margin: "0 auto", padding: narrow ? "0 18px" : "0 56px" }}>
         {/* ── Header ── */}
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 0", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -272,10 +314,10 @@ export default function ComingSoonPage() {
         </header>
 
         {/* ── Hero ── */}
-        <section style={{ display: "flex", gap: narrow ? 30 : 48, alignItems: "center", flexDirection: narrow ? "column" : "row", padding: narrow ? "12px 0 8px" : "26px 0 56px" }}>
+        <section style={{ display: "flex", gap: narrow ? 30 : 64, alignItems: "center", flexDirection: narrow ? "column" : "row", padding: narrow ? "12px 0 8px" : "34px 0 64px" }}>
           {/* Left */}
-          <div style={{ flex: "1 1 0", minWidth: 0, width: narrow ? "100%" : "auto" }}>
-            <h1 style={{ fontFamily: SERIF, fontSize: narrow ? 40 : 56, lineHeight: 1.07, margin: 0, fontWeight: 700, letterSpacing: "-0.015em" }}>
+          <div style={{ flex: "1 1 46%", minWidth: 0, width: narrow ? "100%" : "auto" }}>
+            <h1 style={{ fontFamily: SERIF, fontSize: narrow ? 40 : 62, lineHeight: 1.06, margin: 0, fontWeight: 700, letterSpacing: "-0.015em" }}>
               <span style={{ display: "block" }}>{t.headline[0]}</span>
               <span style={{ display: "block" }}>{t.headline[1]}</span>
               <span style={{ display: "block", color: SAGE }}>
@@ -343,29 +385,17 @@ export default function ComingSoonPage() {
                 </>
               )}
             </div>
-
-            {/* Bullet-uri */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 24px", marginTop: 20, maxWidth: 520 }}>
-              {t.bullets.map((b) => (
-                <span key={b} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 600, color: ESPRESSO }}>
-                  <span style={{ width: 19, height: 19, borderRadius: 999, background: SOFT, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={SAGE} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>
-                  </span>
-                  {b}
-                </span>
-              ))}
-            </div>
           </div>
 
-          {/* Right — hero (ascuns pe ecrane foarte mici) */}
+          {/* Right — hero mare, iese spre marginea dreaptă (ascuns pe ecrane mici) */}
           {!narrow && (
-            <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", justifyContent: "center", position: "relative" }}>
+            <div style={{ flex: "1 1 56%", minWidth: 0, display: "flex", justifyContent: "flex-end", position: "relative", marginRight: -90 }}>
               {/* glow difuz în spatele imaginii transparente */}
-              <div aria-hidden style={{ position: "absolute", inset: "8% 4%", background: "radial-gradient(closest-side, rgba(92,122,92,0.14), rgba(92,122,92,0))", filter: "blur(8px)" }} />
+              <div aria-hidden style={{ position: "absolute", inset: "4% 6% 4% 0", background: "radial-gradient(closest-side, rgba(92,122,92,0.16), rgba(92,122,92,0))", filter: "blur(10px)" }} />
               <img
                 src="/coming-soon-hero.png"
                 alt="AromaTool — dashboard pe laptop și telefon"
-                style={{ position: "relative", display: "block", width: "100%", maxWidth: 660, height: "auto", filter: "drop-shadow(0 26px 50px rgba(43,39,35,0.16))" }}
+                style={{ position: "relative", display: "block", width: "100%", maxWidth: 1040, height: "auto", filter: "drop-shadow(0 30px 56px rgba(43,39,35,0.18))" }}
               />
             </div>
           )}
@@ -389,7 +419,7 @@ export default function ComingSoonPage() {
 
       {/* ── Footer dark ── */}
       <footer style={{ position: "relative", background: FOOTER_BG, color: "#D8E0D2" }}>
-        <div style={{ maxWidth: 1140, margin: "0 auto", padding: narrow ? "32px 18px" : "48px 36px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 28 }}>
+        <div style={{ maxWidth: 1480, margin: "0 auto", padding: narrow ? "32px 18px" : "48px 56px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, maxWidth: 380 }}>
             <LeafMark size={42} color="#7B9479" strokeWidth={1.6} />
             <div style={{ fontFamily: SERIF, fontSize: 18.5, lineHeight: 1.4, color: "#EDF1E9" }}>{t.footerTag}</div>
@@ -404,7 +434,7 @@ export default function ComingSoonPage() {
           </div>
         </div>
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-          <div style={{ maxWidth: 1140, margin: "0 auto", padding: narrow ? "16px 18px" : "18px 36px", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12, fontSize: 12.5, color: "#9DAB95" }}>
+          <div style={{ maxWidth: 1480, margin: "0 auto", padding: narrow ? "16px 18px" : "18px 56px", display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 12, fontSize: 12.5, color: "#9DAB95" }}>
             <span>© {new Date().getFullYear()} AromaTool. {t.rights}</span>
             <span style={{ display: "flex", gap: 22 }}>
               <a href="/legal/privacy" style={{ color: "#9DAB95", textDecoration: "none" }}>{t.privacy}</a>
