@@ -52,12 +52,12 @@ function escapeHtml(s: string): string {
 // Waitlist e colectat de pe pagina .ro coming-soon → email în română.
 function copyLaunch(code: string) {
   return {
-    subject: 'AromaTool e live 🌿 — codul tău de 15 zile gratis',
+    subject: 'AromaTool e live 🌿 — 15 zile gratis + 15 zile cadou',
     eyebrow: 'Suntem live',
-    headline: 'AromaTool e disponibil — ai 15 zile gratis',
-    body: 'Ai lăsat adresa ta ca să afli primul când lansăm. Gata — AromaTool e live! Creează-ți contul, introdu codul de mai jos la înscriere și ai 15 zile gratuite ca să-ți organizezi contactele, ofertele și follow-up-urile.',
+    headline: 'AromaTool e disponibil — 15 zile gratis, plus 15 cadou',
+    body: 'Ai lăsat adresa ta ca să afli primul când lansăm. Gata — AromaTool e live! Creează-ți contul și primești automat 15 zile gratuite. Pentru că ai fost pe lista de așteptare, îți facem cadou încă 15 zile: introdu codul de mai jos în aplicație, la Setări → Cod promoțional. În total, 30 de zile ca să-ți organizezi contactele, ofertele și follow-up-urile.',
     code,
-    codeNote: 'Introdu acest cod la crearea contului ca să activezi perioada gratuită.',
+    codeNote: 'După ce-ți creezi contul, introdu acest cod în aplicație (Setări → Cod promoțional) ca să primești încă 15 zile gratuite.',
     cta: 'Creează cont gratuit',
   }
 }
