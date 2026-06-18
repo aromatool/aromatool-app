@@ -157,6 +157,17 @@ serve(async (req) => {
     if (!profile?.is_admin) return json({ error: 'Forbidden' }, 403)
   }
 
+  // ── „Câți sunt?": doar numără înscrișii — NU cere cod/Resend ──
+  if (body.dryRun) {
+    const { count, error: cntErr } = await supabase
+      .from('waitlist')
+      .select('id', { count: 'exact', head: true })
+      .is('notified_at', null)
+    if (cntErr) return json({ error: cntErr.message }, 500)
+    return json({ ok: true, mode: 'dryRun', recipients: count ?? 0 })
+  }
+
+  // De aici încolo (probă / trimitere reală) avem nevoie de cod + Resend.
   const code = (body.code || LAUNCH_CODE).trim().toUpperCase()
   if (!code) return json({ error: 'missing_code' }, 400)
   if (!RESEND_API_KEY) return json({ error: 'missing_resend_key' }, 500)
@@ -184,10 +195,6 @@ serve(async (req) => {
     .order('created_at', { ascending: true })
     .limit(limit)
   if (selErr) return json({ error: selErr.message }, 500)
-
-  if (body.dryRun) {
-    return json({ ok: true, mode: 'dryRun', recipients: rows?.length ?? 0 })
-  }
 
   const c = copyLaunch(code)
   const html = buildEmail(c, ctaLink)
