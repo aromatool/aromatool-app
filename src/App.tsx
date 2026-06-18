@@ -15,9 +15,18 @@ import HelpPage from "./pages/HelpPage";
 import AdminPage from "./pages/AdminPage";
 import { PrivacyPage, TermsPage, CookiePage } from "./pages/legal/Legal";
 import UnsubscribePage from "./pages/UnsubscribePage";
+import ComingSoonPage from "./pages/ComingSoonPage";
 import type { ReactNode } from "react";
 
 const queryClient = new QueryClient();
+
+// Gate „coming soon": activ pe getaromatool.com (cu flag VITE_COMING_SOON)
+// SAU forțat manual cu ?coming-soon (pentru preview). Pe app.aromatool.com /
+// *.vercel.app rămâne app-ul complet. Paginile /legal/* rămân accesibile.
+const COMING_SOON =
+  (import.meta.env.VITE_COMING_SOON === "true" &&
+    /(^|\.)getaromatool\.com$/i.test(window.location.hostname)) ||
+  new URLSearchParams(window.location.search).has("coming-soon");
 
 function PlaceholderPage({ title, icon }: { title: string; icon: string }) {
   return (
@@ -215,7 +224,23 @@ function AppWithAuth() {
   );
 }
 
+// Router minimal pentru coming-soon: landing pe „*", dar păstrăm
+// paginile legale accesibile (link din formularul de consimțământ).
+function ComingSoonRoutes() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/legal/privacy" element={<PrivacyPage />} />
+        <Route path="/legal/terms" element={<TermsPage />} />
+        <Route path="/legal/cookies" element={<CookiePage />} />
+        <Route path="*" element={<ComingSoonPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 export default function App() {
+  if (COMING_SOON) return <ComingSoonRoutes />;
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

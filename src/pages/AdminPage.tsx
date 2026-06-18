@@ -291,6 +291,13 @@ export default function AdminPage() {
   const [pcNote, setPcNote] = useState("");
   const [pcCreating, setPcCreating] = useState(false);
 
+  // Waitlist — email de lansare
+  const [launchCode, setLaunchCode] = useState("");
+  const [launchTestEmail, setLaunchTestEmail] = useState("");
+  const [launchBusy, setLaunchBusy] = useState<"" | "test" | "dry" | "send">("");
+  const [launchMsg, setLaunchMsg] = useState("");
+  const [launchErr, setLaunchErr] = useState("");
+
   // ── Guard: doar adminii ──────────────────────────────────
   useEffect(() => {
     let active = true;
@@ -591,6 +598,57 @@ export default function AdminPage() {
       setFocusTestErr(e instanceof Error ? e.message : t("admin.focusRunFailed"));
     } finally {
       setFocusTesting(false);
+    }
+  }
+
+  // Trimite emailul de lansare către waitlist (probă / dry-run / real).
+  async function runWaitlistLaunch(mode: "test" | "dry" | "send") {
+    setLaunchBusy(mode);
+    setLaunchErr("");
+    setLaunchMsg("");
+    try {
+      const body: Record<string, unknown> = {};
+      const code = launchCode.trim().toUpperCase();
+      if (code) body.code = code;
+
+      if (mode === "test") {
+        if (!launchTestEmail.trim()) {
+          setLaunchErr("Introdu un email pentru probă.");
+          setLaunchBusy("");
+          return;
+        }
+        body.testEmail = launchTestEmail.trim();
+      }
+      if (mode === "dry") body.dryRun = true;
+      if (mode === "send") {
+        if (
+          !confirm(
+            "Trimiți emailul de lansare REAL către toți cei înscriși care n-au primit încă? Acțiunea nu poate fi anulată."
+          )
+        ) {
+          setLaunchBusy("");
+          return;
+        }
+      }
+
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "waitlist-launch",
+        { body }
+      );
+      if (fnErr) throw fnErr;
+      if (data?.error) throw new Error(data.error);
+
+      if (mode === "test") setLaunchMsg(`Probă trimisă la ${data.to}. Verifică-ți inbox-ul.`);
+      else if (mode === "dry")
+        setLaunchMsg(`${data.recipients} destinatari urmează să primească emailul.`);
+      else
+        setLaunchMsg(
+          `Gata! Trimise: ${data.sent}, eșuate: ${data.failed} (din ${data.processed}).`
+        );
+    } catch (e) {
+      setLaunchErr(e instanceof Error ? e.message : "Rularea a eșuat.");
+    } finally {
+      setLaunchBusy("");
     }
   }
 
@@ -2460,6 +2518,162 @@ export default function AdminPage() {
                 {pcCreating
                   ? t("promo.admin.creating")
                   : t("promo.admin.create")}
+              </button>
+            </div>
+          </div>
+
+          {/* Waitlist — email de lansare */}
+          <div style={{ maxWidth: "520px", marginBottom: "18px" }}>
+            <div
+              style={{
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+                padding: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: T.espresso,
+                  marginBottom: "6px",
+                }}
+              >
+                <i className="ti ti-rocket" style={{ color: T.sage }} />
+                Email de lansare (waitlist)
+              </div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: T.warm,
+                  lineHeight: 1.6,
+                  marginBottom: "16px",
+                }}
+              >
+                Trimite emailul „suntem live" + codul de 15 zile către cei
+                înscriși pe pagina coming-soon. Ordine recomandată: 1) probă pe
+                emailul tău, 2) vezi câți sunt, 3) trimite real.
+              </div>
+
+              <FieldLabel>Cod de lansare (gol = LAUNCH_CODE din server)</FieldLabel>
+              <input
+                value={launchCode}
+                onChange={(e) => setLaunchCode(e.target.value.toUpperCase())}
+                placeholder="ex: LANSARE15"
+                style={inputStyle}
+              />
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>Email pentru probă</FieldLabel>
+                <input
+                  value={launchTestEmail}
+                  onChange={(e) => setLaunchTestEmail(e.target.value)}
+                  placeholder="adresa@ta.ro"
+                  style={inputStyle}
+                />
+              </div>
+
+              {launchErr && (
+                <div
+                  style={{
+                    background: T.redLight,
+                    color: T.red,
+                    border: `1px solid ${T.red}`,
+                    borderRadius: "10px",
+                    padding: "9px 12px",
+                    fontSize: "13px",
+                    marginTop: "12px",
+                  }}
+                >
+                  {launchErr}
+                </div>
+              )}
+              {launchMsg && (
+                <div
+                  style={{
+                    background: T.greenLight,
+                    color: T.green,
+                    border: `1px solid ${T.green}`,
+                    borderRadius: "10px",
+                    padding: "9px 12px",
+                    fontSize: "13px",
+                    marginTop: "12px",
+                  }}
+                >
+                  {launchMsg}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "16px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  onClick={() => runWaitlistLaunch("test")}
+                  disabled={!!launchBusy}
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    padding: "11px 14px",
+                    background: T.white,
+                    color: T.sage,
+                    border: `1px solid ${T.sage}`,
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: launchBusy ? "default" : "pointer",
+                    opacity: launchBusy ? 0.6 : 1,
+                  }}
+                >
+                  <i className="ti ti-send" style={{ marginRight: 6 }} />
+                  {launchBusy === "test" ? "Se trimite..." : "Trimite probă"}
+                </button>
+                <button
+                  onClick={() => runWaitlistLaunch("dry")}
+                  disabled={!!launchBusy}
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    padding: "11px 14px",
+                    background: T.white,
+                    color: T.warm,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: launchBusy ? "default" : "pointer",
+                    opacity: launchBusy ? 0.6 : 1,
+                  }}
+                >
+                  <i className="ti ti-list-check" style={{ marginRight: 6 }} />
+                  {launchBusy === "dry" ? "Verific..." : "Câți sunt?"}
+                </button>
+              </div>
+
+              <button
+                onClick={() => runWaitlistLaunch("send")}
+                disabled={!!launchBusy}
+                style={{
+                  ...primaryBtn,
+                  marginTop: "10px",
+                  cursor: launchBusy ? "default" : "pointer",
+                  opacity: launchBusy ? 0.6 : 1,
+                }}
+              >
+                <i className="ti ti-rocket" style={{ marginRight: 6 }} />
+                {launchBusy === "send"
+                  ? "Se trimite..."
+                  : "Trimite emailul de lansare (real)"}
               </button>
             </div>
           </div>
