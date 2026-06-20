@@ -47,6 +47,7 @@
   "clientNameLabel": "Numele clientului",
   "phoneLabel": "Telefon",
   "emailLabel": "Email client",
+  "hasDescription": "Descriere",
   "includeDescription": "Include descrierea produsului în email",
   "customMessageLabel": "Mesaj personal (opțional)",
   "customMessagePlaceholder": "Scrie un mesaj personal pentru client — îl poți face cât de lung vrei și poți adăuga linkuri. Apare sus, înaintea ofertei. Lasă gol pentru un email standard.",

@@ -43,6 +43,7 @@ function SearchSection() {
   const { data: rateData } = useExchangeRate();
   const { addItem, items, setExchangeRate, currency, catalogCurrency, setCatalogCurrency, priceMode, setPriceMode } = useCartStore();
   const { convertFromBase, formatAmount } = useExchangeRates();
+  const { descriptions } = useProductDescriptions();
   const activeCurrency = currency || "RON";
 
   // Sync EUR/RON rate from Supabase to store
@@ -316,6 +317,22 @@ function SearchSection() {
                       <i className="ti ti-star" style={{ fontSize: "11px" }} />
                       {p.points} {tr("calculator.points")}
                     </span>
+                    {descriptions[p.sku] && (
+                      <span
+                        title={tr("calculator.hasDescription")}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "3px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: C.primary,
+                        }}
+                      >
+                        <i className="ti ti-file-description" style={{ fontSize: "12px" }} />
+                        {tr("calculator.hasDescription")}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div
