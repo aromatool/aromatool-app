@@ -45,6 +45,19 @@ function fmtCurrency(amount: number, currency: string): string {
   return `${formatted} ${symbol}`
 }
 
+// Transformă URL-urile dintr-un text DEJA escapat în linkuri clicabile.
+// Se aplică STRICT după escapeHtml (textul nu mai conține `<` / `>` brute),
+// ca să nu permitem injectare de markup. Punctuația finală e lăsată în afara
+// linkului ca să nu „lipim" un punct/virgulă de URL.
+function linkifyEscaped(escaped: string): string {
+  return escaped.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+    const trailing = url.match(/[.,!?;:)]+$/)
+    const clean = trailing ? url.slice(0, -trailing[0].length) : url
+    const tail = trailing ? trailing[0] : ''
+    return `<a href="${clean}" style="color:#5C7A5C;text-decoration:underline">${clean}</a>${tail}`
+  })
+}
+
 // Rotunjire la bani (2 zecimale). Folosită ca să facem TOTALUL = suma liniilor
 // AFIȘATE, nu rotunjirea sumei brute (altfel totalul putea diferi de adunarea
 // manuală a clientului cu 1-2 bani — „penny rounding").
@@ -109,6 +122,14 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
   // Total = Σ linii rotunjite + transport rotunjit (consistent cu afișarea).
   const { totalEur, totalDisplay } = computeOfferTotals(items, transport, rate)
 
+  // Mesajul personal e piesa principală a ofertei → bloc proeminent, ÎNAINTEA
+  // tabelului de produse. URL-urile devin clicabile (linkify după escape).
+  const notesBlock = notes ? `
+    <div style="margin:0 0 24px;padding:18px 20px;background:linear-gradient(135deg,#F4F8F2,#EAF3E8);border-radius:12px;border:1px solid #D7E5D3;">
+      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:8px">${t('email.notesLabel')}</div>
+      <div style="font-size:14px;color:#3D3530;line-height:1.75;white-space:pre-wrap">${linkifyEscaped(escapeHtml(notes))}</div>
+    </div>` : ''
+
   const resourceButtons = resourceLinks.length > 0 ? `
     <div style="margin-top:16px;padding:16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
       <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:10px">${t('email.materialsLabel')}</div>
@@ -131,6 +152,8 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
     <p style="font-size:13px;color:#A89888;margin-bottom:24px;text-align:center">
       ${t('email.intro', { user: userName })}
     </p>
+
+    ${notesBlock}
 
     <table style="width:100%;border-collapse:collapse;border:1px solid #E8F0E8;border-radius:10px;overflow:hidden;">
       <thead>
@@ -167,12 +190,6 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
         </td>
       </tr>
     </table>
-
-    ${notes ? `
-    <div style="margin-top:14px;padding:14px 16px;background:#FAFAF7;border-radius:10px;border:1px solid #E8F0E8;">
-      <div style="font-size:10px;color:#5C7A5C;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px">${t('email.notesLabel')}</div>
-      <div style="font-size:13px;color:#3D3530;line-height:1.7;white-space:pre-wrap">${escapeHtml(notes)}</div>
-    </div>` : ''}
 
     ${resourceButtons}
 
@@ -224,6 +241,13 @@ export function buildEmailText(params: SendOfferParams, userName: string, userPh
   lines.push(t('email.intro', { user: userName }))
   lines.push('')
 
+  // Mesajul personal apare ÎNAINTEA produselor (oglindă cu varianta HTML).
+  if (notes) {
+    lines.push(`${t('email.notesLabel')}:`)
+    lines.push(notes)
+    lines.push('')
+  }
+
   // Produse: o linie per produs. La reducere afișăm prețul întreg → prețul
   // redus (text/plain nu are tăiere fiabilă, deci folosim săgeata).
   for (const item of items) {
@@ -250,12 +274,6 @@ export function buildEmailText(params: SendOfferParams, userName: string, userPh
   const totalSecondary = displayCurrency !== base ? ` (${fmtCurrency(totalEur, base)})` : ''
   lines.push(`${t('email.totalToPay')}: ${fmtCurrency(totalDisplay, displayCurrency)}${totalSecondary}`)
   lines.push('')
-
-  if (notes) {
-    lines.push(`${t('email.notesLabel')}:`)
-    lines.push(notes)
-    lines.push('')
-  }
 
   if (resourceLinks.length > 0) {
     lines.push(`${t('email.materialsLabel')}:`)

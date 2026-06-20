@@ -1382,15 +1382,17 @@ function CartSection() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder={tr("calculator.customMessagePlaceholder")}
-            rows={3}
-            maxLength={500}
+            rows={8}
+            maxLength={5000}
             style={{
               width: "100%",
-              padding: "10px 12px",
+              minHeight: "180px",
+              padding: "12px 14px",
               background: C.bg2,
               border: `1.5px solid ${C.border2}`,
               borderRadius: "8px",
               fontSize: "13px",
+              lineHeight: 1.6,
               color: C.dark,
               fontFamily: "'DM Sans', sans-serif",
               outline: "none",
@@ -1399,7 +1401,7 @@ function CartSection() {
             }}
           />
           <div style={{ textAlign: "right", fontSize: "11px", color: C.muted, marginTop: "3px" }}>
-            {notes.length} / 500
+            {notes.length} / 5000
           </div>
         </div>
 
