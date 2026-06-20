@@ -25,5 +25,16 @@
   "uploadError": "Eroare la upload.",
   "deleteConfirm": "Ștergi „{{title}}\"? Acțiunea nu poate fi anulată.",
   "deleteError": "Eroare la ștergere.",
-  "renameError": "Eroare la redenumire."
+  "renameError": "Eroare la redenumire.",
+  "tabFiles": "Fișiere",
+  "tabDescriptions": "Descrieri produse",
+  "descHint": "Scrie o dată o descriere pentru fiecare produs. Apoi, în Calculator, o poți include cu o bifă în emailul de ofertă, chiar sub produs.",
+  "descSearchPlaceholder": "Caută produsul...",
+  "descNoProducts": "Niciun produs în catalog. Importă mai întâi catalogul din Admin.",
+  "descPlaceholder": "Scrie câteva detalii despre acest produs — beneficii, mod de folosire, ce vrei să afle clientul...",
+  "descAdd": "Adaugă",
+  "descEdit": "Editează",
+  "descSave": "Salvează",
+  "descSaving": "Se salvează...",
+  "descCancel": "Anulează"
 }

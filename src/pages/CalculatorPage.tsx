@@ -5,6 +5,7 @@ import { useProducts, useExchangeRate, useProductCountries } from "../hooks/useP
 import { useCartStore, priceFor } from "../hooks/useCartStore";
 import { useSendEmail, buildEmailHtml, round2, computeOfferTotals } from "../hooks/useSendEmail";
 import { useResources } from "../hooks/useResources";
+import { useProductDescriptions } from "../hooks/useProductDescriptions";
 import EnrollLink from "../components/EnrollLink";
 import PhoneInput from "../components/PhoneInput";
 import CurrencyPanel from "../components/CurrencyPanel";
@@ -406,12 +407,32 @@ function CartSection() {
   // Moneda de bază a ofertei (în care sunt stocate prețurile `price_eur`).
   const baseCurrency = catalogCurrency || "EUR";
 
+  // Descrieri de produse (bibliotecă) + ce sku-uri sunt bifate să apară în
+  // email. Bifa e per-ofertă (state local), nu se persistă.
+  const { descriptions } = useProductDescriptions();
+  const [includedDescSkus, setIncludedDescSkus] = useState<Set<string>>(new Set());
+  const toggleDesc = (sku: string) =>
+    setIncludedDescSkus((prev) => {
+      const next = new Set(prev);
+      next.has(sku) ? next.delete(sku) : next.add(sku);
+      return next;
+    });
+
   // Articole cu prețul „rezolvat" pe modul selectat (angro / retail): setăm
   // price_eur = prețul activ, ca tot ce e în aval (totaluri, email, text,
   // oferta salvată) să folosească exact prețul ales, fără a mai ști de mod.
+  // Atașăm și descrierea, doar dacă produsul are una ȘI e bifată.
   const resolvedItems = useMemo(
-    () => items.map((i) => ({ ...i, price_eur: priceFor(i, priceMode) })),
-    [items, priceMode],
+    () =>
+      items.map((i) => ({
+        ...i,
+        price_eur: priceFor(i, priceMode),
+        description:
+          includedDescSkus.has(i.sku) && descriptions[i.sku]
+            ? descriptions[i.sku]
+            : undefined,
+      })),
+    [items, priceMode, includedDescSkus, descriptions],
   );
 
   const [showCustom, setShowCustom] = useState(false);
@@ -733,6 +754,28 @@ function CartSection() {
                 <i className="ti ti-x" style={{ fontSize: "16px" }} />
               </button>
             </div>
+            {descriptions[item.sku] && (
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "8px",
+                  marginBottom: "8px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: C.text2,
+                  lineHeight: 1.4,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={includedDescSkus.has(item.sku)}
+                  onChange={() => toggleDesc(item.sku)}
+                  style={{ marginTop: "2px", accentColor: C.primary, cursor: "pointer", flexShrink: 0 }}
+                />
+                <span>{tr("calculator.includeDescription")}</span>
+              </label>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <button

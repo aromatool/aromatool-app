@@ -24,5 +24,16 @@
   "uploadError": "Upload error.",
   "deleteConfirm": "Delete \"{{title}}\"? This action cannot be undone.",
   "deleteError": "Deletion error.",
-  "renameError": "Rename error."
+  "renameError": "Rename error.",
+  "tabFiles": "Files",
+  "tabDescriptions": "Product descriptions",
+  "descHint": "Write a description once for each product. Then, in the Calculator, you can include it with one tick in the offer email, right under the product.",
+  "descSearchPlaceholder": "Search for a product...",
+  "descNoProducts": "No products in your catalog. Import your catalog from Admin first.",
+  "descPlaceholder": "Write a few details about this product — benefits, how to use it, what you want the client to know...",
+  "descAdd": "Add",
+  "descEdit": "Edit",
+  "descSave": "Save",
+  "descSaving": "Saving...",
+  "descCancel": "Cancel"
 }

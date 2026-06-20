@@ -110,7 +110,7 @@ export function buildEmailHtml(params: SendOfferParams, userName: string, userPh
         <div style="font-weight:700;color:#3D3530">${fmtCurrency(lineDisplay, displayCurrency)}</div>${secondaryEur}`
       : `${fmtCurrency(lineDisplay, displayCurrency)}${secondaryEur}`
     return `<tr>
-      <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530">${escapeHtml(item.name)}${disc}</td>
+      <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530">${escapeHtml(item.name)}${disc}${item.description ? `<div style="font-size:12px;color:#8A7A6C;margin-top:4px;line-height:1.55;font-weight:400;white-space:pre-wrap">${escapeHtml(item.description)}</div>` : ''}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#A89888;text-align:center">${item.qty}</td>
       <td style="padding:12px 16px;border-bottom:1px solid #EEF3EE;font-size:14px;color:#3D3530;text-align:right;font-weight:600">
         ${priceCell}
@@ -260,6 +260,7 @@ export function buildEmailText(params: SendOfferParams, userName: string, userPh
     } else {
       lines.push(`- ${item.name} × ${item.qty} — ${fmtCurrency(lineDisplay, displayCurrency)}${secondary}`)
     }
+    if (item.description) lines.push(`    ${item.description.replace(/\n/g, '\n    ')}`)
   }
   lines.push(t('email.productCount', { count: items.length }))
   lines.push('')

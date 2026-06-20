@@ -23,6 +23,10 @@ export interface CartItem extends Product {
   guideSelected: boolean
   isCustom?: boolean
   customPriceEur?: number  // custom items stored in catalog base currency
+  // Descriere opțională inserată sub produs în email. Câmp runtime (nu se
+  // persistă în coș) — setat în Calculator când userul bifează „include
+  // descrierea". Nu confunda cu vreo coloană din `products`.
+  description?: string
 }
 
 // Limite de siguranță pentru inputuri (C3). Orice valoare din UI sau din

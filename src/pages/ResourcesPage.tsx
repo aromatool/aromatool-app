@@ -9,6 +9,7 @@ import {
 import type { Resource } from "../hooks/useResources";
 import { useUpgrade } from "../hooks/useUpgrade";
 import { useSubscription } from "../lib/subscription";
+import ProductDescriptionsPanel from "../components/ProductDescriptionsPanel";
 import i18n from "../i18n";
 import { uiLocale } from "../lib/locale";
 
@@ -72,6 +73,7 @@ export default function ResourcesPage() {
     useResources();
   const { upgrade, loading: upgrading } = useUpgrade();
   const { requireAccess } = useSubscription();
+  const [activeTab, setActiveTab] = useState<"files" | "descriptions">("files");
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -216,6 +218,48 @@ export default function ResourcesPage() {
         </div>
       )}
 
+      {/* Sub-tab switcher: Fișiere / Descrieri produse */}
+      <div
+        style={{
+          display: "flex",
+          gap: "6px",
+          background: C.bg2,
+          padding: "4px",
+          borderRadius: "10px",
+          marginBottom: "16px",
+        }}
+      >
+        {(["files", "descriptions"] as const).map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                flex: 1,
+                padding: "9px 10px",
+                background: active ? C.card : "transparent",
+                border: "none",
+                borderRadius: "8px",
+                color: active ? C.dark : C.text2,
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: active ? "0 1px 3px rgba(61,53,48,0.08)" : "none",
+                transition: "background 0.15s",
+              }}
+            >
+              {tab === "files" ? t("resources.tabFiles") : t("resources.tabDescriptions")}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "descriptions" ? (
+        <ProductDescriptionsPanel />
+      ) : (
+      <>
       {/* Storage bar */}
       <div
         style={{
@@ -487,6 +531,8 @@ export default function ResourcesPage() {
             </div>
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );
