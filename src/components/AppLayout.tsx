@@ -112,8 +112,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div
+      className="app-shell"
       style={{
-        minHeight: "100vh",
         background: T.cream,
         fontFamily: "'DM Sans', Inter, system-ui, sans-serif",
         display: "flex",
@@ -815,9 +815,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <style>{`
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
 
+        .app-shell { min-height: 100vh; }
         @media (max-width: 1024px) {
           .desktop-nav { display: none !important; }
-          .main-content { padding: 16px 16px 90px !important; }
+          /* Pe mobil: shell de înălțime fixă (urmărește dinamic bara de adrese)
+             și scroll DOAR în interiorul conținutului → bara de jos nu mai sare. */
+          .app-shell {
+            height: 100vh;   /* fallback browsere fără dvh */
+            height: 100dvh;
+            min-height: 0;
+            overflow: hidden;
+          }
+          .main-content {
+            padding: 16px 16px 90px !important;
+            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+          }
         }
         @media (min-width: 1025px) {
           .mobile-nav { display: none !important; }
