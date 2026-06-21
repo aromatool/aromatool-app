@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useProducts } from "../hooks/useProducts";
 import { useProductDescriptions } from "../hooks/useProductDescriptions";
 import { useProfileCountry } from "../hooks/useProfileCountry";
+import { matchesQuery } from "../lib/searchText";
 import type { Product } from "../hooks/useProducts";
 
 // ── BLOSSOM SAGE COLORS (identice cu ResourcesPage) ──────────
@@ -41,8 +42,9 @@ export default function ProductDescriptionsPanel() {
       seen.add(p.sku);
       out.push(p);
     }
-    const q = query.trim().toLowerCase();
-    const filtered = q ? out.filter((p) => p.name.toLowerCase().includes(q)) : out;
+    const filtered = query.trim()
+      ? out.filter((p) => matchesQuery(query, p.name, p.sku))
+      : out;
     return filtered.sort((a, b) => {
       const ha = descriptions[a.sku] ? 0 : 1;
       const hb = descriptions[b.sku] ? 0 : 1;

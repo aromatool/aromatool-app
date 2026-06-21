@@ -13,6 +13,7 @@ import { useExchangeRates } from "../hooks/useExchangeRates";
 import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
 import { normalizePhone } from "../lib/contactActions";
+import { matchesQuery } from "../lib/searchText";
 import type { Product } from "../hooks/useProducts";
 
 // ── BLOSSOM SAGE COLORS ───────────────────────────────────
@@ -34,6 +35,10 @@ const C = {
   amberbg: "#FDF5EE",
 };
 
+// Normalizează un text pentru căutare: litere mici, fără diacritice și fără
+// caractere speciale (®, ™, punctuație etc. → spațiu). Astfel „Thieves®
+// Household" devine „thieves household" și e găsit indiferent cum scrie
+// utilizatorul (cu/fără simboluri, cu/fără diacritice, una sau mai multe cuvinte).
 // ── SEARCH SECTION ────────────────────────────────────────
 function SearchSection() {
   const { t: tr } = useTranslation();
@@ -66,10 +71,12 @@ function SearchSection() {
   const results = useMemo(() => {
     if (!products) return [];
     if (!query.trim()) return products.slice(0, 30);
-    const q = query.toLowerCase();
+    // Fiecare cuvânt din căutare trebuie să apară în nume sau SKU (după
+    // normalizare). Așa „thieves", „thieves household" și „household thieves"
+    // găsesc toate „Thieves® Household", indiferent de simboluri/diacritice.
     return products
-      .filter((p) => p.name.toLowerCase().includes(q) || p.sku.includes(q))
-      .slice(0, 20);
+      .filter((p) => matchesQuery(query, p.name, p.sku))
+      .slice(0, 50);
   }, [products, query]);
 
   const inCart = (id: string) => items.some((i) => i.id === id);
