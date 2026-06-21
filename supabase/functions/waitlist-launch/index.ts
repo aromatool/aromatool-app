@@ -126,7 +126,13 @@ function buildEmail(c: ReturnType<typeof copyLaunch>, ctaLink: string): string {
   </div>`
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+// Pauză între trimiteri, ca să rămânem sub limita Resend (~2 emailuri/sec).
+// ~1,5/sec → un lot de 30 pleacă în ~20s, fără respingeri „prea repede".
+const SEND_DELAY_MS = Number(Deno.env.get('SEND_DELAY_MS')) || 650
+
+async function sendEmail(to: string, subject: string, html: string, attempt = 0): Promise<void> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -142,6 +148,13 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
       },
     }),
   })
+  // 429 = limită de viteză Resend. Așteaptă (respectă Retry-After dacă există)
+  // și reîncearcă, până la 3 ori, ca un vârf de trafic să nu piardă emailuri.
+  if (res.status === 429 && attempt < 3) {
+    const retryAfter = Number(res.headers.get('retry-after')) || 1
+    await sleep(Math.max(retryAfter * 1000, 1000))
+    return sendEmail(to, subject, html, attempt + 1)
+  }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.message || `Resend ${res.status}`)
@@ -233,7 +246,9 @@ serve(async (req) => {
   let sent = 0, failed = 0
   const errors: { email: string; error: string }[] = []
 
-  for (const r of rows ?? []) {
+  const list = rows ?? []
+  for (let i = 0; i < list.length; i++) {
+    const r = list[i]
     try {
       await sendEmail(r.email, c.subject, html)
       sent++
@@ -247,8 +262,12 @@ serve(async (req) => {
       }
     } catch (e) {
       failed++
-      errors.push({ email: r.email, error: e instanceof Error ? e.message : String(e) })
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error(`waitlist-launch: trimitere eșuată pentru ${r.email}: ${msg}`)
+      errors.push({ email: r.email, error: msg })
     }
+    // Pauză între emailuri ca să nu lovim limita Resend (ultimul nu așteaptă).
+    if (i < list.length - 1) await sleep(SEND_DELAY_MS)
   }
 
   return json({ ok: true, mode: body.reminder ? 'reminder' : 'send', processed: rows?.length ?? 0, sent, failed, errors })
