@@ -49,7 +49,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const MAIL_FROM = Deno.env.get('MAIL_FROM') || 'onboarding@resend.dev'
-const APP_URL = (Deno.env.get('APP_URL') || 'https://app.aromatool.com').replace(/\/$/, '')
+const APP_URL = (Deno.env.get('APP_URL') || 'https://getaromatool.com').replace(/\/$/, '')
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 // Baza pentru imaginile din email (logo). Implicit bucket-ul public Supabase.
 const EMAIL_ASSET_BASE =

@@ -298,6 +298,14 @@ export default function AdminPage() {
   const [launchMsg, setLaunchMsg] = useState("");
   const [launchErr, setLaunchErr] = useState("");
 
+  // Reminder Zoom (invitație branded, fără cod, nu consumă lansarea)
+  const [reminderZoomLink, setReminderZoomLink] = useState("");
+  const [reminderWhen, setReminderWhen] = useState("mâine, la 10:30");
+  const [reminderTestEmail, setReminderTestEmail] = useState("");
+  const [reminderBusy, setReminderBusy] = useState<"" | "test" | "dry" | "send">("");
+  const [reminderMsg, setReminderMsg] = useState("");
+  const [reminderErr, setReminderErr] = useState("");
+
   // ── Guard: doar adminii ──────────────────────────────────
   useEffect(() => {
     let active = true;
@@ -649,6 +657,67 @@ export default function AdminPage() {
       setLaunchErr(e instanceof Error ? e.message : "Rularea a eșuat.");
     } finally {
       setLaunchBusy("");
+    }
+  }
+
+  // Trimite emailul REMINDER (invitație Zoom, fără cod) către waitlist.
+  // Folosește aceeași funcție `waitlist-launch` cu flag-ul `reminder`.
+  async function runWaitlistReminder(mode: "test" | "dry" | "send") {
+    setReminderBusy(mode);
+    setReminderErr("");
+    setReminderMsg("");
+    try {
+      const zoomLink = reminderZoomLink.trim();
+      if (mode !== "dry" && !zoomLink) {
+        setReminderErr("Adaugă linkul de Zoom.");
+        setReminderBusy("");
+        return;
+      }
+      const body: Record<string, unknown> = {
+        reminder: true,
+        zoomLink,
+        zoomWhen: reminderWhen.trim(),
+      };
+
+      if (mode === "test") {
+        if (!reminderTestEmail.trim()) {
+          setReminderErr("Introdu un email pentru probă.");
+          setReminderBusy("");
+          return;
+        }
+        body.testEmail = reminderTestEmail.trim();
+      }
+      if (mode === "dry") body.dryRun = true;
+      if (mode === "send") {
+        if (
+          !confirm(
+            "Trimiți reminderul de Zoom REAL către toți cei de pe waitlist? (NU consumă lansarea — emailul „suntem live” poate fi trimis după.)"
+          )
+        ) {
+          setReminderBusy("");
+          return;
+        }
+      }
+
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "waitlist-launch",
+        { body }
+      );
+      if (fnErr) throw fnErr;
+      if (data?.error) throw new Error(data.error);
+
+      if (mode === "test")
+        setReminderMsg(`Probă trimisă la ${data.to}. Verifică-ți inbox-ul.`);
+      else if (mode === "dry")
+        setReminderMsg(`${data.recipients} destinatari vor primi reminderul.`);
+      else
+        setReminderMsg(
+          `Gata! Trimise: ${data.sent}, eșuate: ${data.failed} (din ${data.processed}).`
+        );
+    } catch (e) {
+      setReminderErr(e instanceof Error ? e.message : "Rularea a eșuat.");
+    } finally {
+      setReminderBusy("");
     }
   }
 
@@ -2674,6 +2743,173 @@ export default function AdminPage() {
                 {launchBusy === "send"
                   ? "Se trimite..."
                   : "Trimite emailul de lansare (real)"}
+              </button>
+            </div>
+          </div>
+
+          {/* Waitlist — reminder Zoom (fără cod, nu consumă lansarea) */}
+          <div style={{ maxWidth: "520px", marginBottom: "18px" }}>
+            <div
+              style={{
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+                padding: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: T.espresso,
+                  marginBottom: "6px",
+                }}
+              >
+                <i className="ti ti-brand-zoom" style={{ color: T.sage }} />
+                Reminder Zoom (waitlist)
+              </div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: T.warm,
+                  lineHeight: 1.6,
+                  marginBottom: "16px",
+                }}
+              >
+                Trimite o invitație branded cu linkul de Zoom către cei de pe
+                waitlist. NU conține cod și NU consumă lansarea — emailul „suntem
+                live" îl poți trimite după. Ordine: 1) probă, 2) câți sunt, 3)
+                trimite real.
+              </div>
+
+              <FieldLabel>Link Zoom</FieldLabel>
+              <input
+                value={reminderZoomLink}
+                onChange={(e) => setReminderZoomLink(e.target.value)}
+                placeholder="https://zoom.us/j/..."
+                style={inputStyle}
+              />
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>Când (text afișat în email)</FieldLabel>
+                <input
+                  value={reminderWhen}
+                  onChange={(e) => setReminderWhen(e.target.value)}
+                  placeholder="mâine, la 10:30"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>Email pentru probă</FieldLabel>
+                <input
+                  value={reminderTestEmail}
+                  onChange={(e) => setReminderTestEmail(e.target.value)}
+                  placeholder="adresa@ta.ro"
+                  style={inputStyle}
+                />
+              </div>
+
+              {reminderErr && (
+                <div
+                  style={{
+                    background: T.redLight,
+                    color: T.red,
+                    border: `1px solid ${T.red}`,
+                    borderRadius: "10px",
+                    padding: "9px 12px",
+                    fontSize: "13px",
+                    marginTop: "12px",
+                  }}
+                >
+                  {reminderErr}
+                </div>
+              )}
+              {reminderMsg && (
+                <div
+                  style={{
+                    background: T.greenLight,
+                    color: T.green,
+                    border: `1px solid ${T.green}`,
+                    borderRadius: "10px",
+                    padding: "9px 12px",
+                    fontSize: "13px",
+                    marginTop: "12px",
+                  }}
+                >
+                  {reminderMsg}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "16px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  onClick={() => runWaitlistReminder("test")}
+                  disabled={!!reminderBusy}
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    padding: "11px 14px",
+                    background: T.white,
+                    color: T.sage,
+                    border: `1px solid ${T.sage}`,
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: reminderBusy ? "default" : "pointer",
+                    opacity: reminderBusy ? 0.6 : 1,
+                  }}
+                >
+                  <i className="ti ti-send" style={{ marginRight: 6 }} />
+                  {reminderBusy === "test" ? "Se trimite..." : "Trimite probă"}
+                </button>
+                <button
+                  onClick={() => runWaitlistReminder("dry")}
+                  disabled={!!reminderBusy}
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    padding: "11px 14px",
+                    background: T.white,
+                    color: T.warm,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: reminderBusy ? "default" : "pointer",
+                    opacity: reminderBusy ? 0.6 : 1,
+                  }}
+                >
+                  <i className="ti ti-list-check" style={{ marginRight: 6 }} />
+                  {reminderBusy === "dry" ? "Verific..." : "Câți sunt?"}
+                </button>
+              </div>
+
+              <button
+                onClick={() => runWaitlistReminder("send")}
+                disabled={!!reminderBusy}
+                style={{
+                  ...primaryBtn,
+                  marginTop: "10px",
+                  cursor: reminderBusy ? "default" : "pointer",
+                  opacity: reminderBusy ? 0.6 : 1,
+                }}
+              >
+                <i className="ti ti-brand-zoom" style={{ marginRight: 6 }} />
+                {reminderBusy === "send"
+                  ? "Se trimite..."
+                  : "Trimite reminderul Zoom (real)"}
               </button>
             </div>
           </div>

@@ -10,7 +10,7 @@ const UNSUB_SECRET =
   Deno.env.get('UNSUBSCRIBE_SECRET') || Deno.env.get('CRON_SECRET') || ''
 // URL-ul appului (Vercel). Linkul VIZIBIL de dezabonare arată spre pagina
 // /unsubscribe din app, care se randează corect (vezi nota de mai jos).
-const APP_URL = (Deno.env.get('APP_URL') || 'https://app.aromatool.com').replace(/\/$/, '')
+const APP_URL = (Deno.env.get('APP_URL') || 'https://getaromatool.com').replace(/\/$/, '')
 
 // HMAC-SHA256(contactId) → hex. Identic cu funcția `unsubscribe`.
 async function signUnsub(contactId: string): Promise<string> {
