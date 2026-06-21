@@ -15,5 +15,7 @@
   "placeholder": "Write here what you'd like to tell us...",
   "cancel": "Cancel",
   "sending": "Sending...",
-  "send": "Send"
+  "send": "Send",
+  "whatsappTitle": "Message us on WhatsApp",
+  "whatsappMessage": "Hi! I have a question about AromaTool 🌿"
 }
