@@ -5,6 +5,7 @@ import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
 import FollowupModal from "../components/FollowupModal";
 import ContactModal from "../components/ContactModal";
+import GroupEmailModal from "../components/GroupEmailModal";
 import {
   getRecommendedAction,
   getActionType,
@@ -182,6 +183,7 @@ export default function ContactsPage() {
   const [markSentSaving, setMarkSentSaving] = useState(false);
   const [markSentToast, setMarkSentToast] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showGroupEmail, setShowGroupEmail] = useState(false);
   const [addData, setAddData] = useState({
     name: "",
     email: "",
@@ -665,6 +667,24 @@ export default function ContactsPage() {
                 }}
               >
                 <i className="ti ti-adjustments-horizontal" style={{ fontSize: 20 }} />
+              </button>
+              <button
+                onClick={() => setShowGroupEmail(true)}
+                aria-label={t("groupEmail.title")}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: T.white,
+                  border: `0.5px solid ${T.sage}`,
+                  color: T.sage,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="ti ti-users-group" style={{ fontSize: 20 }} />
               </button>
               <button
                 onClick={() => setShowAddForm(true)}
@@ -1217,26 +1237,48 @@ export default function ContactsPage() {
             {t("contacts.list.totalCount", { count: contacts.length })}
           </div>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "9px 18px",
-            background: T.sage,
-            border: "none",
-            borderRadius: 10,
-            color: "white",
-            fontFamily: "inherit",
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          <i className="ti ti-plus" style={{ fontSize: 15 }} />
-          {t("contacts.list.newContact")}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => setShowGroupEmail(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "9px 16px",
+              background: T.white,
+              border: `1px solid ${T.sage}`,
+              borderRadius: 10,
+              color: T.sage,
+              fontFamily: "inherit",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <i className="ti ti-users-group" style={{ fontSize: 15 }} />
+            {t("groupEmail.title")}
+          </button>
+          <button
+            onClick={() => setShowAddForm(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "9px 18px",
+              background: T.sage,
+              border: "none",
+              borderRadius: 10,
+              color: "white",
+              fontFamily: "inherit",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            <i className="ti ti-plus" style={{ fontSize: 15 }} />
+            {t("contacts.list.newContact")}
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -1731,6 +1773,14 @@ export default function ContactsPage() {
             );
             setFollowupContact(null);
           }}
+        />
+      )}
+
+      {/* Trimite în grup (email către contacte filtrate pe tip) */}
+      {showGroupEmail && (
+        <GroupEmailModal
+          contacts={contacts}
+          onClose={() => setShowGroupEmail(false)}
         />
       )}
 
