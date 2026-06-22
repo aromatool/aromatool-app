@@ -2,6 +2,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // SURSA UNICĂ DE ADEVĂR — aceeași logică Focus Today ca Dashboard-ul.
 import { getFocusToday } from '../../../src/lib/focusToday.ts'
+// Interval follow-up implicit dacă userul nu a setat altul.
+import { DEFAULT_FOLLOWUP_DAYS } from '../../../src/lib/crmThresholds.ts'
 // Textele acțiunilor vin din aceeași sursă i18n ca UI-ul (deocamdată RO).
 import roActions from '../../../src/i18n/locales/ro/actions.json' with { type: 'json' }
 
@@ -215,7 +217,7 @@ serve(async (req) => {
   // ── UTILIZATORI ELIGIBILI ────────────────────────────────────
   let query = supabase
     .from('profiles')
-    .select('id, full_name, daily_focus_enabled, daily_focus_hour, timezone, daily_focus_last_sent')
+    .select('id, full_name, daily_focus_enabled, daily_focus_hour, timezone, daily_focus_last_sent, follow_up_days')
   query = testUserId
     ? query.eq('id', testUserId)
     : query.eq('daily_focus_enabled', true)
@@ -245,12 +247,16 @@ serve(async (req) => {
         supabase.from('followup_log').select('id,contact_id,sent_at,status').eq('user_id', p.id),
       ])
 
+      // Intervalul de follow-up al ACESTUI user — pasăm explicit (per user),
+      // NU ne bazăm pe starea de modul (bucla rulează pentru mulți useri).
+      const userFollowUpDays = Number(p.follow_up_days) > 0 ? Number(p.follow_up_days) : DEFAULT_FOLLOWUP_DAYS
       const focus = getFocusToday(
         (contacts ?? []) as never,
         (offers ?? []) as never,
         (fuLog ?? []) as never,
         tServer as never,
         5,
+        userFollowUpDays,
       )
 
       // Regula de aur: dacă Focus Today e gol, NU trimite nimic.

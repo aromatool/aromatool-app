@@ -1,7 +1,21 @@
 import type { TFunction } from 'i18next'
 import type { Contact } from './contactTypes.ts'
 import type { ContactStatus } from './relationshipScore.ts'
-import { INACTIVE_DAYS, FOLLOWUP_STALE_DAYS, REORDER_DAYS } from './crmThresholds.ts'
+import { INACTIVE_DAYS, REORDER_DAYS, DEFAULT_FOLLOWUP_DAYS } from './crmThresholds.ts'
+
+// ── INTERVAL FOLLOW-UP CONFIGURABIL (din Settings) ───────────────────────────
+// Modul pur, importabil și de Edge Functions. Pe CLIENT setăm o singură dată
+// valoarea (useFollowUpDays → setFollowUpDays) și toate funcțiile pure o citesc
+// ca default prin getFollowUpDays(). Pe SERVER (daily-focus, buclă pe mai mulți
+// useri) NU ne bazăm pe starea de modul — pasăm followUpDays explicit per user.
+let _followUpDays: number = DEFAULT_FOLLOWUP_DAYS
+export function setFollowUpDays(days: number | null | undefined): void {
+  const n = Number(days)
+  _followUpDays = Number.isFinite(n) && n > 0 ? Math.round(n) : DEFAULT_FOLLOWUP_DAYS
+}
+export function getFollowUpDays(): number {
+  return _followUpDays
+}
 
 // Tipul de acțiune — folosit intern pentru grupare/filtrare în Dashboard.
 // Utilizatorul NU vede acest tip, doar textul acțiunii.
@@ -97,7 +111,7 @@ interface ActionDescriptor {
  * nu text — astfel `getActionType`/`needsAttention`/`crmCategory` nu au nevoie de `t`.
  * Ordinea de evaluare = ordinea de prioritate.
  */
-function computeAction(c: Contact): ActionDescriptor {
+function computeAction(c: Contact, followUpDays: number = getFollowUpDays()): ActionDescriptor {
   const name = firstName(c.name)
   const totalOffers = c.offers_count ?? 0
   const totalValue = c.total_eur ?? 0
@@ -139,19 +153,32 @@ function computeAction(c: Contact): ActionDescriptor {
     }
   }
 
-  // „Atingere" de făcut acum: niciodată contactat de la ofertă SAU ultimul
-  // contact mai vechi de pragul de prospețime. Pentru data ultimului follow-up:
-  // dacă nu o știm dar au existat follow-up-uri, folosim ultima activitate ca
-  // aproximare (evităm valoarea 9999). Reutilizat de first_order + needs_followup.
+  // „Atingere" de făcut acum. Pentru data ultimului follow-up: dacă nu o știm
+  // dar au existat follow-up-uri, folosim ultima activitate ca aproximare
+  // (evităm valoarea 9999). Zile de la prima ofertă = când a plecat oferta.
   const effectiveFollowupRef = c.last_followup_at ?? (followupCount > 0 ? (c.last_activity_at ?? c.first_offer_at) : null)
   const daysSinceLastFollowup = effectiveFollowupRef ? daysSince(effectiveFollowupRef) : null
-  const dueForTouch =
+  const daysSinceOffer = daysSince(c.first_offer_at ?? c.last_activity_at)
+
+  // CLIENT NOU: îl întâmpinăm IMEDIAT după achiziție (followupCount === 0), apoi
+  // la fiecare interval de follow-up dacă n-am mai luat legătura. Întâmpinarea
+  // post-cumpărare e binevenită imediat — nu o întârziem.
+  const dueForClientTouch =
     !c.followup_opted_out &&
-    (followupCount === 0 || (daysSinceLastFollowup !== null && daysSinceLastFollowup >= FOLLOWUP_STALE_DAYS))
+    (followupCount === 0 || (daysSinceLastFollowup !== null && daysSinceLastFollowup >= followUpDays))
+
+  // PROSPECT: NU îl sâcâim imediat după prima ofertă — așteptăm `followUpDays`
+  // de la momentul ofertei (poate nici n-a citit-o încă). Abia după ce trece
+  // intervalul setat devine „follow-up de făcut". La follow-up-urile ulterioare
+  // respectăm același interval de la ultimul contact.
+  const dueForProspectFollowup =
+    !c.followup_opted_out &&
+    ((followupCount === 0 && daysSinceOffer >= followUpDays) ||
+     (daysSinceLastFollowup !== null && daysSinceLastFollowup >= followUpDays))
 
   // 3. CLIENT NOU — întâmpinare post-achiziție (mulțumire / ghidare / „cum merge?")
   // Doar cât e proaspăt (sub pragul de reaprovizionare); după aceea intră pe reorder.
-  if (c.status === 'client_nou' && totalOffers >= 1 && lastActivity < REORDER_DAYS && dueForTouch) {
+  if (c.status === 'client_nou' && totalOffers >= 1 && lastActivity < REORDER_DAYS && dueForClientTouch) {
     return {
       type: 'first_order',
       titleKey: 'actions.title.firstOrder', titleParams: { name },
@@ -164,7 +191,7 @@ function computeAction(c: Contact): ActionDescriptor {
 
   // 4. NECESITĂ FOLLOW-UP — DOAR prospecți cu ofertă (clienții au flux propriu:
   // first_order / reorder). Follow-up-ul e de făcut dacă „atingerea" e datorată.
-  if ((c.status === 'prospect' || c.status === 'in_followup') && totalOffers >= 1 && dueForTouch) {
+  if ((c.status === 'prospect' || c.status === 'in_followup') && totalOffers >= 1 && dueForProspectFollowup) {
     return {
       type: 'needs_followup',
       titleKey: 'actions.title.needsFollowup',
@@ -207,7 +234,7 @@ function computeAction(c: Contact): ActionDescriptor {
   }
 
   // 7. AȘTEAPTĂ RĂSPUNS — follow-up recent, fără răspuns
-  if (totalOffers >= 1 && followupCount >= 1 && daysSinceFollowup < FOLLOWUP_STALE_DAYS) {
+  if (totalOffers >= 1 && followupCount >= 1 && daysSinceFollowup < followUpDays) {
     return {
       type: 'awaiting_reply',
       titleKey: 'actions.title.awaitingReply',
@@ -228,13 +255,13 @@ function computeAction(c: Contact): ActionDescriptor {
 }
 
 // Doar tipul acțiunii — fără a construi text (folosit de filtre/categorii).
-export function getActionType(c: Contact): ActionType {
-  return computeAction(c).type
+export function getActionType(c: Contact, followUpDays: number = getFollowUpDays()): ActionType {
+  return computeAction(c, followUpDays).type
 }
 
 /** Acțiunea recomandată cu text tradus (UI + email). */
-export function getRecommendedAction(c: Contact, t: TFunction): RecommendedAction {
-  const d = computeAction(c)
+export function getRecommendedAction(c: Contact, t: TFunction, followUpDays: number = getFollowUpDays()): RecommendedAction {
+  const d = computeAction(c, followUpDays)
   return {
     type: d.type,
     title: t(d.titleKey, d.titleParams),
@@ -258,8 +285,8 @@ export const ACTIONABLE_TYPES: ActionType[] = [
 
 // Un contact "necesită atenție" dacă are o acțiune actionabilă acum.
 // Aceeași sursă ca Focus Today — folosit și de filtrul CRM (?filter=needs_attention).
-export function needsAttention(c: Contact): boolean {
-  return ACTIONABLE_TYPES.includes(getActionType(c))
+export function needsAttention(c: Contact, followUpDays: number = getFollowUpDays()): boolean {
+  return ACTIONABLE_TYPES.includes(getActionType(c, followUpDays))
 }
 
 // ============================================================
@@ -269,8 +296,8 @@ export function needsAttention(c: Contact): boolean {
 export type CrmCategory = 'offer' | 'followup' | 'reactivate' | 'none'
 
 // Mapare tip intern → categorie CRM
-export function crmCategory(c: Contact): CrmCategory {
-  const type = getActionType(c)
+export function crmCategory(c: Contact, followUpDays: number = getFollowUpDays()): CrmCategory {
+  const type = getActionType(c, followUpDays)
   switch (type) {
     case 'needs_offer':       return 'offer'
     // first_order (întâmpinare client nou) și reorder (nudge lunar) sunt tot
@@ -299,8 +326,8 @@ export function crmCategoryLabels(t: TFunction): Record<CrmCategory, string> {
 }
 
 // Motiv scurt pentru afișare pe card (mai compact decât reason)
-export function shortReason(c: Contact, t: TFunction): string {
-  const type = getActionType(c)
+export function shortReason(c: Contact, t: TFunction, followUpDays: number = getFollowUpDays()): string {
+  const type = getActionType(c, followUpDays)
   const lastActivity = daysSince(c.last_activity_at ?? c.first_offer_at)
   const contactAge = daysSince(c.created_at)
   const followupCount = c.followup_count ?? 0
@@ -359,7 +386,7 @@ export interface NextAction {
  * Returnează null dacă acțiunea e azi/restantă (rămâne în „Necesită atenția acum")
  * sau dacă nu există o acțiune viitoare relevantă.
  */
-export function getNextAction(c: Contact, t: TFunction, followUpDays: number = 5): NextAction | null {
+export function getNextAction(c: Contact, t: TFunction, followUpDays: number = getFollowUpDays()): NextAction | null {
   const lastActivity = c.last_activity_at ?? c.first_offer_at
   const totalOffers = c.offers_count ?? 0
   const isClient = c.status === 'client_nou' || c.status === 'client_fidel'

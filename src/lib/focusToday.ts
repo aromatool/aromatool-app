@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import type { Contact } from "./contactTypes.ts";
-import { getRecommendedAction, getActionType, ACTIONABLE_TYPES } from "./recommendedAction.ts";
+import { getRecommendedAction, getActionType, ACTIONABLE_TYPES, getFollowUpDays } from "./recommendedAction.ts";
 import type { ActionType, RecommendedAction } from "./recommendedAction.ts";
 
 // ============================================================
@@ -120,14 +120,15 @@ export interface FocusItem {
 export function selectFocusToday(
   contacts: Contact[],
   t: TFunction,
-  limit = 5
+  limit = 5,
+  followUpDays: number = getFollowUpDays()
 ): FocusItem[] {
   return contacts
     .filter((c) => !c.communication_blocked)
-    .filter((c) => ACTIONABLE_TYPES.includes(getActionType(c)))
-    .sort((a, b) => focusRank(getActionType(a)) - focusRank(getActionType(b)))
+    .filter((c) => ACTIONABLE_TYPES.includes(getActionType(c, followUpDays)))
+    .sort((a, b) => focusRank(getActionType(a, followUpDays)) - focusRank(getActionType(b, followUpDays)))
     .slice(0, limit)
-    .map((c) => ({ contact: c, action: getRecommendedAction(c, t) }));
+    .map((c) => ({ contact: c, action: getRecommendedAction(c, t, followUpDays) }));
 }
 
 /**
@@ -139,7 +140,8 @@ export function getFocusToday(
   offers: RawOffer[],
   followupLog: RawFollowup[],
   t: TFunction,
-  limit = 5
+  limit = 5,
+  followUpDays: number = getFollowUpDays()
 ): FocusItem[] {
-  return selectFocusToday(aggregateContacts(contacts, offers, followupLog), t, limit);
+  return selectFocusToday(aggregateContacts(contacts, offers, followupLog), t, limit, followUpDays);
 }

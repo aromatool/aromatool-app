@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
 import { supabase } from "../lib/supabase";
+import { useFollowUpDays } from "../hooks/useFollowUpDays";
 import FeedbackWidget from "./FeedbackWidget";
 import LeafMark from "./LeafMark";
 
@@ -53,6 +54,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { t } = useTranslation();
   const { user, signOut } = useAuth();
   const sub = useSubscription();
+  // Sincronizează intervalul de follow-up (din Settings) în motorul de acțiuni,
+  // o singură dată la nivel de app. Funcțiile pure din recommendedAction/
+  // focusToday îl citesc apoi prin getFollowUpDays() ca default.
+  useFollowUpDays();
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);

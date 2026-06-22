@@ -21,7 +21,7 @@ import {
 } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
 import { aggregateContacts, selectFocusToday } from "../lib/focusToday";
-import { INACTIVE_DAYS } from "../lib/crmThresholds";
+import { INACTIVE_DAYS, DEFAULT_FOLLOWUP_DAYS } from "../lib/crmThresholds";
 import { useSubscription } from "../lib/subscription";
 import LockedOverlay from "../components/LockedOverlay";
 
@@ -1004,8 +1004,12 @@ export default function DashboardPage() {
     (c) => c.status === "client_nou" || c.status === "client_fidel",
   ).length;
 
+  // Intervalul de follow-up setat de user (Settings). Îl pasăm explicit în
+  // motorul de acțiuni ca primul follow-up să respecte exact acest interval.
+  const followUpDays = profile?.follow_up_days ?? DEFAULT_FOLLOWUP_DAYS;
+
   // Focus today — sursă unică (focusToday.ts), refolosită de Daily Focus Email
-  const focusToday = selectFocusToday(contacts, t).map((x) => x.contact);
+  const focusToday = selectFocusToday(contacts, t, 5, followUpDays).map((x) => x.contact);
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -1091,7 +1095,6 @@ export default function DashboardPage() {
   // Agenda săptămânii — acțiuni viitoare (de mâine încolo), grupate temporal
   // Excludem contactele deja afișate în Focus Today (separare curată, fără dublură)
   const focusIds = new Set(focusToday.map((c) => c.id));
-  const followUpDays = profile?.follow_up_days ?? 5;
   const agendaActions = contacts
     .filter((c) => !focusIds.has(c.id))
     .filter((c) => !c.communication_blocked)
@@ -2495,7 +2498,7 @@ export default function DashboardPage() {
       {followupContact && (
         <FollowupModal
           contact={followupContact}
-          action={getActionType(followupContact)}
+          action={getActionType(followupContact, followUpDays)}
           onClose={() => setFollowupContact(null)}
           onSent={(contactId: string) => {
             const now = new Date().toISOString();

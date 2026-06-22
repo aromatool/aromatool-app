@@ -15,6 +15,7 @@ import {
 } from "../lib/subscription";
 import RedeemCodeForm from "../components/RedeemCodeForm";
 import { useUpgrade } from "../hooks/useUpgrade";
+import { DEFAULT_FOLLOWUP_DAYS } from "../lib/crmThresholds";
 
 // Declanșează descărcarea unui fișier în browser.
 function downloadFile(filename: string, content: string, mime: string) {
@@ -135,7 +136,7 @@ export default function SettingsPage() {
     email_signature: "",
     country_code: "RO",
     language_code: "ro",
-    follow_up_days: 5,
+    follow_up_days: DEFAULT_FOLLOWUP_DAYS,
     daily_focus_enabled: false,
     daily_focus_hour: 8,
     is_admin: false,
@@ -411,7 +412,7 @@ export default function SettingsPage() {
         email_signature: data.email_signature || "",
         country_code: data.country_code || "RO",
         language_code: langCode,
-        follow_up_days: data.follow_up_days || 5,
+        follow_up_days: data.follow_up_days || DEFAULT_FOLLOWUP_DAYS,
         daily_focus_enabled: data.daily_focus_enabled === true,
         daily_focus_hour: data.daily_focus_hour || 8,
         is_admin: data.is_admin === true,
@@ -673,7 +674,7 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setProfile((p) => ({
                     ...p,
-                    follow_up_days: parseInt(e.target.value) || 5,
+                    follow_up_days: parseInt(e.target.value) || DEFAULT_FOLLOWUP_DAYS,
                   }))
                 }
                 style={{ ...inputStyle, width: "80px" }}
