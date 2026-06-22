@@ -419,6 +419,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
   return (
     <div
       onClick={onClose}
+      className="am-modal-overlay-center"
       style={{
         position: "fixed",
         inset: 0,
@@ -432,6 +433,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="am-modal-card-compact"
         style={{
           background: C.white,
           borderRadius: "20px",

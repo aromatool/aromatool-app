@@ -2556,6 +2556,7 @@ export default function DashboardPage() {
       {markSentContact && (
         <div
           onClick={() => !markSentSaving && setMarkSentContact(null)}
+          className="am-modal-overlay-center"
           style={{
             position: "fixed",
             inset: 0,
@@ -2570,6 +2571,7 @@ export default function DashboardPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            className="am-modal-card-compact"
             style={{
               background: T.wh,
               borderRadius: 18,

@@ -824,6 +824,7 @@ export default function ContactModal({
         {deleteConfirm && (
           <div
             onClick={() => setDeleteConfirm(false)}
+            className="am-modal-overlay-center"
             style={{
               position: "fixed",
               inset: 0,
@@ -837,6 +838,7 @@ export default function ContactModal({
           >
             <div
               onClick={(e) => e.stopPropagation()}
+              className="am-modal-card-compact"
               style={{
                 background: T.white,
                 borderRadius: 16,

@@ -1803,6 +1803,7 @@ export default function ContactsPage() {
       {markSentContact && (
         <div
           onClick={() => !markSentSaving && setMarkSentContact(null)}
+          className="am-modal-overlay-center"
           style={{
             position: "fixed",
             inset: 0,
@@ -1817,6 +1818,7 @@ export default function ContactsPage() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            className="am-modal-card-compact"
             style={{
               background: T.white,
               borderRadius: 18,
@@ -1956,6 +1958,7 @@ export default function ContactsPage() {
       {/* Add Contact Modal */}
       {showAddForm && (
         <div
+          className="am-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -1970,6 +1973,7 @@ export default function ContactsPage() {
           onClick={() => setShowAddForm(false)}
         >
           <div
+            className="am-modal-card"
             style={{
               background: T.white,
               borderRadius: 20,

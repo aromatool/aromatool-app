@@ -47,3 +47,48 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* ── Modale reutilizabile ─────────────────────────────────────
+   Toate overlay-urile: nu mai lasă pagina de sub să se scroleze
+   (overscroll-behavior) și se pot scrolla ele însele dacă e nevoie.
+   `am-modal-card`  = modale mari (formulare): fullscreen pe mobil.
+   `am-modal-card-compact` = dialoguri mici (confirmări, pickere):
+       rămân centrate, dar capate la înălțimea ecranului + scroll. */
+.am-modal-overlay,
+.am-modal-overlay-center {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.am-modal-card,
+.am-modal-card-compact {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.am-modal-card-compact {
+  max-height: calc(100dvh - 32px);
+}
+
+@media (max-width: 640px) {
+  /* modalele mari devin fullscreen */
+  .am-modal-overlay {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+  .am-modal-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+  /* dialogurile mici rămân centrate, dar nu mai depășesc ecranul */
+  .am-modal-card-compact {
+    max-height: calc(100dvh - 24px);
+  }
+}

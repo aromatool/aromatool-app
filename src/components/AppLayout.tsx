@@ -6,7 +6,6 @@ import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
 import { supabase } from "../lib/supabase";
 import FeedbackWidget from "./FeedbackWidget";
-import WhatsAppButton from "./WhatsAppButton";
 import LeafMark from "./LeafMark";
 
 // ── BLOSSOM SAGE THEME ─────────────────────────────────────
@@ -842,7 +841,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
         button { -webkit-tap-highlight-color: transparent; }
       `}</style>
 
-      <WhatsAppButton />
       <FeedbackWidget />
     </div>
   );

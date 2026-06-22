@@ -704,6 +704,7 @@ export default function FollowupModal({
 
   return (
     <div
+      className="am-modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -718,6 +719,7 @@ export default function FollowupModal({
       onClick={onClose}
     >
       <div
+        className="am-modal-card"
         style={{
           background: C.card,
           borderRadius: "20px",

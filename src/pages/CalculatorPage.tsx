@@ -2164,6 +2164,7 @@ function CartSection() {
         );
         return (
           <div
+            className="am-modal-overlay"
             onClick={() => setShowPreview(false)}
             style={{
               position: 'fixed', inset: 0, zIndex: 99999,
@@ -2174,15 +2175,17 @@ function CartSection() {
             }}
           >
             <div
+              className="am-modal-card"
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '100%', maxWidth: '580px',
                 display: 'flex', flexDirection: 'column',
-                height: '100%', maxHeight: 'calc(100vh - 40px)',
+                height: '100%', maxHeight: 'calc(100dvh - 40px)',
               }}
             >
               {/* Header modal */}
               <div style={{
+                flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 marginBottom: '12px',
               }}>
@@ -2206,18 +2209,43 @@ function CartSection() {
                   {tr("calculator.close")}
                 </button>
               </div>
-              {/* Iframe email */}
-              <iframe
-                srcDoc={previewHtml}
-                title={tr("calculator.previewEmailFrame")}
+              {/* Iframe email — wrapper scrollabil (pe iOS iframe-ul nu se
+                  poate scrolla la atingere; lăsăm wrapper-ul să scrolleze,
+                  iar iframe-ul își ia înălțimea conținutului la onLoad). */}
+              <div
                 style={{
-                  flex: 1, border: 'none',
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  overscrollBehavior: 'contain',
                   borderRadius: '16px',
                   background: '#F2F5F0',
-                  width: '100%',
                 }}
-                sandbox="allow-same-origin"
-              />
+              >
+                <iframe
+                  srcDoc={previewHtml}
+                  title={tr("calculator.previewEmailFrame")}
+                  onLoad={(e) => {
+                    const f = e.currentTarget;
+                    try {
+                      const h =
+                        f.contentWindow?.document?.documentElement?.scrollHeight;
+                      if (h) f.style.height = `${h}px`;
+                    } catch {
+                      /* cross-origin guard — ignoră */
+                    }
+                  }}
+                  style={{
+                    display: 'block',
+                    border: 'none',
+                    background: '#F2F5F0',
+                    width: '100%',
+                    height: '100%',
+                  }}
+                  sandbox="allow-same-origin"
+                />
+              </div>
             </div>
           </div>
         );

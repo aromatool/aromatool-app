@@ -61,36 +61,10 @@ interface Props {
   lockContact?: Contact | null;
 }
 
-// Inserează un text la poziția cursorului într-un input/textarea
-// (sau la final dacă nu avem referința).
-function insertAtCursor(
-  el: HTMLInputElement | HTMLTextAreaElement | null,
-  current: string,
-  setter: (v: string) => void,
-  token: string,
-) {
-  if (!el) {
-    setter(current + token);
-    return;
-  }
-  const start = el.selectionStart ?? current.length;
-  const end = el.selectionEnd ?? current.length;
-  const next = current.slice(0, start) + token + current.slice(end);
-  setter(next);
-  requestAnimationFrame(() => {
-    el.focus();
-    const pos = start + token.length;
-    el.setSelectionRange(pos, pos);
-  });
-}
-
 export default function GroupEmailModal({ contacts, onClose, lockContact }: Props) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
-  const subjectRef = useRef<HTMLInputElement>(null);
-  const titleRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // Datele liderului (identic cu useSendEmail) — folosite în antet/footer + From.
   const userName =
@@ -154,9 +128,6 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
     [eligibleAll, selectedSegs, lockContact],
   );
   const recipientIds = recipients.map((c) => c.id);
-
-  // Token pentru prenume, în limba aleasă pentru email.
-  const nameToken = lang === "en" ? "{name}" : "{nume}";
 
   // HTML pentru previzualizare: înlocuim __PRENUME__ cu prenumele unui
   // destinatar (sau gol) ca să arate cum vine personalizat.
@@ -313,42 +284,16 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
     inactive: t("groupEmail.segInactive"),
   };
 
-  // Rând de etichetă cu buton opțional „+ nume" care inserează tokenul
-  // pentru prenume la poziția cursorului în câmpul respectiv.
-  const fieldLabel = (text: string, onInsert?: () => void) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5, gap: 8 }}>
-      <label style={{ ...labelStyle, marginBottom: 0 }}>{text}</label>
-      {onInsert && (
-        <button
-          type="button"
-          onClick={onInsert}
-          title={t("groupEmail.insertNameHint")}
-          style={{
-            border: `1px solid ${C.sage}`,
-            background: C.sageLight,
-            color: C.sageDark,
-            borderRadius: 6,
-            padding: "2px 8px",
-            fontSize: 10.5,
-            fontWeight: 700,
-            fontFamily: "inherit",
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            flexShrink: 0,
-          }}
-        >
-          <i className="ti ti-user-plus" style={{ fontSize: 12 }} />
-          {t("groupEmail.insertName")}
-        </button>
-      )}
-    </div>
+  // Etichetă de câmp. (Salutul emailului conține deja automat prenumele
+  // fiecărui contact, deci nu mai oferim inserarea manuală a tokenului.)
+  const fieldLabel = (text: string) => (
+    <label style={{ ...labelStyle, marginBottom: 5 }}>{text}</label>
   );
 
   return (
     <div
       onClick={onClose}
+      className="am-modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -362,6 +307,7 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="am-modal-card"
         style={{
           background: C.white,
           borderRadius: 18,
@@ -533,11 +479,8 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
               </div>
 
               {/* Subject */}
-              {fieldLabel(t("groupEmail.subjectLabel"), () =>
-                insertAtCursor(subjectRef.current, subject, setSubject, nameToken),
-              )}
+              {fieldLabel(t("groupEmail.subjectLabel"))}
               <input
-                ref={subjectRef}
                 value={subject}
                 maxLength={MAX_SUBJECT}
                 onChange={(e) => setSubject(e.target.value)}
@@ -546,11 +489,8 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
               />
 
               {/* Email title */}
-              {fieldLabel(t("groupEmail.emailTitleLabel"), () =>
-                insertAtCursor(titleRef.current, emailTitle, setEmailTitle, nameToken),
-              )}
+              {fieldLabel(t("groupEmail.emailTitleLabel"))}
               <input
-                ref={titleRef}
                 value={emailTitle}
                 maxLength={120}
                 onChange={(e) => setEmailTitle(e.target.value)}
@@ -559,11 +499,8 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
               />
 
               {/* Message */}
-              {fieldLabel(t("groupEmail.messageLabel"), () =>
-                insertAtCursor(bodyRef.current, body, setBody, nameToken),
-              )}
+              {fieldLabel(t("groupEmail.messageLabel"))}
               <textarea
-                ref={bodyRef}
                 value={body}
                 maxLength={MAX_BODY}
                 onChange={(e) => setBody(e.target.value)}
@@ -706,9 +643,10 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
       {confirming && (
         <div
           onClick={(e) => e.stopPropagation()}
+          className="am-modal-overlay-center"
           style={{ position: "fixed", inset: 0, background: "rgba(61,53,48,0.5)", zIndex: 10002, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
         >
-          <div style={{ background: C.white, borderRadius: 16, padding: "26px 24px", maxWidth: 380, textAlign: "center", boxShadow: "0 20px 60px rgba(61,53,48,0.35)" }}>
+          <div className="am-modal-card-compact" style={{ background: C.white, borderRadius: 16, padding: "26px 24px", maxWidth: 380, textAlign: "center", boxShadow: "0 20px 60px rgba(61,53,48,0.35)" }}>
             <i className="ti ti-mail-fast" style={{ fontSize: 38, color: C.sage, display: "block", marginBottom: 12 }} />
             <div style={{ fontSize: 17, fontWeight: 700, color: C.espresso, marginBottom: 8 }}>{t("groupEmail.confirmTitle")}</div>
             <div style={{ fontSize: 13.5, color: C.warm, lineHeight: 1.5, marginBottom: 22 }}>

@@ -22,7 +22,7 @@
   "emailTitlePlaceholder": "e.g. Special offer tomorrow",
   "messageLabel": "Message",
   "messagePlaceholder": "Write your update or offer here...",
-  "personalizeHint": "The greeting automatically includes each contact's first name. Tap \"+ name\" to use it in the subject, title or text too.",
+  "personalizeHint": "The greeting automatically includes each contact's first name.",
   "imageLabel": "Photo (optional)",
   "imageAdd": "Add photo",
   "imageChange": "Change photo",

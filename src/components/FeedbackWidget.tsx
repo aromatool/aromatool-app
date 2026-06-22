@@ -19,6 +19,10 @@ const T = {
   greenLight: "#E8F8F0",
 };
 
+// Numărul de WhatsApp al echipei, în format internațional fără „+".
+// (RO: prefix 40 + numărul fără 0 din față → 0746990416 devine 40746990416)
+const WHATSAPP_NUMBER = "40746990416";
+
 const TYPES: { key: string; icon: string }[] = [
   { key: "sugestie", icon: "ti-bulb" },
   { key: "problema", icon: "ti-alert-triangle" },
@@ -48,6 +52,10 @@ export default function FeedbackWidget() {
     // mic delay ca să nu „sară” conținutul în timpul animației de închidere
     setTimeout(reset, 200);
   };
+
+  const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+    t("feedback.whatsappMessage")
+  )}`;
 
   async function submit() {
     if (!message.trim() || sending) return;
@@ -103,6 +111,7 @@ export default function FeedbackWidget() {
       {open && (
         <div
           onClick={close}
+          className="am-modal-overlay"
           style={{
             position: "fixed",
             inset: 0,
@@ -116,12 +125,13 @@ export default function FeedbackWidget() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            className="am-modal-card"
             style={{
               width: "100%",
               maxWidth: "440px",
               background: T.white,
               borderRadius: "18px",
-              overflow: "hidden",
+              overflowY: "auto",
               boxShadow: "0 20px 50px rgba(60,53,48,0.25)",
             }}
           >
@@ -295,6 +305,64 @@ export default function FeedbackWidget() {
                       {error}
                     </div>
                   )}
+
+                  {/* Contact direct prin WhatsApp */}
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      marginTop: "16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "11px",
+                      padding: "11px 14px",
+                      background: T.greenLight,
+                      border: `1px solid ${T.sageMid}`,
+                      borderRadius: "10px",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%",
+                        background: "#25D366",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <i
+                        className="ti ti-brand-whatsapp"
+                        style={{ fontSize: "19px", color: "#FFFFFF" }}
+                      />
+                    </span>
+                    <span style={{ display: "flex", flexDirection: "column" }}>
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: T.espresso,
+                        }}
+                      >
+                        {t("feedback.whatsappTitle")}
+                      </span>
+                      <span style={{ fontSize: "11.5px", color: T.muted }}>
+                        {t("feedback.whatsappPrompt")}
+                      </span>
+                    </span>
+                    <i
+                      className="ti ti-external-link"
+                      style={{
+                        marginLeft: "auto",
+                        fontSize: "16px",
+                        color: T.muted,
+                      }}
+                    />
+                  </a>
                 </div>
 
                 {/* Footer */}

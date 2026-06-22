@@ -22,7 +22,7 @@
   "emailTitlePlaceholder": "ex: Ofertă specială mâine",
   "messageLabel": "Mesaj",
   "messagePlaceholder": "Scrie aici informarea sau oferta...",
-  "personalizeHint": "Salutul conține automat prenumele fiecărui contact. Apasă „+ nume” ca să-l folosești și în subiect, titlu sau text.",
+  "personalizeHint": "Salutul conține automat prenumele fiecărui contact.",
   "imageLabel": "Poză (opțional)",
   "imageAdd": "Adaugă poză",
   "imageChange": "Schimbă poza",
