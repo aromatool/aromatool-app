@@ -30,6 +30,14 @@ export interface CampaignEmailParams {
   lang?: string; // limba emailului (implicit 'ro')
 }
 
+// Token prietenos pentru prenume: {nume} / {name} (acceptă spații
+// interioare: { nume }) → marker __FN__, pe care funcția edge îl
+// înlocuiește per destinatar cu prenumele contactului (gol dacă lipsește).
+// Îl pot folosi în subiect, titlu și mesaj.
+export function applyNameToken(s: string): string {
+  return s.replace(/\{\s*(nume|name)\s*\}/gi, "__FN__");
+}
+
 // URL-uri dintr-un text DEJA escapat → linkuri clicabile (identic cu
 // pattern-ul din useSendEmail, aplicat STRICT după escapeHtml).
 function linkifyEscaped(escaped: string): string {
@@ -47,11 +55,11 @@ export function buildCampaignHtml(p: CampaignEmailParams): string {
   const greeting = t("email.greeting"); // „Bună ziua" / „Hello"
 
   const titleBlock = p.title && p.title.trim()
-    ? `<div style="font-family:Georgia,serif;font-size:20px;color:#3D3530;font-weight:600;line-height:1.35;margin:0 0 14px;text-align:center">${escapeHtml(p.title)}</div>`
+    ? `<div style="font-family:Georgia,serif;font-size:20px;color:#3D3530;font-weight:600;line-height:1.35;margin:0 0 14px;text-align:center">${applyNameToken(escapeHtml(p.title))}</div>`
     : "";
 
   const bodyBlock = p.body && p.body.trim()
-    ? `<div style="font-size:14px;color:#3D3530;line-height:1.75;white-space:pre-wrap">${linkifyEscaped(escapeHtml(p.body))}</div>`
+    ? `<div style="font-size:14px;color:#3D3530;line-height:1.75;white-space:pre-wrap">${applyNameToken(linkifyEscaped(escapeHtml(p.body)))}</div>`
     : "";
 
   const imageBlock = p.imageUrl
@@ -106,11 +114,11 @@ export function buildCampaignText(p: CampaignEmailParams): string {
   lines.push(`${t("email.greeting")}__PRENUME__!`);
   lines.push("");
   if (p.title && p.title.trim()) {
-    lines.push(p.title.trim());
+    lines.push(applyNameToken(p.title.trim()));
     lines.push("");
   }
   if (p.body && p.body.trim()) {
-    lines.push(p.body.trim());
+    lines.push(applyNameToken(p.body.trim()));
   }
   if (p.imageUrl) {
     lines.push("");

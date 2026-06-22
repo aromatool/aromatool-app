@@ -34,7 +34,9 @@
     "whatsapp": "WhatsApp",
     "createOffer": "Create offer",
     "sendMessage": "Send message",
-    "newOffer": "New offer"
+    "newOffer": "New offer",
+    "campaign": "Email with photo",
+    "campaignTooltip": "Send a personalized email (with photo) to this contact"
   },
   "markSent": {
     "button": "I already sent it",

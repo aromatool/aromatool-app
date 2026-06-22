@@ -35,7 +35,9 @@
     "whatsapp": "WhatsApp",
     "createOffer": "Creează ofertă",
     "sendMessage": "Trimite mesaj",
-    "newOffer": "Ofertă nouă"
+    "newOffer": "Ofertă nouă",
+    "campaign": "Email cu poză",
+    "campaignTooltip": "Trimite un email personalizat (cu poză) către acest contact"
   },
   "markSent": {
     "button": "Am trimis-o deja",

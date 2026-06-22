@@ -34,6 +34,7 @@ interface Props {
   onClose: () => void;
   onWhatsApp?: (c: Contact) => void;
   onEmail?: (c: Contact) => void;
+  onCampaign?: (c: Contact) => void;
   onOffer?: (c: Contact) => void;
   onMarkSent?: (c: Contact) => void;
   onStatusChange?: (id: string, s: ContactStatus) => Promise<void> | void;
@@ -148,6 +149,7 @@ export default function ContactModal({
   onClose,
   onWhatsApp,
   onEmail,
+  onCampaign,
   onOffer,
   onMarkSent,
   onStatusChange,
@@ -425,6 +427,8 @@ export default function ContactModal({
 
   const isBlocked = !!contact.communication_blocked;
   const isEmailOptOut = !!contact.email_opt_out;
+  // Email real (nu placeholder) → poate primi emailul cu poză individual.
+  const hasRealEmail = !!(contact.email ?? "").trim() && !(contact.email ?? "").includes("@noemail.local");
 
   // CTA principal după tipul acțiunii
   const primaryCTA =
@@ -1144,6 +1148,16 @@ export default function ContactModal({
                     <i className="ti ti-file-text" style={{ fontSize: 15 }} />{" "}
                     {t("contacts.cta.newOffer")}
                   </button>
+                  {onCampaign && hasRealEmail && !isEmailOptOut && (
+                    <button
+                      onClick={() => onCampaign(contact)}
+                      title={t("contacts.cta.campaignTooltip")}
+                      style={ghostBtn()}
+                    >
+                      <i className="ti ti-photo-share" style={{ fontSize: 15 }} />{" "}
+                      {t("contacts.cta.campaign")}
+                    </button>
+                  )}
                   {action.type === "needs_offer" && onMarkSent && (
                     <button
                       onClick={() => onMarkSent(contact)}

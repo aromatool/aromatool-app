@@ -114,6 +114,13 @@ function firstName(name?: string | null): string {
   return (name || '').trim().split(/\s+/)[0] || ''
 }
 
+// Personalizare per destinatar:
+//   __PRENUME__ → salut („ Maria" sau gol) — folosit la antet.
+//   __FN__      → prenume simplu inline (subiect/titlu/mesaj), gol dacă lipsește.
+function applyName(s: string, fn: string): string {
+  return s.replaceAll('__PRENUME__', fn ? ` ${fn}` : '').replaceAll('__FN__', fn)
+}
+
 // Trimitere Resend cu retry la 429.
 async function resendSend(payload: Record<string, unknown>, attempt = 0): Promise<void> {
   const res = await fetch('https://api.resend.com/emails', {
@@ -174,10 +181,15 @@ serve(async (req) => {
     if (testEmailToSelf) {
       const selfEmail = (user.email || '').trim()
       if (!isValidEmail(selfEmail)) return json({ error: 'Contul nu are un email valid.' }, 400)
-      const personalizedHtml = String(html).replaceAll('__PRENUME__', '')
-      const personalizedText = typeof text === 'string' ? text.replaceAll('__PRENUME__', '') : undefined
+      // Proba e mai grăitoare dacă apare chiar numele celui care testează.
+      const selfFn = firstName(
+        (user.user_metadata as Record<string, unknown> | undefined)?.full_name as string | undefined,
+      )
+      const personalizedHtml = applyName(String(html), selfFn)
+      const personalizedText = typeof text === 'string' ? applyName(text, selfFn) : undefined
+      const personalizedSubject = applyName(cleanSubject, selfFn)
       const payload: Record<string, unknown> = {
-        from: fromHeader, to: selfEmail, subject: cleanSubject, html: personalizedHtml,
+        from: fromHeader, to: selfEmail, subject: personalizedSubject, html: personalizedHtml,
       }
       if (personalizedText) payload.text = personalizedText
       if (rt) payload.reply_to = rt
@@ -228,12 +240,13 @@ serve(async (req) => {
       const c = eligible[i]
       const recipient = String(c.email).trim()
       try {
-        // Personalizare prenume.
+        // Personalizare prenume (antet + inline în subiect/titlu/mesaj).
         const fn = firstName(c.name)
-        let finalHtml = String(html).replaceAll('__PRENUME__', fn ? ` ${fn}` : '')
+        let finalHtml = applyName(String(html), fn)
         let finalText = typeof text === 'string' && text.trim()
-          ? text.replaceAll('__PRENUME__', fn ? ` ${fn}` : '')
+          ? applyName(text, fn)
           : undefined
+        const finalSubject = applyName(cleanSubject, fn)
 
         // Dezabonare per contact.
         let unsubHeaders: Record<string, string> = {}
@@ -248,7 +261,7 @@ serve(async (req) => {
         }
 
         const payload: Record<string, unknown> = {
-          from: fromHeader, to: recipient, subject: cleanSubject, html: finalHtml,
+          from: fromHeader, to: recipient, subject: finalSubject, html: finalHtml,
         }
         if (finalText) payload.text = finalText
         if (Object.keys(unsubHeaders).length) payload.headers = unsubHeaders

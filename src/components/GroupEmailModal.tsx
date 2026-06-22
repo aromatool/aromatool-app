@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { statusGroup, type StatusGroup } from "../lib/recommendedAction";
 import type { Contact } from "../lib/contactTypes";
-import { buildCampaignHtml, buildCampaignText } from "../lib/campaignEmail";
+import { buildCampaignHtml, buildCampaignText, applyNameToken } from "../lib/campaignEmail";
 import { uploadCampaignImage } from "../lib/uploadCampaignImage";
 
 // ── BLOSSOM SAGE COLORS (aliniat cu ContactsPage / ResourcesPage) ──
@@ -50,18 +50,47 @@ const inputStyle: React.CSSProperties = {
 const MAX_SUBJECT = 200;
 const MAX_BODY = 4000;
 
-type Seg = "all" | StatusGroup;
+const ALL_SEGS: StatusGroup[] = ["team", "client", "prospect", "inactive"];
 type SendResult = { sent: number; failed: number; skipped: number };
 
 interface Props {
   contacts: Contact[];
   onClose: () => void;
+  // Dacă e setat, fereastra trimite DOAR către acest contact (din detaliul
+  // contactului), fără selectorul de segmente.
+  lockContact?: Contact | null;
 }
 
-export default function GroupEmailModal({ contacts, onClose }: Props) {
+// Inserează un text la poziția cursorului într-un input/textarea
+// (sau la final dacă nu avem referința).
+function insertAtCursor(
+  el: HTMLInputElement | HTMLTextAreaElement | null,
+  current: string,
+  setter: (v: string) => void,
+  token: string,
+) {
+  if (!el) {
+    setter(current + token);
+    return;
+  }
+  const start = el.selectionStart ?? current.length;
+  const end = el.selectionEnd ?? current.length;
+  const next = current.slice(0, start) + token + current.slice(end);
+  setter(next);
+  requestAnimationFrame(() => {
+    el.focus();
+    const pos = start + token.length;
+    el.setSelectionRange(pos, pos);
+  });
+}
+
+export default function GroupEmailModal({ contacts, onClose, lockContact }: Props) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   // Datele liderului (identic cu useSendEmail) — folosite în antet/footer + From.
   const userName =
@@ -70,8 +99,17 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
   const userEmail = user?.user_metadata?.contact_email || user?.email || "";
   const userSignature = user?.user_metadata?.email_signature || "";
 
-  const [segment, setSegment] = useState<Seg>("all");
-  const [lang, setLang] = useState<string>(i18n.language?.startsWith("en") ? "en" : "ro");
+  // Multi-select pe categorii (checkbox). Implicit toate = „toți".
+  const [selectedSegs, setSelectedSegs] = useState<StatusGroup[]>(ALL_SEGS);
+  const [lang, setLang] = useState<string>(
+    lockContact?.language_code === "ro"
+      ? "ro"
+      : lockContact?.language_code?.startsWith("en")
+        ? "en"
+        : i18n.language?.startsWith("en")
+          ? "en"
+          : "ro",
+  );
   const [subject, setSubject] = useState("");
   const [emailTitle, setEmailTitle] = useState("");
   const [body, setBody] = useState("");
@@ -100,19 +138,25 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
     [contacts],
   );
 
-  const countFor = (seg: Seg) =>
-    seg === "all"
-      ? eligibleAll.length
-      : eligibleAll.filter((c) => statusGroup(c.status) === seg).length;
+  const countFor = (seg: StatusGroup) =>
+    eligibleAll.filter((c) => statusGroup(c.status) === seg).length;
+  const allSelected = selectedSegs.length === ALL_SEGS.length;
+  const toggleSeg = (s: StatusGroup) =>
+    setSelectedSegs((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+    );
 
   const recipients = useMemo(
     () =>
-      segment === "all"
-        ? eligibleAll
-        : eligibleAll.filter((c) => statusGroup(c.status) === segment),
-    [eligibleAll, segment],
+      lockContact
+        ? [lockContact]
+        : eligibleAll.filter((c) => selectedSegs.includes(statusGroup(c.status))),
+    [eligibleAll, selectedSegs, lockContact],
   );
   const recipientIds = recipients.map((c) => c.id);
+
+  // Token pentru prenume, în limba aleasă pentru email.
+  const nameToken = lang === "en" ? "{name}" : "{nume}";
 
   // HTML pentru previzualizare: înlocuim __PRENUME__ cu prenumele unui
   // destinatar (sau gol) ca să arate cum vine personalizat.
@@ -130,7 +174,9 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
         userEmail,
         userSignature,
         lang,
-      }).replaceAll("__PRENUME__", sampleFirst ? ` ${sampleFirst}` : ""),
+      })
+        .replaceAll("__PRENUME__", sampleFirst ? ` ${sampleFirst}` : "")
+        .replaceAll("__FN__", sampleFirst),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [emailTitle, body, imageUrl, ctaText, ctaUrl, lang, sampleFirst],
   );
@@ -177,7 +223,7 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
 
   function payloadBase() {
     return {
-      subject: subject.trim(),
+      subject: applyNameToken(subject.trim()),
       html: buildCampaignHtml({
         title: emailTitle,
         body,
@@ -260,14 +306,45 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
     }
   }
 
-  const SEGMENTS: Seg[] = ["all", "team", "client", "prospect", "inactive"];
-  const segLabel: Record<Seg, string> = {
-    all: t("groupEmail.segAll"),
+  const segLabel: Record<StatusGroup, string> = {
     team: t("groupEmail.segTeam"),
     client: t("groupEmail.segClient"),
     prospect: t("groupEmail.segProspect"),
     inactive: t("groupEmail.segInactive"),
   };
+
+  // Rând de etichetă cu buton opțional „+ nume" care inserează tokenul
+  // pentru prenume la poziția cursorului în câmpul respectiv.
+  const fieldLabel = (text: string, onInsert?: () => void) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5, gap: 8 }}>
+      <label style={{ ...labelStyle, marginBottom: 0 }}>{text}</label>
+      {onInsert && (
+        <button
+          type="button"
+          onClick={onInsert}
+          title={t("groupEmail.insertNameHint")}
+          style={{
+            border: `1px solid ${C.sage}`,
+            background: C.sageLight,
+            color: C.sageDark,
+            borderRadius: 6,
+            padding: "2px 8px",
+            fontSize: 10.5,
+            fontWeight: 700,
+            fontFamily: "inherit",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            flexShrink: 0,
+          }}
+        >
+          <i className="ti ti-user-plus" style={{ fontSize: 12 }} />
+          {t("groupEmail.insertName")}
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -310,10 +387,12 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
         >
           <div>
             <div style={{ fontSize: 17, fontWeight: 700, color: C.espresso, display: "flex", alignItems: "center", gap: 8 }}>
-              <i className="ti ti-users-group" style={{ fontSize: 19, color: C.sage }} />
-              {t("groupEmail.title")}
+              <i className={`ti ${lockContact ? "ti-mail-fast" : "ti-users-group"}`} style={{ fontSize: 19, color: C.sage }} />
+              {lockContact ? t("groupEmail.titleSingle") : t("groupEmail.title")}
             </div>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{t("groupEmail.intro")}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>
+              {lockContact ? t("groupEmail.introSingle") : t("groupEmail.intro")}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -351,21 +430,34 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
             {/* ── COMPOSER ── */}
             <div style={{ flex: "1 1 360px", minWidth: 300, padding: "20px 22px", borderRight: `1px solid ${C.border}` }}>
               {/* Audience */}
-              <label style={labelStyle}>{t("groupEmail.audienceLabel")}</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 6 }}>
-                {SEGMENTS.map((s) => {
-                  const active = segment === s;
-                  const n = countFor(s);
-                  return (
+              {lockContact ? (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>{t("groupEmail.toLabel")}</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 12px", background: C.sageLight, border: `1px solid ${C.sage}`, borderRadius: 10 }}>
+                    <i className="ti ti-user-circle" style={{ fontSize: 20, color: C.sageDark }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: C.espresso, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {lockContact.name || lockContact.email}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: C.warm, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {lockContact.email}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <label style={labelStyle}>{t("groupEmail.audienceLabel")}</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 6 }}>
+                    {/* „Toți" = bifează/debifează toate categoriile */}
                     <button
-                      key={s}
-                      onClick={() => setSegment(s)}
+                      onClick={() => setSelectedSegs(allSelected ? [] : ALL_SEGS)}
                       style={{
                         padding: "6px 12px",
                         borderRadius: 999,
-                        border: `1px solid ${active ? C.sage : C.border}`,
-                        background: active ? C.sage : C.white,
-                        color: active ? "white" : C.warm,
+                        border: `1px solid ${allSelected ? C.sage : C.border}`,
+                        background: allSelected ? C.sage : C.white,
+                        color: allSelected ? "white" : C.warm,
                         fontSize: 12.5,
                         fontWeight: 600,
                         fontFamily: "inherit",
@@ -375,18 +467,46 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
                         gap: 6,
                       }}
                     >
-                      {segLabel[s]}
-                      <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 500 }}>{n}</span>
+                      <i className={`ti ${allSelected ? "ti-checks" : "ti-square"}`} style={{ fontSize: 14 }} />
+                      {t("groupEmail.segAll")}
                     </button>
-                  );
-                })}
-              </div>
-              <div style={{ fontSize: 12, color: recipients.length ? C.sage : C.red, fontWeight: 600, marginBottom: 4 }}>
-                {t("groupEmail.recipientsCount", { count: recipients.length })}
-              </div>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 16, lineHeight: 1.45 }}>
-                {recipients.length ? t("groupEmail.recipientsHint") : t("groupEmail.noRecipients")}
-              </div>
+                    {ALL_SEGS.map((s) => {
+                      const active = selectedSegs.includes(s);
+                      const n = countFor(s);
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => toggleSeg(s)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 999,
+                            border: `1px solid ${active ? C.sage : C.border}`,
+                            background: active ? C.sage : C.white,
+                            color: active ? "white" : C.warm,
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            fontFamily: "inherit",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <i className={`ti ${active ? "ti-square-check-filled" : "ti-square"}`} style={{ fontSize: 14 }} />
+                          {segLabel[s]}
+                          <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 500 }}>{n}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: 12, color: recipients.length ? C.sage : C.red, fontWeight: 600, marginBottom: 4 }}>
+                    {t("groupEmail.recipientsCount", { count: recipients.length })}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 16, lineHeight: 1.45 }}>
+                    {recipients.length ? t("groupEmail.recipientsHint") : t("groupEmail.noRecipients")}
+                  </div>
+                </>
+              )}
 
               {/* Language */}
               <label style={labelStyle}>{t("groupEmail.langLabel")}</label>
@@ -413,8 +533,11 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
               </div>
 
               {/* Subject */}
-              <label style={labelStyle}>{t("groupEmail.subjectLabel")}</label>
+              {fieldLabel(t("groupEmail.subjectLabel"), () =>
+                insertAtCursor(subjectRef.current, subject, setSubject, nameToken),
+              )}
               <input
+                ref={subjectRef}
                 value={subject}
                 maxLength={MAX_SUBJECT}
                 onChange={(e) => setSubject(e.target.value)}
@@ -423,8 +546,11 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
               />
 
               {/* Email title */}
-              <label style={labelStyle}>{t("groupEmail.emailTitleLabel")}</label>
+              {fieldLabel(t("groupEmail.emailTitleLabel"), () =>
+                insertAtCursor(titleRef.current, emailTitle, setEmailTitle, nameToken),
+              )}
               <input
+                ref={titleRef}
                 value={emailTitle}
                 maxLength={120}
                 onChange={(e) => setEmailTitle(e.target.value)}
@@ -433,8 +559,11 @@ export default function GroupEmailModal({ contacts, onClose }: Props) {
               />
 
               {/* Message */}
-              <label style={labelStyle}>{t("groupEmail.messageLabel")}</label>
+              {fieldLabel(t("groupEmail.messageLabel"), () =>
+                insertAtCursor(bodyRef.current, body, setBody, nameToken),
+              )}
               <textarea
+                ref={bodyRef}
                 value={body}
                 maxLength={MAX_BODY}
                 onChange={(e) => setBody(e.target.value)}

@@ -184,6 +184,8 @@ export default function ContactsPage() {
   const [markSentToast, setMarkSentToast] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showGroupEmail, setShowGroupEmail] = useState(false);
+  // Email cu poză către un singur contact (din detaliul contactului).
+  const [campaignContact, setCampaignContact] = useState<Contact | null>(null);
   const [addData, setAddData] = useState({
     name: "",
     email: "",
@@ -1719,6 +1721,10 @@ export default function ContactsPage() {
           setSelectedContact(null);
           setFollowupContact(c);
         }}
+        onCampaign={(c) => {
+          setSelectedContact(null);
+          setCampaignContact(c);
+        }}
         onOffer={(c) => {
           sessionStorage.setItem(
             "prefill_contact",
@@ -1781,6 +1787,15 @@ export default function ContactsPage() {
         <GroupEmailModal
           contacts={contacts}
           onClose={() => setShowGroupEmail(false)}
+        />
+      )}
+
+      {/* Email cu poză către un singur contact (din detaliul contactului) */}
+      {campaignContact && (
+        <GroupEmailModal
+          contacts={contacts}
+          lockContact={campaignContact}
+          onClose={() => setCampaignContact(null)}
         />
       )}
 
