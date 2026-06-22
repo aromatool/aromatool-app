@@ -490,7 +490,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             >
               <button
                 onClick={() => {
-                  navigate("/app/contacts");
+                  navigate("/app/contacts?new=1");
                   setShowFabMenu(false);
                 }}
                 style={fabMenuItemStyle}

@@ -6,6 +6,7 @@ import { statusGroup, type StatusGroup } from "../lib/recommendedAction";
 import type { Contact } from "../lib/contactTypes";
 import { buildCampaignHtml, buildCampaignText, applyNameToken } from "../lib/campaignEmail";
 import { uploadCampaignImage } from "../lib/uploadCampaignImage";
+import ModalPortal from "./ModalPortal";
 
 // ── BLOSSOM SAGE COLORS (aliniat cu ContactsPage / ResourcesPage) ──
 const C = {
@@ -291,6 +292,7 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
   );
 
   return (
+    <ModalPortal>
     <div
       onClick={onClose}
       className="am-modal-overlay"
@@ -664,6 +666,7 @@ export default function GroupEmailModal({ contacts, onClose, lockContact }: Prop
         </div>
       )}
     </div>
+    </ModalPortal>
   );
 }
 

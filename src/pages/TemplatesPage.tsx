@@ -349,8 +349,12 @@ function TemplateEditor({
           <button
             onClick={() => onDelete(template.id)}
             style={{
-              padding: "4px 8px",
-              fontSize: "12px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "5px 9px",
+              fontSize: "14px",
+              lineHeight: 1,
               background: C.redbg,
               border: `1px solid rgba(201,79,106,0.2)`,
               borderRadius: "8px",
@@ -359,8 +363,9 @@ function TemplateEditor({
               fontFamily: "'DM Sans', sans-serif",
             }}
             title={tr("templates.deleteTitle")}
+            aria-label={tr("templates.deleteTitle")}
           >
-            🗑
+            <i className="ti ti-trash" />
           </button>
           <span style={{ fontSize: "12px", color: C.muted }}>
             {isOpen ? "▲" : "▼"}

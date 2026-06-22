@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import ModalPortal from "./ModalPortal";
 
 const T = {
   sage: "#5C7A5C",
@@ -109,6 +110,7 @@ export default function FeedbackWidget() {
 
       {/* Modal */}
       {open && (
+        <ModalPortal>
         <div
           onClick={close}
           className="am-modal-overlay"
@@ -416,6 +418,7 @@ export default function FeedbackWidget() {
             )}
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <style>{`

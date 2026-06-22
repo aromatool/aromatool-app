@@ -11,6 +11,7 @@ import { useAuth } from "./auth";
 import { supabase } from "./supabase";
 import { useUpgrade } from "../hooks/useUpgrade";
 import RedeemCodeForm from "../components/RedeemCodeForm";
+import ModalPortal from "../components/ModalPortal";
 
 // ============================================================
 // SUBSCRIPTION — sursa unică de adevăr pentru acces în aplicație.
@@ -417,6 +418,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
   const bigPrice = billing === "year" ? annualLabel : monthlyLabel;
 
   return (
+    <ModalPortal>
     <div
       onClick={onClose}
       className="am-modal-overlay-center"
@@ -622,5 +624,6 @@ function Paywall({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

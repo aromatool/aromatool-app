@@ -6,6 +6,7 @@ import { useSubscription } from "../lib/subscription";
 import FollowupModal from "../components/FollowupModal";
 import ContactModal from "../components/ContactModal";
 import GroupEmailModal from "../components/GroupEmailModal";
+import ModalPortal from "../components/ModalPortal";
 import {
   getRecommendedAction,
   getActionType,
@@ -1801,6 +1802,7 @@ export default function ContactsPage() {
 
       {/* Picker canal „Marchează oferta ca trimisă" */}
       {markSentContact && (
+        <ModalPortal>
         <div
           onClick={() => !markSentSaving && setMarkSentContact(null)}
           className="am-modal-overlay-center"
@@ -1923,6 +1925,7 @@ export default function ContactsPage() {
             </button>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Toast confirmare marcare */}
@@ -1957,6 +1960,7 @@ export default function ContactsPage() {
 
       {/* Add Contact Modal */}
       {showAddForm && (
+        <ModalPortal>
         <div
           className="am-modal-overlay"
           style={{
@@ -2155,6 +2159,7 @@ export default function ContactsPage() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

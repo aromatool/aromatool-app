@@ -9,6 +9,7 @@ import { buildEmailFooter } from "../lib/emailFooter";
 import { escapeHtml } from "../lib/escapeHtml";
 import { useResources } from "../hooks/useResources";
 import { useTranslation } from "react-i18next";
+import ModalPortal from "./ModalPortal";
 
 // Acțiunile care au mesaje recomandate (awaiting_reply/none nu declanșează nimic
 // special — folosim mesajele de follow-up ca fallback util).
@@ -703,6 +704,7 @@ export default function FollowupModal({
   };
 
   return (
+    <ModalPortal>
     <div
       className="am-modal-overlay"
       style={{
@@ -1552,6 +1554,7 @@ export default function FollowupModal({
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
+    </ModalPortal>
   );
 }
 

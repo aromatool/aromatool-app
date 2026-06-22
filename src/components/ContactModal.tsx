@@ -8,6 +8,7 @@ import type { ContactStatus } from "../lib/relationshipScore";
 import type { Contact } from "../pages/DashboardPage";
 import PhoneInput from "./PhoneInput";
 import { useProfileCountry } from "../hooks/useProfileCountry";
+import ModalPortal from "./ModalPortal";
 
 interface OfferRow {
   id: string;
@@ -201,17 +202,8 @@ export default function ContactModal({
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
-  // Blochează scroll-ul paginii din spate cât timp modalul e deschis. Pe mobil,
-  // fără asta lista de contacte se mișcă în spatele modalului, iar bara de
-  // adrese care apare/dispare lasă spațiu gol sub modal.
-  useEffect(() => {
-    if (!contact) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [contact]);
+  // Scroll-ul de fundal (body + .main-content) e blocat de ModalPortal cât
+  // timp modalul e montat — nu mai dublăm logica aici.
 
   useEffect(() => {
     setTab("offers");
@@ -454,6 +446,7 @@ export default function ContactModal({
           };
 
   return (
+    <ModalPortal>
     <div
       onClick={onClose}
       style={{
@@ -1908,6 +1901,7 @@ export default function ContactModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

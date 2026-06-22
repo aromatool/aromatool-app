@@ -9,6 +9,7 @@ import { useProductDescriptions } from "../hooks/useProductDescriptions";
 import EnrollLink from "../components/EnrollLink";
 import PhoneInput from "../components/PhoneInput";
 import CurrencyPanel from "../components/CurrencyPanel";
+import ModalPortal from "../components/ModalPortal";
 import { useExchangeRates } from "../hooks/useExchangeRates";
 import { useAuth } from "../lib/auth";
 import { useSubscription } from "../lib/subscription";
@@ -2163,6 +2164,7 @@ function CartSection() {
           userSignature,
         );
         return (
+          <ModalPortal>
           <div
             className="am-modal-overlay"
             onClick={() => setShowPreview(false)}
@@ -2248,6 +2250,7 @@ function CartSection() {
               </div>
             </div>
           </div>
+          </ModalPortal>
         );
       })()}
     </div>

@@ -8,6 +8,7 @@ import { useCartStore } from "../hooks/useCartStore";
 import ContactSlideOver from "../components/ContactSlideOver";
 import ContactQuickSheet from "../components/ContactQuickSheet";
 import FollowupModal from "../components/FollowupModal";
+import ModalPortal from "../components/ModalPortal";
 import { openWhatsApp, startOffer } from "../lib/contactActions";
 import { useSendEmail } from "../hooks/useSendEmail";
 import {
@@ -2554,6 +2555,7 @@ export default function DashboardPage() {
 
       {/* Picker canal „Marchează oferta ca trimisă" */}
       {markSentContact && (
+        <ModalPortal>
         <div
           onClick={() => !markSentSaving && setMarkSentContact(null)}
           className="am-modal-overlay-center"
@@ -2676,6 +2678,7 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Toast confirmare marcare */}

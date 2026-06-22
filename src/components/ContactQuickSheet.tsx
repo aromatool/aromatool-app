@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
+import ModalPortal from "./ModalPortal";
 import { getRecommendedAction, displayStatus } from "../lib/recommendedAction";
 import type { ContactStatus } from "../lib/relationshipScore";
 import type { Contact } from "../pages/DashboardPage";
@@ -255,19 +256,17 @@ export default function ContactQuickSheet({
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
-  // Entrance animation (slide up) + body scroll lock — only while the sheet
-  // is actually open. The component stays mounted with contact=null on the
-  // Dashboard, so gating on contact prevents the body from staying locked.
+  // Entrance animation (slide up) — only while the sheet is actually open.
+  // Scroll-ul de fundal (body + .main-content) e blocat de ModalPortal, deci
+  // nu mai atingem `document.body.style.overflow` aici.
   useEffect(() => {
     if (!contact) {
       setShown(false);
       return;
     }
     const id = requestAnimationFrame(() => setShown(true));
-    document.body.style.overflow = "hidden";
     return () => {
       cancelAnimationFrame(id);
-      document.body.style.overflow = "";
     };
   }, [contact?.id]);
 
@@ -344,7 +343,7 @@ export default function ContactQuickSheet({
           };
 
   return (
-    <>
+    <ModalPortal>
       <div
         onClick={onClose}
         style={{
@@ -1099,7 +1098,7 @@ export default function ContactQuickSheet({
           </button>
         </div>
       </div>
-    </>
+    </ModalPortal>
   );
 }
 
