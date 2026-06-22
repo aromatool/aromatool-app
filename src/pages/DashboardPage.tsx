@@ -548,12 +548,6 @@ const IconEuro = (p: MIconProps) => (
     <line x1="3.5" y1="14" x2="11" y2="14" />
   </MIcon>
 );
-const IconPlus = (p: MIconProps) => (
-  <MIcon {...p}>
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </MIcon>
-);
 const IconMail = (p: MIconProps) => (
   <MIcon {...p}>
     <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -2007,28 +2001,8 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => navigate("/app/contacts?new=1")}
-                style={{
-                  background: T.sage,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontFamily: "inherit",
-                  flexShrink: 0,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <IconPlus size={16} color="#fff" />
-                {t("dashboard.newContact")}
-              </button>
+              {/* „Contact nou" e disponibil din butonul „+" din bara de jos —
+                  nu îl mai dublăm aici, pe mobil. */}
             </div>
 
             <LockedOverlay locked={!hasAccess} onUnlock={openPaywall}>
