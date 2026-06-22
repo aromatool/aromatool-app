@@ -224,7 +224,9 @@
       "languageLabel": "Contact language",
       "reasonLabel": "What do they want? / Why did they come?",
       "reasonPlaceholder": "e.g. Wants lavender oil for sleep...",
-      "submit": "Add contact"
+      "submit": "Add contact",
+      "saveError": "Couldn't save the contact. Check your connection and try again.",
+      "duplicateEmail": "You already have a contact with this email."
     }
   },
   "followup": {

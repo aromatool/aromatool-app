@@ -191,6 +191,7 @@ export default function ContactsPage() {
     language: "ro",
   });
   const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) loadContacts();
@@ -227,6 +228,12 @@ export default function ContactsPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Curăță mesajul de eroare ori de câte ori formularul de adăugare se închide,
+  // ca să nu apară o eroare veche la următoarea deschidere.
+  useEffect(() => {
+    if (!showAddForm) setAddError(null);
+  }, [showAddForm]);
 
   // Deep-link ?contact=<id> (vine din „Vezi profil complet" pe mobil) —
   // deschide profilul complet odată ce contactele s-au încărcat.
@@ -308,7 +315,8 @@ export default function ContactsPage() {
     if (!addData.name && !addData.email && !addData.phone) return;
     if (!requireAccess()) return;
     setAddSaving(true);
-    const { data } = await supabase
+    setAddError(null);
+    const { data, error } = await supabase
       .from("contacts")
       .insert({
         user_id: user!.id,
@@ -322,17 +330,30 @@ export default function ContactsPage() {
       })
       .select("*")
       .single();
-    if (data) {
-      setContacts((prev) => [
-        {
-          ...(data as Contact),
-          offers_count: 0,
-          total_eur: 0,
-          last_activity_at: null,
-        },
-        ...prev,
-      ]);
+
+    // Eroare la salvare: NU golim și NU închidem formularul — altfel
+    // utilizatorul ar crede că s-a salvat și ar pierde contactul silențios.
+    if (error || !data) {
+      // 23505 = unique_violation (avem unique(user_id, email))
+      const isDup = error?.code === "23505";
+      setAddError(
+        isDup
+          ? t("contacts.list.addForm.duplicateEmail")
+          : t("contacts.list.addForm.saveError"),
+      );
+      setAddSaving(false);
+      return;
     }
+
+    setContacts((prev) => [
+      {
+        ...(data as Contact),
+        offers_count: 0,
+        total_eur: 0,
+        last_activity_at: null,
+      },
+      ...prev,
+    ]);
     setAddData({
       name: "",
       email: "",
@@ -1998,9 +2019,35 @@ export default function ContactsPage() {
                 />
               </div>
             </div>
+            {addError && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  background: "#FCEDEC",
+                  border: "0.5px solid #E5B3AE",
+                  borderRadius: 10,
+                  color: "#9B3A32",
+                  fontSize: 12.5,
+                  lineHeight: 1.45,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}
+              >
+                <i
+                  className="ti ti-alert-triangle"
+                  style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}
+                />
+                <span>{addError}</span>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
               <button
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  setAddError(null);
+                  setShowAddForm(false);
+                }}
                 style={{
                   flex: 1,
                   padding: 11,

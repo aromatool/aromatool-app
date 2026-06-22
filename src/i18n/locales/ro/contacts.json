@@ -233,7 +233,9 @@
       "languageLabel": "Limba clientului",
       "reasonLabel": "Ce vrea? / De ce a venit?",
       "reasonPlaceholder": "ex: Vrea ulei de lavandă pentru somn...",
-      "submit": "Adaugă contact"
+      "submit": "Adaugă contact",
+      "saveError": "Nu am putut salva contactul. Verifică conexiunea și încearcă din nou.",
+      "duplicateEmail": "Ai deja un contact cu acest email."
     }
   },
   "followup": {

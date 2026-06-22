@@ -18,7 +18,18 @@ import UnsubscribePage from "./pages/UnsubscribePage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import type { ReactNode } from "react";
 
-const queryClient = new QueryClient();
+// Config explicit: o singură reîncercare la eroare (în loc de 3 implicite) și
+// date considerate „proaspete" 60s → mai puține refetch-uri inutile la fiecare
+// schimbare de tab. Hook-urile care au nevoie de alt staleTime îl setează local.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Gate „coming soon": activ pe getaromatool.com (cu flag VITE_COMING_SOON)
 // SAU forțat manual cu ?coming-soon (pentru preview). Pe app.aromatool.com /
