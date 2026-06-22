@@ -198,19 +198,62 @@ function currencyForCountry(country: string): string {
   return country === "RO" ? "ron" : "eur";
 }
 
+type Currencies = Record<string, { amount: number }>;
 type PlanPrice = {
   configured: boolean;
   interval?: string;
-  currencies?: Record<string, { amount: number }>;
+  currencies?: Currencies;
+  annual?: { interval?: string; currencies?: Currencies };
 };
 
-// Preț live din Stripe, formatat pentru afișare. Folosit în Paywall ȘI în
-// pagina de Setări (ca să fie mereu sincron — sursa de adevăr e Stripe).
-// Returnează `priceLabel = null` cât timp se încarcă (evită flash-ul cu
-// textul static), apoi suma reală în valuta țării. Dacă funcția nu e
-// configurată / eșuează, cade pe textul static `paywall.priceText`.
+// Alege suma în valuta dorită, cu fallback eur → ron → prima disponibilă.
+function pickCurrency(
+  currencies: Currencies | undefined,
+  wanted: string,
+): { cur: string; amount: number } | null {
+  if (!currencies) return null;
+  const entry =
+    currencies[wanted] ??
+    currencies["eur"] ??
+    currencies["ron"] ??
+    Object.values(currencies)[0];
+  if (!entry) return null;
+  const cur = currencies[wanted] ? wanted : Object.keys(currencies)[0];
+  return { cur, amount: entry.amount };
+}
+
+// Formatează o sumă (în unități minore) în valuta dată, localizat.
+function formatMoney(amount: number, cur: string, lang: string): string {
+  const value = amount / 100;
+  try {
+    return new Intl.NumberFormat(lang || "ro", {
+      style: "currency",
+      currency: cur.toUpperCase(),
+      minimumFractionDigits: amount % 100 === 0 ? 0 : 2,
+    }).format(value);
+  } catch {
+    return `${value} ${cur.toUpperCase()}`;
+  }
+}
+
+export interface PlanPriceInfo {
+  priceLabel: string | null; // LUNAR — păstrat pentru compatibilitate înapoi
+  priceLoaded: boolean;
+  monthlyLabel: string | null; // ex: „49,99 RON / lună"
+  annualLabel: string | null; // ex: „100 € / an" (null dacă nu e configurat)
+  annualPerMonthLabel: string | null; // ex: „≈ 8 € / lună"
+  annualSavePct: number | null; // ex: 17 (% economisit față de lunar × 12)
+  hasAnnual: boolean;
+}
+
+// Preț live din Stripe, formatat pentru afișare. Folosit în Paywall, Setări
+// și pe pagina de signup (ca să fie mereu sincron — sursa de adevăr e Stripe).
+// `priceLabel`/`monthlyLabel` rămân null cât timp se încarcă (evită flash-ul
+// textului static). Dacă funcția nu e configurată / eșuează, cade pe textul
+// static `paywall.priceText`. Datele anuale apar doar dacă prețul anual e
+// configurat în Stripe (STRIPE_PRICE_PRO_ANNUAL).
 // eslint-disable-next-line react-refresh/only-export-components
-export function usePlanPrice(): { priceLabel: string | null; priceLoaded: boolean } {
+export function usePlanPrice(): PlanPriceInfo {
   const { t, i18n } = useTranslation();
   const { countryCode } = useSubscription();
   const [price, setPrice] = useState<PlanPrice | null>(null);
@@ -234,35 +277,125 @@ export function usePlanPrice(): { priceLabel: string | null; priceLoaded: boolea
     };
   }, []);
 
-  const priceLabel = (() => {
+  const lang = i18n.language || "ro";
+  const wanted = currencyForCountry(countryCode);
+
+  const monthlyPick =
+    price?.configured ? pickCurrency(price.currencies, wanted) : null;
+  const annualPick = price?.annual?.currencies
+    ? pickCurrency(price.annual.currencies, wanted)
+    : null;
+
+  const monthlyLabel = (() => {
     if (!priceLoaded) return null;
-    if (!price?.configured || !price.currencies) return t("paywall.priceText");
-    const wanted = currencyForCountry(countryCode);
-    const entry =
-      price.currencies[wanted] ??
-      price.currencies["eur"] ??
-      price.currencies["ron"] ??
-      Object.values(price.currencies)[0];
-    if (!entry) return t("paywall.priceText");
-    const cur =
-      price.currencies[wanted] ? wanted : Object.keys(price.currencies)[0];
-    const value = entry.amount / 100;
-    let formatted: string;
-    try {
-      formatted = new Intl.NumberFormat(i18n.language || "ro", {
-        style: "currency",
-        currency: cur.toUpperCase(),
-        minimumFractionDigits: entry.amount % 100 === 0 ? 0 : 2,
-      }).format(value);
-    } catch {
-      formatted = `${value} ${cur.toUpperCase()}`;
-    }
-    const per =
-      price.interval === "year" ? t("paywall.perYear") : t("paywall.perMonth");
-    return `${formatted} ${per}`;
+    if (!monthlyPick) return t("paywall.priceText");
+    return `${formatMoney(monthlyPick.amount, monthlyPick.cur, lang)} ${t("paywall.perMonth")}`;
   })();
 
-  return { priceLabel, priceLoaded };
+  const annualLabel = annualPick
+    ? `${formatMoney(annualPick.amount, annualPick.cur, lang)} ${t("paywall.perYear")}`
+    : null;
+
+  const annualPerMonthLabel = annualPick
+    ? `${formatMoney(Math.round(annualPick.amount / 12), annualPick.cur, lang)} ${t("paywall.perMonth")}`
+    : null;
+
+  const rawSavePct =
+    monthlyPick && annualPick && monthlyPick.cur === annualPick.cur
+      ? Math.round(
+          ((monthlyPick.amount * 12 - annualPick.amount) /
+            (monthlyPick.amount * 12)) *
+            100,
+        )
+      : null;
+
+  return {
+    priceLabel: monthlyLabel,
+    priceLoaded,
+    monthlyLabel,
+    annualLabel,
+    annualPerMonthLabel,
+    annualSavePct: rawSavePct && rawSavePct > 0 ? rawSavePct : null,
+    hasAnnual: priceLoaded && !!annualPick,
+  };
+}
+
+// ── Comutator facturare lunar / anual ───────────────────────
+// Segmented control reutilizabil (Paywall + Setări). Afișat doar când
+// există un preț anual configurat.
+// eslint-disable-next-line react-refresh/only-export-components
+export function BillingToggle({
+  value,
+  onChange,
+  monthlyText,
+  annualText,
+  savePct,
+}: {
+  value: "month" | "year";
+  onChange: (v: "month" | "year") => void;
+  monthlyText: string;
+  annualText: string;
+  savePct: number | null;
+}) {
+  const opt = (v: "month" | "year", label: string, badge?: string) => {
+    const active = value === v;
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(v)}
+        style={{
+          flex: 1,
+          padding: "9px 10px",
+          border: "none",
+          borderRadius: 9,
+          background: active ? C.white : "transparent",
+          color: active ? C.espresso : C.warm,
+          fontWeight: active ? 700 : 600,
+          fontSize: 13,
+          fontFamily: "inherit",
+          cursor: "pointer",
+          boxShadow: active ? "0 1px 3px rgba(60,53,48,0.12)" : "none",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          transition: "all .15s",
+        }}
+      >
+        {label}
+        {badge && (
+          <span
+            style={{
+              background: C.sageLight,
+              color: C.sageDark,
+              borderRadius: 6,
+              padding: "1px 6px",
+              fontSize: 10.5,
+              fontWeight: 800,
+            }}
+          >
+            {badge}
+          </span>
+        )}
+      </button>
+    );
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 4,
+        background: C.cream,
+        border: `1px solid ${C.border}`,
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 16,
+      }}
+    >
+      {opt("month", monthlyText)}
+      {opt("year", annualText, savePct ? `−${savePct}%` : undefined)}
+    </div>
+  );
 }
 
 function Paywall({ onClose }: { onClose: () => void }) {
@@ -271,9 +404,17 @@ function Paywall({ onClose }: { onClose: () => void }) {
   const planName = t("paywall.planName");
   const features = t("paywall.features", { returnObjects: true }) as string[];
 
-  // Preț live din Stripe (sursa de adevăr). `priceLabel === null` cât timp
+  // Preț live din Stripe (sursa de adevăr). `bigPrice === null` cât timp
   // se încarcă → afișăm un skeleton, ca să nu apară flash-ul textului static.
-  const { priceLabel } = usePlanPrice();
+  const {
+    monthlyLabel,
+    annualLabel,
+    annualPerMonthLabel,
+    hasAnnual,
+    annualSavePct,
+  } = usePlanPrice();
+  const [billing, setBilling] = useState<"month" | "year">("month");
+  const bigPrice = billing === "year" ? annualLabel : monthlyLabel;
 
   return (
     <div
@@ -342,6 +483,16 @@ function Paywall({ onClose }: { onClose: () => void }) {
           {t("paywall.trialEndedBody")}
         </p>
 
+        {hasAnnual && (
+          <BillingToggle
+            value={billing}
+            onChange={setBilling}
+            monthlyText={t("paywall.billingMonthly")}
+            annualText={t("paywall.billingAnnual")}
+            savePct={annualSavePct}
+          />
+        )}
+
         <div
           style={{
             background: C.cream,
@@ -354,12 +505,12 @@ function Paywall({ onClose }: { onClose: () => void }) {
           <div
             style={{
               display: "flex",
-              alignItems: "baseline",
-              gap: "8px",
+              flexDirection: "column",
+              gap: "2px",
               marginBottom: "12px",
             }}
           >
-            {priceLabel === null ? (
+            {bigPrice === null ? (
               <span
                 aria-hidden="true"
                 style={{
@@ -374,7 +525,12 @@ function Paywall({ onClose }: { onClose: () => void }) {
               <span
                 style={{ fontSize: "22px", fontWeight: 600, color: C.espresso }}
               >
-                {priceLabel}
+                {bigPrice}
+              </span>
+            )}
+            {billing === "year" && annualPerMonthLabel && (
+              <span style={{ fontSize: "12.5px", color: C.muted }}>
+                {t("paywall.annualEquiv", { price: annualPerMonthLabel })}
               </span>
             )}
           </div>
@@ -425,7 +581,7 @@ function Paywall({ onClose }: { onClose: () => void }) {
         )}
 
         <button
-          onClick={() => upgrade(PLAN.id)}
+          onClick={() => upgrade(PLAN.id, billing)}
           disabled={loading}
           style={{
             width: "100%",

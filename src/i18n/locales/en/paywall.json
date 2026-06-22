@@ -3,6 +3,9 @@
   "priceText": "9.99 EUR / month",
   "perMonth": "/ month",
   "perYear": "/ year",
+  "billingMonthly": "Monthly",
+  "billingAnnual": "Annual",
+  "annualEquiv": "≈ {{price}}, billed annually",
   "tagline": "Everything you need to grow your team.",
   "features": [
     "Unlimited contacts and CRM",

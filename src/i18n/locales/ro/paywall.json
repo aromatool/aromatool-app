@@ -3,6 +3,9 @@
   "priceText": "49,99 RON / lună",
   "perMonth": "/ lună",
   "perYear": "/ an",
+  "billingMonthly": "Lunar",
+  "billingAnnual": "Anual",
+  "annualEquiv": "≈ {{price}}, facturat anual",
   "tagline": "Tot ce ai nevoie ca să-ți crești echipa.",
   "features": [
     "Contacte și CRM nelimitate",

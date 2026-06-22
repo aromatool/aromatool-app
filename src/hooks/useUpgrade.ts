@@ -7,13 +7,13 @@ export function useUpgrade() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function upgrade(plan: string) {
+  async function upgrade(plan: string, interval: "month" | "year" = "month") {
     setLoading(true);
     setError("");
     try {
       const { data, error: fnErr } = await supabase.functions.invoke(
         "create-checkout",
-        { body: { plan } },
+        { body: { plan, interval } },
       );
       if (fnErr) throw fnErr;
       if (data?.error) throw new Error(data.error);

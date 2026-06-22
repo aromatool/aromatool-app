@@ -7,7 +7,12 @@ import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import { COUNTRIES, flagOf } from "../lib/countries";
 import PhoneInput from "../components/PhoneInput";
-import { useSubscription, usePlanPrice, PLAN } from "../lib/subscription";
+import {
+  useSubscription,
+  usePlanPrice,
+  BillingToggle,
+  PLAN,
+} from "../lib/subscription";
 import RedeemCodeForm from "../components/RedeemCodeForm";
 import { useUpgrade } from "../hooks/useUpgrade";
 
@@ -65,7 +70,15 @@ export default function SettingsPage() {
   // ── Abonament ──────────────────────────────────────────────
   const sub = useSubscription();
   // Preț live din Stripe (sursa de adevăr) — același hook ca în Paywall.
-  const { priceLabel } = usePlanPrice();
+  const {
+    priceLabel,
+    monthlyLabel,
+    annualLabel,
+    annualPerMonthLabel,
+    hasAnnual,
+    annualSavePct,
+  } = usePlanPrice();
+  const [billing, setBilling] = useState<"month" | "year">("month");
   const { upgrade, loading: upgradeLoading, error: upgradeError } = useUpgrade();
   const [searchParams] = useSearchParams();
   const upgradeResult = searchParams.get("upgrade"); // "success" | "cancel"
@@ -1194,6 +1207,15 @@ export default function SettingsPage() {
           </button>
         ) : (
           <>
+            {hasAnnual && (
+              <BillingToggle
+                value={billing}
+                onChange={setBilling}
+                monthlyText={t("paywall.billingMonthly")}
+                annualText={t("paywall.billingAnnual")}
+                savePct={annualSavePct}
+              />
+            )}
             <div
               style={{
                 fontSize: "13px",
@@ -1204,12 +1226,17 @@ export default function SettingsPage() {
             >
               {PLAN.name} —{" "}
               <strong style={{ color: C.dark }}>
-                {priceLabel ?? PLAN.priceText}
+                {(billing === "year" ? annualLabel : monthlyLabel) ??
+                  priceLabel ??
+                  PLAN.priceText}
               </strong>
+              {billing === "year" && annualPerMonthLabel
+                ? ` (${t("paywall.annualEquiv", { price: annualPerMonthLabel })})`
+                : ""}
               . {PLAN.tagline}
             </div>
             <button
-              onClick={() => upgrade(PLAN.id)}
+              onClick={() => upgrade(PLAN.id, billing)}
               disabled={upgradeLoading}
               style={{
                 width: "100%",

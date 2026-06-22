@@ -20,6 +20,11 @@ const PRICE_BY_PLAN: Record<string, string> = {
   business: Deno.env.get('STRIPE_PRICE_BUSINESS') ?? '',
 }
 
+// Preț anual pentru „pro" (ex. 100 €/an). Doar pentru pro; planul rămâne
+// „pro" în DB (nu introducem o valoare nouă în CHECK constraint) — diferă
+// doar intervalul de facturare (Stripe Price recurring=year).
+const STRIPE_PRICE_PRO_ANNUAL = Deno.env.get('STRIPE_PRICE_PRO_ANNUAL') ?? ''
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -37,9 +42,14 @@ serve(async (req) => {
   try {
     if (!STRIPE_SECRET_KEY) return json({ error: 'Stripe nu este configurat.' }, 500)
 
-    const { plan } = await req.json()
-    const priceId = PRICE_BY_PLAN[plan as string]
+    const { plan, interval } = await req.json()
+    // Facturare anuală: doar pentru „pro", dacă prețul anual e configurat.
+    const annual = interval === 'year' && plan === 'pro' && !!STRIPE_PRICE_PRO_ANNUAL
+    const priceId = annual ? STRIPE_PRICE_PRO_ANNUAL : PRICE_BY_PLAN[plan as string]
     if (!priceId) return json({ error: `Plan invalid sau preț neconfigurat: ${plan}` }, 400)
+    // Planul stocat în DB rămâne neschimbat (ex. „pro") — vezi CHECK constraint.
+    // Intervalul îl trecem doar ca metadata informativă (nu schimbă accesul).
+    const billingInterval = annual ? 'year' : 'month'
 
     // ── Auth ─────────────────────────────────────────────────
     const authHeader = req.headers.get('Authorization')
@@ -95,8 +105,8 @@ serve(async (req) => {
       success_url: `${base}/app/settings?upgrade=success`,
       cancel_url: `${base}/app/settings?upgrade=cancel`,
       // metadata e citită de webhook ca să seteze planul
-      metadata: { supabase_user_id: user.id, plan },
-      subscription_data: { metadata: { supabase_user_id: user.id, plan } },
+      metadata: { supabase_user_id: user.id, plan, interval: billingInterval },
+      subscription_data: { metadata: { supabase_user_id: user.id, plan, interval: billingInterval } },
     })
 
     return json({ url: session.url })
