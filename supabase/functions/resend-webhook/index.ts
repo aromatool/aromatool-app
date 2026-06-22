@@ -102,20 +102,8 @@ serve(async (req) => {
       return null
     }
 
-    // ── OPT-OUT: DEZABONARE / RECLAMAȚIE / BOUNCE ───────────
-    //   contact.unsubscribed  — click pe unsubscribe link
-    //   email.complained      — marcat ca spam
-    //   email.bounced         — hard bounce (adresă inexistentă)
-    const OPT_OUT_EVENTS = ['contact.unsubscribed', 'email.complained', 'email.bounced']
-
-    if (OPT_OUT_EVENTS.includes(eventType)) {
-      const email = extractEmail(payload)
-
-      if (!email) {
-        console.warn('Resend webhook: no email in payload', JSON.stringify(payload))
-        return json({ ok: true, skipped: 'no email in payload' })
-      }
-
+    // ── HELPER: dezabonează contactele cu adresa dată ──────────
+    async function applyOptOut(email: string, eventType: string, reason: string) {
       const { data: updated, error: updateError } = await supabase
         .from('contacts')
         .update({
@@ -131,17 +119,71 @@ serve(async (req) => {
       }
 
       const affectedIds = (updated ?? []).map((c: { id: string }) => c.id)
-      console.log(`Resend webhook: email_opt_out set for ${affectedIds.length} contact(s) — ${email}`)
+      console.log(`Resend webhook: email_opt_out set for ${affectedIds.length} contact(s) — ${email} (${reason})`)
 
       await supabase.from('webhook_log').insert({
         source: 'resend',
         event_type: eventType,
         payload,
         contact_id: affectedIds[0] ?? null,
-        notes: `email_opt_out=true pt ${email} (${affectedIds.length} contacte)`,
+        notes: `email_opt_out=true pt ${email} — ${reason} (${affectedIds.length} contacte)`,
       })
 
-      return json({ ok: true, affected: affectedIds.length, email })
+      return json({ ok: true, affected: affectedIds.length, email, reason })
+    }
+
+    // ── OPT-OUT PERMANENT: DEZABONARE / RECLAMAȚIE ──────────
+    //   contact.unsubscribed  — click pe unsubscribe link (intenție clară)
+    //   email.complained      — marcat ca spam (intenție clară)
+    // Acestea exprimă o intenție explicită a destinatarului → opt-out direct.
+    const PERMANENT_OPT_OUT_EVENTS = ['contact.unsubscribed', 'email.complained']
+
+    if (PERMANENT_OPT_OUT_EVENTS.includes(eventType)) {
+      const email = extractEmail(payload)
+      if (!email) {
+        console.warn('Resend webhook: no email in payload', JSON.stringify(payload))
+        return json({ ok: true, skipped: 'no email in payload' })
+      }
+      return await applyOptOut(email, eventType, eventType)
+    }
+
+    // ── BOUNCE: dezabonăm DOAR la hard bounce (permanent) ───
+    // IMPORTANT (fix bug): NU mai dezabonăm la orice bounce. Bounce-urile
+    // tranzitorii (mailbox full, greylisting, throttling, server temporar
+    // indisponibil) sunt temporare — adresa e validă, doar livrarea a eșuat
+    // momentan. Doar bounce-urile PERMANENTE (adresă inexistentă / respinsă
+    // definitiv) justifică opt-out. Resend trimite tipul în data.bounce.type:
+    //   "Permanent" | "Transient" | "Undetermined"
+    // Conservator: dacă tipul lipsește sau e Undetermined/Transient → DOAR
+    // logăm, NU dezabonăm.
+    if (eventType === 'email.bounced') {
+      const email = extractEmail(payload)
+      if (!email) {
+        console.warn('Resend webhook: no email in payload', JSON.stringify(payload))
+        return json({ ok: true, skipped: 'no email in payload' })
+      }
+
+      const data = (payload?.data ?? {}) as Record<string, unknown>
+      const bounce = (data.bounce ?? {}) as Record<string, unknown>
+      const bounceType = String(bounce.type ?? '').toLowerCase()
+      const bounceSubType = String(bounce.subType ?? bounce.sub_type ?? '')
+
+      const isPermanent = bounceType === 'permanent'
+
+      if (isPermanent) {
+        return await applyOptOut(email, eventType, `hard bounce (${bounceSubType || 'Permanent'})`)
+      }
+
+      // Bounce tranzitoriu/nedeterminat → DOAR logăm, NU dezabonăm.
+      console.log(`Resend webhook: bounce NEpermanent ignorat (fără opt-out) — ${email} type=${bounceType || 'lipsă'} subType=${bounceSubType}`)
+      await supabase.from('webhook_log').insert({
+        source: 'resend',
+        event_type: eventType,
+        payload,
+        contact_id: null,
+        notes: `bounce ${bounceType || 'necunoscut'}/${bounceSubType || '-'} pt ${email} — NU s-a dezabonat (doar permanent declanșează opt-out)`,
+      })
+      return json({ ok: true, event: 'email.bounced', email, bounceType: bounceType || null, optedOut: false })
     }
 
     // ── EMAIL OPENED ─────────────────────────────────────────
