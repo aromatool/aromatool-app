@@ -309,8 +309,23 @@ function TemplateEditor({
         }}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "13px", fontWeight: 600, color: C.dark }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: "13px",
+              fontWeight: 600,
+              color: C.dark,
+              minWidth: 0,
+            }}
+          >
             {template.title || template.subject}
           </span>
           <span
@@ -318,30 +333,34 @@ function TemplateEditor({
               fontSize: "10px",
               background: "#EDE8E0",
               color: C.text2,
-              padding: "1px 8px",
+              padding: "2px 8px",
               borderRadius: "999px",
               fontWeight: 600,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
             }}
           >
             {tr("templates.mine")}
           </span>
         </div>
         <div
-          style={{ display: "flex", gap: "6px", alignItems: "center" }}
+          style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             onClick={() => onToggle(template.id, template.active)}
             style={{
-              padding: "4px 10px",
+              padding: "5px 11px",
               fontSize: "11px",
-              fontWeight: 500,
+              fontWeight: 600,
               background: template.active ? C.greenbg : "#F5F5F5",
               border: `1px solid ${template.active ? C.green : "#DDD"}`,
               borderRadius: "999px",
               color: template.active ? C.green : "#999",
               cursor: "pointer",
               fontFamily: "'DM Sans', sans-serif",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             {template.active ? tr("templates.active") : tr("templates.inactive")}
