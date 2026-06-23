@@ -24,5 +24,11 @@ export function matchesQuery(query: string, ...fields: (string | null | undefine
   const q = normalizeText(query);
   if (!q) return true;
   const hay = fields.map((f) => normalizeText(f || "")).join(" ");
-  return q.split(" ").filter(Boolean).every((tok) => hay.includes(tok));
+  // Variantă „lipită" (fără spații): „R.C" → normalizat „r c" → compact „rc".
+  // Astfel căutarea „rc" găsește „Young Living R.C".
+  const hayCompact = hay.replace(/ /g, "");
+  return q
+    .split(" ")
+    .filter(Boolean)
+    .every((tok) => hay.includes(tok) || hayCompact.includes(tok));
 }
