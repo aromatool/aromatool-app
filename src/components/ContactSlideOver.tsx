@@ -11,6 +11,7 @@ interface Props {
   onEmail?: (contact: Contact) => void;
   onOffer?: (contact: Contact) => void;
   onMarkSent?: (contact: Contact) => void;
+  onMarkTalked?: (contact: Contact) => void;
   onStatusChange?: (
     contactId: string,
     newStatus: ContactStatus,
@@ -254,6 +255,7 @@ export default function ContactSlideOver({
   onEmail,
   onOffer,
   onMarkSent,
+  onMarkTalked,
   onStatusChange,
   onNotesChange,
   onOpenOffer,
@@ -654,7 +656,7 @@ export default function ContactSlideOver({
               />
             </div>
             {action.type === "needs_offer" && onMarkSent && !contact.communication_blocked && (
-              <div style={{ marginTop: 6 }}>
+              <div style={{ marginTop: 6, display: "flex" }}>
                 <SecondaryButton
                   icon="ti-check"
                   label={t("contacts.markSent.button")}
@@ -662,6 +664,18 @@ export default function ContactSlideOver({
                 />
               </div>
             )}
+            {action.type !== "needs_offer" &&
+              action.type !== "none" &&
+              onMarkTalked &&
+              !contact.communication_blocked && (
+                <div style={{ marginTop: 6, display: "flex" }}>
+                  <SecondaryButton
+                    icon="ti-check"
+                    label={t("contacts.cta.alreadyTalked")}
+                    onClick={() => onMarkTalked(contact)}
+                  />
+                </div>
+              )}
           </div>
 
           {/* Rezumat relație — 4 carduri */}

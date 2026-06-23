@@ -257,12 +257,10 @@ function Card({
 function ContactCard({
   contact,
   onClick,
-  onMarkSent,
   mobile = false,
 }: {
   contact: Contact;
   onClick: () => void;
-  onMarkSent?: (c: Contact) => void;
   mobile?: boolean;
 }) {
   const { t } = useTranslation();
@@ -392,33 +390,6 @@ function ContactCard({
           · {displayStatus(contact.status, t)}
         </span>
       )}
-      {action.type === "needs_offer" &&
-        onMarkSent &&
-        !contact.communication_blocked && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkSent(contact);
-            }}
-            title={t("contacts.markSent.rowTooltip")}
-            style={{
-              alignSelf: "center",
-              flexShrink: 0,
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              background: T.wh,
-              border: `0.5px solid ${T.sageMid}`,
-              color: T.sage,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <i className="ti ti-check" style={{ fontSize: 15 }} aria-hidden="true" />
-          </button>
-        )}
       {highlighted && !mobile && (
         <span
           style={{
@@ -1068,6 +1039,7 @@ export default function DashboardPage() {
     ...followupLog.map((f) => {
       const isWa = f.status === "whatsapp_initiated";
       const isEmail = f.status === "sent";
+      const isTalked = f.status === "contacted";
       return {
         id: `fu-${f.id}`,
         contactId: f.contact_id,
@@ -1080,7 +1052,9 @@ export default function DashboardPage() {
           ? t("dashboard.activity.whatsappSent")
           : isEmail
             ? t("dashboard.activity.emailSent")
-            : t("dashboard.activity.followupSent"),
+            : isTalked
+              ? t("dashboard.activity.talked")
+              : t("dashboard.activity.followupSent"),
         at: f.sent_at,
       };
     }),
@@ -1228,9 +1202,18 @@ export default function DashboardPage() {
     );
   };
 
-  // Log WhatsApp — contează ca follow-up (ai contactat persoana, doar pe alt canal)
-  // Log WhatsApp — contează ca follow-up (ai contactat persoana, doar pe alt canal)
-  const logWhatsApp = async (c: Contact) => {
+  // Înregistrează o „atingere" (contactul a fost atins, fără email din app):
+  // urcă followup_count + last_followup_at și loghează în followup_log. Folosit
+  // de WhatsApp (deschide și WhatsApp) și de „Am vorbit deja" (doar notează).
+  const recordTouch = async (
+    c: Contact,
+    opts: {
+      logStatus: "whatsapp_initiated" | "contacted";
+      activityLabel: string;
+      timelineType: "whatsapp" | "followup";
+      localIdPrefix: string;
+    },
+  ) => {
     const now = new Date().toISOString();
     const todayLabel = new Date(now).toLocaleDateString(t("actions.localeCode"), {
       day: "numeric",
@@ -1245,10 +1228,10 @@ export default function DashboardPage() {
     // câmpuri derivate — se recalculează din followup_log la următoarea încărcare)
     setFollowupLog((prev) => [
       {
-        id: `local-wa-${Date.now()}`,
+        id: `local-${opts.localIdPrefix}-${Date.now()}`,
         contact_id: c.id,
         sent_at: now,
-        status: "whatsapp_initiated",
+        status: opts.logStatus,
       },
       ...prev,
     ]);
@@ -1269,8 +1252,8 @@ export default function DashboardPage() {
       if (!prev || prev.id !== c.id) return prev;
       const newEvent = {
         date: todayLabel,
-        label: t("dashboard.activity.whatsappSent"),
-        type: "whatsapp" as const,
+        label: opts.activityLabel,
+        type: opts.timelineType,
       };
       return {
         ...prev,
@@ -1283,12 +1266,12 @@ export default function DashboardPage() {
     });
 
     try {
-      // followup_log: înregistrăm evenimentul WhatsApp
+      // followup_log: înregistrăm atingerea
       const { error: logErr } = await supabase.from("followup_log").insert({
         user_id: user!.id,
         contact_id: c.id,
         sent_at: now,
-        status: "whatsapp_initiated",
+        status: opts.logStatus,
       });
       if (logErr) console.error("Eroare followup_log:", logErr.message);
 
@@ -1300,8 +1283,32 @@ export default function DashboardPage() {
         .eq("id", c.id);
       if (ctErr) console.error("Eroare contacts:", ctErr.message);
     } catch (e) {
-      console.error("Eroare log WhatsApp:", e);
+      console.error("Eroare recordTouch:", e);
     }
+  };
+
+  // Log WhatsApp — contează ca follow-up (ai contactat persoana, doar pe alt canal)
+  const logWhatsApp = (c: Contact) =>
+    recordTouch(c, {
+      logStatus: "whatsapp_initiated",
+      activityLabel: t("dashboard.activity.whatsappSent"),
+      timelineType: "whatsapp",
+      localIdPrefix: "wa",
+    });
+
+  // „Am vorbit deja" — ai discutat deja cu persoana în afara aplicației (telefon,
+  // WhatsApp etc.). Notează atingerea fără să deschidă WhatsApp → contactul iese
+  // din Focus Today și trece pe „Așteaptă răspuns".
+  const handleMarkTalked = async (c: Contact) => {
+    setSelectedContact(null);
+    await recordTouch(c, {
+      logStatus: "contacted",
+      activityLabel: t("dashboard.activity.talked"),
+      timelineType: "followup",
+      localIdPrefix: "talk",
+    });
+    setMarkSentToast(t("contacts.markTalked.done"));
+    setTimeout(() => setMarkSentToast(null), 4000);
   };
 
   // Construiește timeline real din oferte + follow-up-uri + evenimente contact
@@ -1381,6 +1388,9 @@ export default function DashboardPage() {
         } else if (st === "sent") {
           type = "email";
           label = t("dashboard.activity.emailSent");
+        } else if (st === "contacted") {
+          type = "followup";
+          label = t("dashboard.activity.talked");
         }
         events.push({
           date: fmtDate(f.sent_at),
@@ -1565,7 +1575,6 @@ export default function DashboardPage() {
                 key={c.id}
                 contact={c}
                 onClick={() => openContact(c)}
-                onMarkSent={(ct) => setMarkSentContact(ct)}
               />
             ))
           )}
@@ -2072,7 +2081,6 @@ export default function DashboardPage() {
                         key={c.id}
                         contact={c}
                         onClick={() => openContact(c)}
-                        onMarkSent={(ct) => setMarkSentContact(ct)}
                         mobile
                       />
                     ),
@@ -2466,6 +2474,7 @@ export default function DashboardPage() {
             setSelectedContact(null);
             setMarkSentContact(c);
           }}
+          onMarkTalked={handleMarkTalked}
           onStatusChange={handleStatusChange}
           onNotesChange={handleNotesChange}
           onOpenOffer={(offerId: string) =>
@@ -2486,6 +2495,7 @@ export default function DashboardPage() {
             setSelectedContact(null);
             setMarkSentContact(c);
           }}
+          onMarkTalked={handleMarkTalked}
           onStatusChange={handleStatusChange}
           onNotesChange={handleNotesChange}
           onOpenOffer={(offerId: string) =>

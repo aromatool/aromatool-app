@@ -43,6 +43,7 @@
     "followupSent": "Follow-up sent",
     "offerSentNumbered": "Offer sent #{{number}}",
     "offerSentExternal": "Offer sent externally · {{channel}}",
+    "talked": "Conversation logged",
     "contactCreated": "Contact created"
   },
   "loading": "Loading...",

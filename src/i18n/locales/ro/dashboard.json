@@ -43,6 +43,7 @@
     "followupSent": "Follow-up trimis",
     "offerSentNumbered": "Ofertă trimisă #{{number}}",
     "offerSentExternal": "Ofertă trimisă extern · {{channel}}",
+    "talked": "Conversație notată",
     "contactCreated": "Contact creat"
   },
   "loading": "Se încarcă...",

@@ -12,6 +12,7 @@ interface Props {
   onEmail?: (contact: Contact) => void;
   onOffer?: (contact: Contact) => void;
   onMarkSent?: (contact: Contact) => void;
+  onMarkTalked?: (contact: Contact) => void;
   onStatusChange?: (
     contactId: string,
     newStatus: ContactStatus,
@@ -244,6 +245,7 @@ export default function ContactQuickSheet({
   onEmail,
   onOffer,
   onMarkSent,
+  onMarkTalked,
   onStatusChange,
   onNotesChange,
   onOpenOffer,
@@ -681,6 +683,34 @@ export default function ContactQuickSheet({
                 {t("contacts.markSent.button")}
               </button>
             )}
+            {action.type !== "needs_offer" &&
+              action.type !== "none" &&
+              onMarkTalked &&
+              !blocked && (
+                <button
+                  onClick={() => onMarkTalked(contact)}
+                  style={{
+                    width: "100%",
+                    marginTop: 8,
+                    background: T.wh,
+                    color: T.sage,
+                    border: `0.5px solid ${T.sageMid}`,
+                    borderRadius: 10,
+                    padding: "10px",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 7,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <Icon name="check" size={16} color={T.sage} />
+                  {t("contacts.cta.alreadyTalked")}
+                </button>
+              )}
           </div>
 
           {/* Status — visible inline selector */}

@@ -36,8 +36,12 @@
     "createOffer": "Creează ofertă",
     "sendMessage": "Trimite mesaj",
     "newOffer": "Ofertă nouă",
+    "alreadyTalked": "Am vorbit deja",
     "campaign": "Email cu poză",
     "campaignTooltip": "Trimite un email personalizat (cu poză) către acest contact"
+  },
+  "markTalked": {
+    "done": "Am notat că ai vorbit deja cu acest contact."
   },
   "markSent": {
     "button": "Am trimis-o deja",
