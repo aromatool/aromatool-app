@@ -266,6 +266,7 @@
     "badgeSystem": "System",
     "badgeMine": "Mine",
     "attachMaterials": "Attach materials",
+    "attachWarning": "This message tells the client you're attaching a material, but you haven't attached anything. Attach it below, otherwise the email promises something that isn't sent.",
     "noResources": "You have no resources yet. Add them from the \"Resources\" page.",
     "removeAria": "Remove",
     "hidePreview": "▲ Hide preview",

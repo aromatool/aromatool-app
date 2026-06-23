@@ -349,6 +349,15 @@ export default function FollowupModal({
   // Semnătura efectivă: la editare folosim varianta ajustată pentru acest email.
   const effectiveSignature = editing ? draftSignature : userSignature;
 
+  // Mesajul promite un atașament („îți atașez…" / „attach…")? Dacă da și
+  // n-ai bifat niciun material mai jos, emailul ar pleca promițând ceva ce
+  // nu se trimite — afișăm un avertisment la trimitere.
+  const messageNeedsAttachment =
+    !!effectiveBody &&
+    /ata[șs]ez|ata[șs]at|attach(ed|ing|ment)?/i.test(
+      `${effectiveBody.headline} ${effectiveBody.intro}`,
+    );
+
   // Trimiterea e blocată în aceleași condiții, indiferent de tab. Centralizăm
   // ca să nu repetăm logica în disabled/background/cursor.
   const sendDisabled =
@@ -1089,6 +1098,41 @@ export default function FollowupModal({
                     {/* ── RESURSE ATAȘATE ── */}
                     {selected && (
                       <div style={{ marginBottom: "12px" }}>
+                        {messageNeedsAttachment &&
+                          selectedResourceIds.length === 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "8px",
+                                alignItems: "flex-start",
+                                padding: "10px 12px",
+                                marginBottom: "10px",
+                                background: "#FFF6E5",
+                                border: "1px solid #F5D78E",
+                                borderRadius: "8px",
+                              }}
+                            >
+                              <i
+                                className="ti ti-alert-triangle"
+                                style={{
+                                  fontSize: "16px",
+                                  color: "#B77B00",
+                                  flexShrink: 0,
+                                  marginTop: "1px",
+                                }}
+                                aria-hidden="true"
+                              />
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#7A5200",
+                                  lineHeight: 1.5,
+                                }}
+                              >
+                                {tr("contacts.followup.attachWarning")}
+                              </div>
+                            </div>
+                          )}
                         <button
                           onClick={() => setShowResourcePicker((s) => !s)}
                           style={{

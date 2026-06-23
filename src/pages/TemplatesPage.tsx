@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
@@ -26,15 +26,13 @@ const C = {
   redbg: "#FFF0F4",
 };
 
-// Variabilele inserabile — eticheta descriptivă vine din i18n (templates.variables.<id>).
-const VARIABLES = [
-  { key: "{{nume}}", id: "nume" },
-  { key: "{{zile}}", id: "zile" },
-  { key: "{{produse}}", id: "produse" },
-  { key: "{{total}}", id: "total" },
-  { key: "{{distribuitor}}", id: "distribuitor" },
-  { key: "{{telefon}}", id: "telefon" },
-];
+// Câmpuri de personalizare inserabile — eticheta descriptivă vine din i18n
+// (templates.variables.<id>). Tokenul real salvat în text este `{{<id>}}`.
+// Le grupăm pe câmp: în subiect/titlu au sens doar numele/numele tău; în
+// mesajul principal pot apărea și produsele, totalul, zilele.
+const SUBJECT_FIELDS = ["nume", "distribuitor"];
+const HEADLINE_FIELDS = ["nume", "distribuitor"];
+const BODY_FIELDS = ["nume", "produse", "total", "zile", "distribuitor", "telefon"];
 
 // Tab-uri pe ACȚIUNE (legate de Recommended Action), nu pe status/zile.
 // Label/desc vin din i18n (templates.tabs.<key>.label / .desc).
@@ -60,6 +58,7 @@ interface Template {
   active: boolean;
   user_id: string | null; // null = mesaj de sistem (global)
   system_key: string | null;
+  language_code: string | null;
 }
 
 interface TemplateBody {
@@ -78,6 +77,41 @@ function parseBody(body_html: string): TemplateBody {
   }
 }
 
+// Tabelul cu „oferta anterioară" apare în emailul REAL doar la Follow-up
+// (`offerForEmail = trigger_action === "needs_followup" ? lastOffer : null`
+// în FollowupModal.tsx) — și doar dacă există o ofertă reală cu produse.
+// Preview-ul respectă exact aceeași regulă, ca să nu inducă în eroare.
+const OFFER_TABS = new Set(["needs_followup"]);
+
+// Tabel de ofertă identic cu cel din emailul real (buildEmailHtml), cu date
+// de exemplu — ca preview-ul să arate la fel cu ce primește clientul.
+const SAMPLE_OFFER_HTML = `<div style="margin-bottom:18px;">
+  <div style="font-size:11px;color:#A89888;text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:8px">Oferta anterioară</div>
+  <table style="width:100%;border-collapse:collapse;border:1px solid #EDE8E0;border-radius:10px;overflow:hidden;">
+    <thead><tr style="background:#F5EEE8;">
+      <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:left;font-weight:500">Produs</th>
+      <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:center;font-weight:500">Cant.</th>
+      <th style="padding:8px 16px;font-size:11px;color:#A89888;text-align:right;font-weight:500">Total</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#3D3530">Lavender 15ml</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#A89888;text-align:center">×2</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;font-weight:600;color:#4A6A4A;text-align:right">130,00 RON</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#3D3530">Peppermint 15ml</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;color:#A89888;text-align:center">×1</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #EDE8E0;font-size:13px;font-weight:600;color:#4A6A4A;text-align:right">115,00 RON</td>
+      </tr>
+    </tbody>
+  </table>
+  <div style="text-align:right;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <span style="font-size:13px;color:#A89888">Total: </span>
+    <span style="font-size:18px;font-weight:700;color:#4A6A4A">245,00 RON</span>
+  </div>
+</div>`;
+
 function buildPreviewHtml(
   body: TemplateBody,
   subject: string,
@@ -85,13 +119,17 @@ function buildPreviewHtml(
   userPhone?: string,
   userEmail?: string,
   userSignature?: string,
+  triggerAction?: string | null,
 ): string {
   const sub = (t: string) =>
     t
       .replace(/{{nume}}/g, "<strong>Maria</strong>")
       .replace(/{{zile}}/g, "<strong>5</strong>")
+      .replace(/{{produse}}/g, "<strong>Lavender 15ml ×2, Peppermint 15ml ×1</strong>")
+      .replace(/{{total}}/g, "<strong>245,00 RON</strong>")
       .replace(/{{distribuitor}}/g, `<strong>${userName}</strong>`)
       .replace(/{{telefon}}/g, "<strong>0712 345 678</strong>");
+  const offerBlock = triggerAction && OFFER_TABS.has(triggerAction) ? SAMPLE_OFFER_HTML : "";
   return `<!DOCTYPE html><html><body style="margin:0;padding:16px;background:#FAFAF7;font-family:Georgia,serif;">
     <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #EDE8E0;">
       ${EMAIL_HEADER_HTML}
@@ -99,11 +137,7 @@ function buildPreviewHtml(
         <p style="font-size:12px;color:#A89888;margin-bottom:6px;text-align:center">Subiect: <strong style="color:#4A6A4A">${sub(subject) || "..."}</strong></p>
         <p style="font-size:16px;color:#4A6A4A;font-weight:600;margin:14px 0 12px;text-align:center">${sub(body.headline) || "..."}</p>
         <p style="font-size:13px;color:#6A5A50;line-height:1.8;margin-bottom:18px;white-space:pre-wrap">${sub(body.intro) || "..."}</p>
-        <div style="background:#F5EEE8;border-radius:10px;padding:12px 16px;margin-bottom:18px;">
-          <div style="font-size:11px;color:#A89888;margin-bottom:6px">📦 Exemplu ofertă anterioară:</div>
-          <div style="font-size:12px;color:#3D3530">• Lavender 15ml ×2<br>• Peppermint 15ml ×1</div>
-          <div style="font-size:12px;color:#4A6A4A;font-weight:600;margin-top:6px">Total: 245,00 RON</div>
-        </div>
+        ${offerBlock}
       </div>
       ${buildEmailFooter({ userName, userPhone, userEmail, userSignature })}
       <div style="background:#FAFAF7;border-top:1px solid #EDE8E0;padding:10px;text-align:center;">
@@ -111,6 +145,82 @@ function buildPreviewHtml(
       </div>
     </div>
   </body></html>`;
+}
+
+// ── CÂMP CU PERSONALIZARE (insert-la-cursor) ───────────────
+// Un câmp (input sau textarea) însoțit de butoane verzi care adaugă
+// câmpurile de personalizare exact acolo unde e cursorul — fără copy/paste.
+function PersonalizeField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows,
+  fieldIds,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+  fieldIds: string[];
+}) {
+  const { t: tr } = useTranslation();
+  const ref = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  const insert = (token: string) => {
+    const el = ref.current;
+    const start = el?.selectionStart ?? value.length;
+    const end = el?.selectionEnd ?? value.length;
+    // adaugă un spațiu înainte dacă textul nu se termină deja cu spațiu
+    const needsSpace = start > 0 && !/\s/.test(value[start - 1] ?? "");
+    const ins = (needsSpace ? " " : "") + token;
+    onChange(value.slice(0, start) + ins + value.slice(end));
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const pos = start + ins.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  return (
+    <div style={{ marginBottom: "10px" }}>
+      <label style={labelStyle}>{label}</label>
+      {rows ? (
+        <textarea
+          ref={ref as React.RefObject<HTMLTextAreaElement>}
+          value={value}
+          rows={rows}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{ ...inputStyle, resize: "vertical" }}
+        />
+      ) : (
+        <input
+          ref={ref as React.RefObject<HTMLInputElement>}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={inputStyle}
+        />
+      )}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "6px" }}>
+        {fieldIds.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => insert(`{{${id}}}`)}
+            title={tr("templates.insertTitle")}
+            style={insertChipStyle}
+          >
+            <i className="ti ti-plus" style={{ fontSize: "11px", opacity: 0.7 }} aria-hidden="true" />
+            {tr(`templates.variables.${id}`)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ── CARD MESAJ DE SISTEM (read-only) ───────────────────────
@@ -201,6 +311,7 @@ function SystemMessageCard({
               meta.phone,
               meta.contact_email || user?.email,
               meta.email_signature,
+              template.trigger_action,
             )}
             style={{ width: "100%", height: "460px", border: "none" }}
             title="preview"
@@ -406,40 +517,30 @@ function TemplateEditor({
               />
             </div>
 
-            <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>{tr("templates.subjectLabel")}</label>
-              <input
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder={tr("templates.subjectPlaceholder")}
-                style={inputStyle}
-              />
-            </div>
+            <PersonalizeField
+              label={tr("templates.subjectLabel")}
+              value={subject}
+              onChange={setSubject}
+              placeholder={tr("templates.subjectPlaceholder")}
+              fieldIds={SUBJECT_FIELDS}
+            />
 
-            <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>{tr("templates.headlineLabel")}</label>
-              <input
-                value={editBody.headline}
-                onChange={(e) =>
-                  setEditBody((p) => ({ ...p, headline: e.target.value }))
-                }
-                placeholder={tr("templates.headlinePlaceholderEdit")}
-                style={inputStyle}
-              />
-            </div>
+            <PersonalizeField
+              label={tr("templates.headlineLabel")}
+              value={editBody.headline}
+              onChange={(v) => setEditBody((p) => ({ ...p, headline: v }))}
+              placeholder={tr("templates.headlinePlaceholderEdit")}
+              fieldIds={HEADLINE_FIELDS}
+            />
 
-            <div style={{ marginBottom: "10px" }}>
-              <label style={labelStyle}>{tr("templates.bodyLabel")}</label>
-              <textarea
-                value={editBody.intro}
-                rows={4}
-                onChange={(e) =>
-                  setEditBody((p) => ({ ...p, intro: e.target.value }))
-                }
-                placeholder={tr("templates.bodyPlaceholderEdit")}
-                style={{ ...inputStyle, resize: "vertical" }}
-              />
-            </div>
+            <PersonalizeField
+              label={tr("templates.bodyLabel")}
+              value={editBody.intro}
+              onChange={(v) => setEditBody((p) => ({ ...p, intro: v }))}
+              placeholder={tr("templates.bodyPlaceholderEdit")}
+              rows={4}
+              fieldIds={BODY_FIELDS}
+            />
 
             {/* ── MATERIALE IMPLICITE ── */}
             <div style={{ marginBottom: "14px" }}>
@@ -665,6 +766,7 @@ function TemplateEditor({
                     user?.user_metadata?.phone,
                     user?.user_metadata?.contact_email || user?.email,
                     user?.user_metadata?.email_signature,
+                    template.trigger_action,
                   )}
                   style={{ width: "100%", height: "480px", border: "none" }}
                   title="preview"
@@ -679,15 +781,21 @@ function TemplateEditor({
 }
 
 export default function TemplatesPage() {
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
+  const uiLang = i18n.language?.startsWith("en") ? "en" : "ro";
   const { user } = useAuth();
   const { hasAccess } = useSubscription();
   const locked = !hasAccess;
   const [activeTab, setActiveTab] = useState("needs_offer");
+  // Limba mesajelor afișate/editate. Implicit limba interfeței, dar o poți
+  // comuta ca să vezi/editezi și varianta în cealaltă limbă (la trimitere poți
+  // alege limba emailului per contact, deci ai nevoie de ambele variante).
+  const [viewLang, setViewLang] = useState(uiLang);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState(tr("templates.defaultUserName"));
   const [showNewForm, setShowNewForm] = useState(false);
+  const [showNewPreview, setShowNewPreview] = useState(false);
   const [addingSaving, setAddingSaving] = useState(false);
   const emptyNew = {
     title: "",
@@ -735,7 +843,7 @@ export default function TemplatesPage() {
     const { data } = await supabase
       .from("followup_templates")
       .select(
-        "id, subject, body_html, title, trigger_action, active, user_id, system_key",
+        "id, subject, body_html, title, trigger_action, active, user_id, system_key, language_code",
       )
       .or(`user_id.eq.${user!.id},user_id.is.null`)
       .not("trigger_action", "is", null)
@@ -764,12 +872,12 @@ export default function TemplatesPage() {
         subject: newTemplate.subject,
         title: newTemplate.title || newTemplate.subject,
         body_html: JSON.stringify(body),
-        language_code: "ro",
+        language_code: viewLang,
         plan_required: "starter",
         active: true,
       })
       .select(
-        "id, subject, body_html, title, trigger_action, active, user_id, system_key",
+        "id, subject, body_html, title, trigger_action, active, user_id, system_key, language_code",
       )
       .single();
     if (data) setTemplates((prev) => [...prev, data]);
@@ -840,7 +948,14 @@ export default function TemplatesPage() {
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   }
 
-  const tabTemplates = templates.filter((t) => t.trigger_action === activeTab);
+  // Afișăm doar mesajele pe limba interfeței (un mesaj RO și echivalentul lui
+  // EN au același rol — n-are sens să le vezi pe amândouă). Rândurile fără
+  // language_code (legacy) rămân vizibile ca să nu ascundem mesaje vechi.
+  const tabTemplates = templates.filter(
+    (t) =>
+      t.trigger_action === activeTab &&
+      (t.language_code === viewLang || t.language_code == null),
+  );
   const systemMsgs = tabTemplates.filter((t) => t.user_id === null);
   const personalMsgs = tabTemplates.filter((t) => t.user_id !== null);
 
@@ -889,51 +1004,89 @@ export default function TemplatesPage() {
         </div>
       </div>
 
-      {/* Variables reference */}
+      {/* Cum funcționează — explicație în limbaj simplu */}
       <div
         style={{
-          background: C.bg2,
+          background: C.sageLight,
           borderRadius: "12px",
           padding: "14px 16px",
           marginBottom: "20px",
+          display: "flex",
+          gap: "12px",
+          alignItems: "flex-start",
         }}
       >
         <div
           style={{
-            fontSize: "11px",
-            fontWeight: 600,
-            color: C.primary,
-            marginBottom: "8px",
-            textTransform: "uppercase",
-            letterSpacing: "0.07em",
+            fontSize: "20px",
+            lineHeight: 1,
+            flexShrink: 0,
+            marginTop: "2px",
+          }}
+          aria-hidden="true"
+        >
+          💡
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize: "13px",
+              fontWeight: 600,
+              color: C.primaryDark,
+              marginBottom: "4px",
+            }}
+          >
+            {tr("templates.howToTitle")}
+          </div>
+          <div style={{ fontSize: "12px", color: C.text2, lineHeight: 1.6 }}>
+            {tr("templates.howToText")}
+          </div>
+        </div>
+      </div>
+
+      {/* Selector limbă mesaje — la trimitere alegi limba emailului per contact,
+          deci poți edita aici atât varianta RO cât și EN. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "16px",
+        }}
+      >
+        <span style={{ fontSize: "12px", color: C.muted }}>
+          {tr("templates.langLabel")}
+        </span>
+        <div
+          style={{
+            display: "inline-flex",
+            background: C.bg2,
+            borderRadius: "8px",
+            padding: "3px",
+            gap: "2px",
           }}
         >
-          {tr("templates.variablesTitle")}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "6px" }}>
-          {VARIABLES.map((v) => (
+          {(["ro", "en"] as const).map((lng) => (
             <button
-              key={v.key}
-              onClick={() => navigator.clipboard.writeText(v.key)}
-              title={tr("templates.variableCopyTitle", { desc: tr(`templates.variables.${v.id}`) })}
+              key={lng}
+              onClick={() => setViewLang(lng)}
               style={{
-                padding: "4px 12px",
-                background: "white",
-                border: `1px solid ${C.border2}`,
-                borderRadius: "999px",
+                padding: "4px 14px",
+                border: "none",
+                borderRadius: "6px",
                 fontSize: "12px",
-                color: C.primary,
-                fontWeight: 600,
+                fontWeight: viewLang === lng ? 600 : 500,
+                background: viewLang === lng ? "white" : "transparent",
+                color: viewLang === lng ? C.dark : C.muted,
+                boxShadow:
+                  viewLang === lng ? "0 1px 6px rgba(92,122,92,0.12)" : "none",
                 cursor: "pointer",
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              {v.key}
+              {lng === "ro" ? "🇷🇴 RO" : "🇬🇧 EN"}
             </button>
           ))}
-        </div>
-        <div style={{ fontSize: "10px", color: C.muted }}>
-          {tr("templates.variablesHint")}
         </div>
       </div>
 
@@ -986,18 +1139,71 @@ export default function TemplatesPage() {
         ))}
       </div>
 
-      {/* Tab description + add — pe mobil stivuit, buton full-width */}
+      {/* „Când se folosește" + add — pe mobil stivuit, buton full-width */}
       <div
         style={{
           display: "flex",
-          alignItems: isMobile ? "stretch" : "center",
+          alignItems: isMobile ? "stretch" : "flex-start",
           flexDirection: isMobile ? "column" : "row",
           justifyContent: "space-between",
-          gap: isMobile ? "10px" : "8px",
+          gap: isMobile ? "10px" : "12px",
           marginBottom: "14px",
         }}
       >
-        <div style={{ fontSize: "12px", color: C.muted }}>{tr(`templates.tabs.${activeTab}.desc`)}</div>
+        <div
+          style={{
+            flex: 1,
+            background: C.bg2,
+            borderRadius: "10px",
+            padding: "10px 12px",
+            display: "flex",
+            gap: "8px",
+            alignItems: "flex-start",
+          }}
+        >
+          <i
+            className="ti ti-clock-hour-4"
+            style={{ fontSize: "15px", color: C.primary, marginTop: "1px", flexShrink: 0 }}
+            aria-hidden="true"
+          />
+          <div>
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: C.primaryDark,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "2px",
+              }}
+            >
+              {tr("templates.whenUsedLabel")}
+            </div>
+            <div style={{ fontSize: "12px", color: C.text2, lineHeight: 1.5 }}>
+              {tr(`templates.tabs.${activeTab}.desc`)}
+            </div>
+            {activeTab === "needs_followup" && (
+              <div
+                style={{
+                  fontSize: "11px",
+                  color: C.primaryDark,
+                  lineHeight: 1.5,
+                  marginTop: "6px",
+                  display: "flex",
+                  gap: "5px",
+                  alignItems: "flex-start",
+                }}
+              >
+                <i
+                  className="ti ti-package"
+                  style={{ fontSize: "13px", flexShrink: 0, marginTop: "1px" }}
+                  aria-hidden="true"
+                />
+                <span>{tr("templates.autoProductsHint")}</span>
+              </div>
+            )}
+          </div>
+        </div>
         <button
           onClick={() => setShowNewForm(!showNewForm)}
           style={{
@@ -1031,13 +1237,23 @@ export default function TemplatesPage() {
         >
           <div
             style={{
-              fontSize: "12px",
+              fontSize: "13px",
               fontWeight: 600,
               color: C.primary,
-              marginBottom: "14px",
+              marginBottom: "4px",
             }}
           >
             {tr("templates.newFormTitle", { tab: tr(`templates.tabs.${activeTab}.label`) })}
+          </div>
+          <div
+            style={{
+              fontSize: "12px",
+              color: C.text2,
+              lineHeight: 1.5,
+              marginBottom: "14px",
+            }}
+          >
+            {tr("templates.newFormHint")}
           </div>
 
           <div style={{ marginBottom: "10px" }}>
@@ -1052,42 +1268,79 @@ export default function TemplatesPage() {
             />
           </div>
 
-          <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>{tr("templates.subjectLabel")}</label>
-            <input
-              value={newTemplate.subject}
-              onChange={(e) =>
-                setNewTemplate((p) => ({ ...p, subject: e.target.value }))
-              }
-              placeholder={tr("templates.subjectPlaceholder")}
-              style={inputStyle}
-            />
-          </div>
+          <PersonalizeField
+            label={tr("templates.subjectLabel")}
+            value={newTemplate.subject}
+            onChange={(v) => setNewTemplate((p) => ({ ...p, subject: v }))}
+            placeholder={tr("templates.subjectPlaceholder")}
+            fieldIds={SUBJECT_FIELDS}
+          />
 
-          <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>{tr("templates.headlineLabel")}</label>
-            <input
-              value={newTemplate.headline}
-              onChange={(e) =>
-                setNewTemplate((p) => ({ ...p, headline: e.target.value }))
-              }
-              placeholder={tr("templates.headlinePlaceholderNew")}
-              style={inputStyle}
-            />
-          </div>
+          <PersonalizeField
+            label={tr("templates.headlineLabel")}
+            value={newTemplate.headline}
+            onChange={(v) => setNewTemplate((p) => ({ ...p, headline: v }))}
+            placeholder={tr("templates.headlinePlaceholderNew")}
+            fieldIds={HEADLINE_FIELDS}
+          />
 
-          <div style={{ marginBottom: "10px" }}>
-            <label style={labelStyle}>{tr("templates.bodyLabel")}</label>
-            <textarea
-              value={newTemplate.intro}
-              rows={3}
-              onChange={(e) =>
-                setNewTemplate((p) => ({ ...p, intro: e.target.value }))
-              }
-              placeholder={tr("templates.bodyPlaceholderNew")}
-              style={{ ...inputStyle, resize: "vertical" }}
-            />
-          </div>
+          <PersonalizeField
+            label={tr("templates.bodyLabel")}
+            value={newTemplate.intro}
+            onChange={(v) => setNewTemplate((p) => ({ ...p, intro: v }))}
+            placeholder={tr("templates.bodyPlaceholderNew")}
+            rows={3}
+            fieldIds={BODY_FIELDS}
+          />
+
+          <button
+            onClick={() => setShowNewPreview((v) => !v)}
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              marginBottom: "10px",
+              background: C.bg2,
+              border: `1px solid ${C.border}`,
+              borderRadius: "9px",
+              color: C.dark,
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "13px",
+              cursor: "pointer",
+            }}
+          >
+            {showNewPreview ? tr("templates.hide") : tr("templates.preview")}
+          </button>
+
+          {showNewPreview && (
+            <div
+              style={{
+                marginBottom: "12px",
+                border: `1px solid ${C.border2}`,
+                borderRadius: "10px",
+                overflow: "hidden",
+              }}
+            >
+              <iframe
+                srcDoc={buildPreviewHtml(
+                  {
+                    type: "structured",
+                    headline: newTemplate.headline,
+                    intro: newTemplate.intro,
+                    cta: "",
+                    closing: "",
+                  },
+                  newTemplate.subject,
+                  userName,
+                  user?.user_metadata?.phone,
+                  user?.user_metadata?.contact_email || user?.email,
+                  user?.user_metadata?.email_signature,
+                  activeTab,
+                )}
+                style={{ width: "100%", height: "480px", border: "none" }}
+                title="preview"
+              />
+            </div>
+          )}
 
           <button
             onClick={addTemplate}
@@ -1194,6 +1447,21 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "'DM Sans', sans-serif",
   outline: "none",
   boxSizing: "border-box",
+};
+
+const insertChipStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "4px",
+  padding: "4px 10px",
+  background: C.sageLight,
+  border: `1px solid ${C.border2}`,
+  borderRadius: "999px",
+  fontSize: "11px",
+  fontWeight: 600,
+  color: C.primary,
+  cursor: "pointer",
+  fontFamily: "'DM Sans', sans-serif",
 };
 
 const ghostBtn: React.CSSProperties = {

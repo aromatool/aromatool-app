@@ -275,6 +275,7 @@
     "badgeSystem": "Sistem",
     "badgeMine": "Al meu",
     "attachMaterials": "Atașează materiale",
+    "attachWarning": "Acest mesaj îi spune clientului că îi atașezi un material, dar n-ai atașat nimic. Atașează-l mai jos, altfel emailul promite ceva ce nu pleacă.",
     "noResources": "Nu ai resurse încă. Adaugă-le din pagina „Resurse”.",
     "removeAria": "Scoate",
     "hidePreview": "▲ Ascunde preview",
