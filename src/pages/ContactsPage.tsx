@@ -1141,30 +1141,6 @@ export default function ContactsPage() {
                           </div>
                         )}
                       </div>
-                      {getActionType(c) === "needs_offer" && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMarkSentContact(c);
-                          }}
-                          aria-label={t("contacts.markSent.rowTooltip")}
-                          style={{
-                            flexShrink: 0,
-                            width: 34,
-                            height: 34,
-                            borderRadius: 9,
-                            background: T.white,
-                            border: `0.5px solid ${T.sageMid}`,
-                            color: T.sage,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <i className="ti ti-check" style={{ fontSize: 16 }} />
-                        </button>
-                      )}
                     </div>
 
                     {/* Footer: activitate · oferte · valoare */}
@@ -1636,31 +1612,6 @@ export default function ContactsPage() {
                       {reason}
                     </div>
                   </div>
-                  {getActionType(c) === "needs_offer" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMarkSentContact(c);
-                      }}
-                      title={t("contacts.markSent.rowTooltip")}
-                      style={{
-                        marginLeft: "auto",
-                        flexShrink: 0,
-                        width: 30,
-                        height: 30,
-                        borderRadius: 8,
-                        background: T.white,
-                        border: `0.5px solid ${T.sageMid}`,
-                        color: T.sage,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <i className="ti ti-check" style={{ fontSize: 15 }} />
-                    </button>
-                  )}
                 </div>
 
                 {/* Status */}
