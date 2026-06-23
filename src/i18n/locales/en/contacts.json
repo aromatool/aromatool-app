@@ -36,8 +36,8 @@
     "sendMessage": "Send message",
     "newOffer": "New offer",
     "alreadyTalked": "Already talked",
-    "campaign": "Email with photo",
-    "campaignTooltip": "Send a personalized email (with photo) to this contact"
+    "campaign": "Visual email",
+    "campaignTooltip": "Send a visual email (with an image) to this contact"
   },
   "markTalked": {
     "done": "Logged that you already talked with this contact."
