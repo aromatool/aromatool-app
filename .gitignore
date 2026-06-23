@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Variabile de mediu / secrete — nu se urcă NICIODATĂ în repo (mai ales public)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
