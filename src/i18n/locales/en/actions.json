@@ -37,6 +37,9 @@
     "awaitingReply_zero": "Follow-up sent today. Give them time or send a short message.",
     "awaitingReply_one": "Follow-up sent {{count}} day ago. Give them time or send a short message.",
     "awaitingReply_other": "Follow-up sent {{count}} days ago. Give them time or send a short message.",
+    "awaitingOfferReply_zero": "Offer sent today. Give them time to review it.",
+    "awaitingOfferReply_one": "Offer sent {{count}} day ago. Give them time to reply.",
+    "awaitingOfferReply_other": "Offer sent {{count}} days ago. Give them time to reply.",
     "noneTeam": "Active and engaged.",
     "noneUpToDate": "Everything is up to date with this contact."
   },
@@ -58,6 +61,9 @@
     "followupDaysAgo_one": "follow-up {{count}} day ago",
     "followupDaysAgo_other": "follow-up {{count}} days ago",
     "followupToday": "followed up today",
+    "offerSentToday": "offer sent today",
+    "offerSentDaysAgo_one": "offer {{count}} day ago",
+    "offerSentDaysAgo_other": "offer {{count}} days ago",
     "waiting": "waiting",
     "engagedClient": "engaged client",
     "upToDate": "up to date"

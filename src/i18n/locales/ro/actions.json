@@ -42,6 +42,10 @@
     "awaitingReply_one": "Follow-up trimis acum {{count}} zi. Lasă-i timp sau trimite un mesaj scurt.",
     "awaitingReply_few": "Follow-up trimis acum {{count}} zile. Lasă-i timp sau trimite un mesaj scurt.",
     "awaitingReply_other": "Follow-up trimis acum {{count}} de zile. Lasă-i timp sau trimite un mesaj scurt.",
+    "awaitingOfferReply_zero": "Ofertă trimisă azi. Lasă-i timp să o analizeze.",
+    "awaitingOfferReply_one": "Ofertă trimisă acum {{count}} zi. Lasă-i timp să răspundă.",
+    "awaitingOfferReply_few": "Ofertă trimisă acum {{count}} zile. Lasă-i timp să răspundă.",
+    "awaitingOfferReply_other": "Ofertă trimisă acum {{count}} de zile. Lasă-i timp să răspundă.",
     "noneTeam": "Activ și implicat.",
     "noneUpToDate": "Totul e la zi cu acest contact."
   },
@@ -68,6 +72,10 @@
     "followupDaysAgo_few": "follow-up acum {{count}} zile",
     "followupDaysAgo_other": "follow-up acum {{count}} de zile",
     "followupToday": "follow-up azi",
+    "offerSentToday": "ofertă trimisă azi",
+    "offerSentDaysAgo_one": "ofertă acum {{count}} zi",
+    "offerSentDaysAgo_few": "ofertă acum {{count}} zile",
+    "offerSentDaysAgo_other": "ofertă acum {{count}} de zile",
     "waiting": "în așteptare",
     "engagedClient": "client implicat",
     "upToDate": "la zi"

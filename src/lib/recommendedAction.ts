@@ -233,12 +233,18 @@ function computeAction(c: Contact, followUpDays: number = getFollowUpDays()): Ac
     }
   }
 
-  // 7. AȘTEAPTĂ RĂSPUNS — follow-up recent, fără răspuns
-  if (totalOffers >= 1 && followupCount >= 1 && daysSinceFollowup < followUpDays) {
+  // 7. AȘTEAPTĂ RĂSPUNS — am luat legătura recent și e normal să aștepți.
+  // Două cazuri: (a) follow-up trimis recent; (b) prospect TOCMAI ofertat, încă
+  // în fereastra de așteptare, fără follow-up. Cazul (b) ar fi căzut altfel pe
+  // „none" („La zi"), deși de fapt aștepți răspuns la ofertă.
+  const sentFollowupRecently = followupCount >= 1 && daysSinceFollowup < followUpDays
+  const freshOfferWaiting = followupCount === 0 && daysSinceOffer < followUpDays
+  if (totalOffers >= 1 && (sentFollowupRecently || freshOfferWaiting)) {
     return {
       type: 'awaiting_reply',
       titleKey: 'actions.title.awaitingReply',
-      reasonKey: 'actions.reason.awaitingReply', reasonParams: { count: daysSinceFollowup },
+      reasonKey: sentFollowupRecently ? 'actions.reason.awaitingReply' : 'actions.reason.awaitingOfferReply',
+      reasonParams: { count: sentFollowupRecently ? daysSinceFollowup : daysSinceOffer },
       priority: 'normal',
       ...ACCENT.lav, urgent: false,
     }
@@ -349,12 +355,20 @@ export function shortReason(c: Contact, t: TFunction, followUpDays: number = get
       return followupCount === 0
         ? t('actions.shortReason.notContactedAfterOffer')
         : daysSinceFollowup !== null ? t('actions.shortReason.lastFollowupDays', { count: daysSinceFollowup }) : t('actions.shortReason.followupToResume')
-    case 'awaiting_reply':
+    case 'awaiting_reply': {
+      // Prospect tocmai ofertat, încă fără follow-up → context: oferta, nu follow-up.
+      if (followupCount === 0) {
+        const dOffer = daysSince(c.first_offer_at ?? c.last_activity_at)
+        return dOffer <= 0
+          ? t('actions.shortReason.offerSentToday')
+          : t('actions.shortReason.offerSentDaysAgo', { count: dOffer })
+      }
       // „acum 0 zile" e greșit — un follow-up trimis azi se citește „follow-up azi".
       if (daysSinceFollowup === null) return t('actions.shortReason.waiting')
       return daysSinceFollowup === 0
         ? t('actions.shortReason.followupToday')
         : t('actions.shortReason.followupDaysAgo', { count: daysSinceFollowup })
+    }
     case 'discuss_business':
       return t('actions.shortReason.engagedClient')
     default:
