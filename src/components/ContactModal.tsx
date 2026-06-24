@@ -438,9 +438,10 @@ export default function ContactModal({
       language_code: editDraft.language || "ro",
     };
     // Emailul gol → revenim la un placeholder unic (nu lăsăm NULL; coloana e
-    // NOT NULL + unique pe (user_id, email)).
+    // NOT NULL + unique pe (user_id, email)). Dacă userul șterge emailul și dă
+    // save, contactul redevine „fără email" (placeholder), nu păstrează vechiul.
     const typedEmail = editDraft.email.trim();
-    if (typedEmail) updates.email = typedEmail;
+    updates.email = typedEmail || `${Date.now()}@noemail.local`;
 
     // Înainte de update, verificăm că emailul nu aparține deja ALTUI contact —
     // două contacte cu același email e greșit funcțional. (Avem și unique la

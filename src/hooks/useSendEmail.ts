@@ -14,6 +14,10 @@ interface SendOfferParams {
   clientEmail: string
   clientPhone?: string
   contactId?: string
+  // Forțează crearea unui contact NOU, ignorând orice legătură (contactId).
+  // Folosit când userul a schimbat numele unui contact fără email și a ales
+  // explicit „persoană nouă" în loc să rescrie contactul existent.
+  forceNewContact?: boolean
   notes: string
   items: CartItem[]
   transport: number       // în moneda de bază a ofertei
@@ -355,7 +359,9 @@ export function useSendEmail() {
       // de Gmail/Yahoo). Altfel PRIMA ofertă către o adresă nouă (cazul tipic)
       // pleca fără unsubscribe. Bonus: dacă adresa tastată corespunde unui
       // contact deja dezabonat/blocat, verificarea de mai jos îl prinde.
-      let contactId: string | null = params.contactId || null
+      // forceNewContact → ignorăm legătura și mergem pe ramura „creează contact
+      // nou după email" de mai jos (lăsând contactul fără email neatins).
+      let contactId: string | null = params.forceNewContact ? null : (params.contactId || null)
       let createdNewContactId: string | null = null
 
       // ── PLASĂ DE SIGURANȚĂ (destinatar greșit) ───────────────────────────
@@ -368,7 +374,7 @@ export function useSendEmail() {
       if (contactId) {
         const { data: bound } = await supabase
           .from('contacts')
-          .select('email, first_offer_at')
+          .select('email, name, first_offer_at')
           .eq('id', contactId)
           .eq('user_id', user!.id)
           .maybeSingle()
@@ -399,7 +405,10 @@ export function useSendEmail() {
               setLoading(false)
               return false
             }
-            const patch: { email: string; first_offer_at?: string } = { email: params.clientEmail }
+            const patch: { email: string; name?: string; first_offer_at?: string } = { email: params.clientEmail }
+            // Salvăm și numele tastat în ofertă (poate fi corectat/completat
+            // față de cel din fișă). Nu golim un nume existent dacă e gol acum.
+            if (params.clientName?.trim()) patch.name = params.clientName.trim()
             if (!bound.first_offer_at) patch.first_offer_at = new Date().toISOString()
             await supabase
               .from('contacts')
@@ -410,6 +419,18 @@ export function useSendEmail() {
             // Contactul legat are un email REAL diferit → legătură veche (draft
             // nereparat). Renunțăm și rezolvăm după emailul tastat mai jos.
             contactId = null
+          } else {
+            // Email real IDENTIC → același contact. Dacă numele tastat în ofertă
+            // diferă de cel din fișă (corecție/completare), îl actualizăm,
+            // păstrând legătura. Acoperă cazul „are email + schimb numele".
+            const typedName = params.clientName?.trim()
+            if (typedName && typedName !== (bound.name ?? '').trim()) {
+              await supabase
+                .from('contacts')
+                .update({ name: typedName })
+                .eq('id', contactId)
+                .eq('user_id', user!.id)
+            }
           }
         }
       }

@@ -111,7 +111,13 @@ interface CartStore {
   setPriceMode: (mode: PriceMode) => void
   setCustomRate: (currency: string, rate: number) => void
   prefillContactId: string | null
+  // Numele și statusul „fără email real" al contactului legat la momentul
+  // pre-completării. Le ținem ca să detectăm, la trimitere, dacă userul a
+  // schimbat numele unui contact fără email (→ poate fi altă persoană).
+  prefillContactName: string | null
+  prefillContactNoEmail: boolean
   setPrefillContactId: (id: string | null) => void
+  setPrefillContactMeta: (name: string | null, noEmail: boolean) => void
   clearCart: () => void
 
   // All computed values return EUR — convert to display currency in components
@@ -139,6 +145,8 @@ export const useCartStore = create<CartStore>()(
       offerLang: '',
       priceMode: 'wholesale',
       prefillContactId: null,
+      prefillContactName: null,
+      prefillContactNoEmail: false,
 
       addItem: (product) => set(state => {
         const existing = state.items.find(i => i.id === product.id)
@@ -217,6 +225,8 @@ export const useCartStore = create<CartStore>()(
       setOfferLang: (offerLang) => set({ offerLang }),
       setPriceMode: (priceMode) => set({ priceMode }),
       setPrefillContactId: (prefillContactId) => set({ prefillContactId }),
+      setPrefillContactMeta: (prefillContactName, prefillContactNoEmail) =>
+        set({ prefillContactName, prefillContactNoEmail }),
       setCustomRate: (currency, rate) => set(state => ({
         customRates: { ...state.customRates, [currency]: rate }
       })),
@@ -224,7 +234,7 @@ export const useCartStore = create<CartStore>()(
       // Altfel, după „Ofertă nouă" sau o trimitere, rămânea un contact_id
       // „lipit" de la oferta anterioară → emailul următor pleca la clientul
       // vechi (edge function-ul trimite la emailul contactului, nu la cel tastat).
-      clearCart: () => set({ items: [], transport: 0, clientName: '', clientEmail: '', clientPhone: '', notes: '', offerLang: '', prefillContactId: null }),
+      clearCart: () => set({ items: [], transport: 0, clientName: '', clientEmail: '', clientPhone: '', notes: '', offerLang: '', prefillContactId: null, prefillContactName: null, prefillContactNoEmail: false }),
 
       // All in EUR
       getSubtotalEur: () => {
@@ -287,6 +297,8 @@ export const useCartStore = create<CartStore>()(
         offerLang: state.offerLang,
         priceMode: state.priceMode,
         prefillContactId: state.prefillContactId,
+        prefillContactName: state.prefillContactName,
+        prefillContactNoEmail: state.prefillContactNoEmail,
       }),
     }
   )

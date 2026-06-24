@@ -413,6 +413,8 @@ function CartSection() {
     catalogCountry,
     catalogCurrency,
     prefillContactId,
+    prefillContactName,
+    prefillContactNoEmail,
     offerLang: storeOfferLang,
     priceMode,
     setOfferLang,
@@ -467,6 +469,9 @@ function CartSection() {
   const [showCustom, setShowCustom] = useState(false);
   const [enrollLink, setEnrollLink] = useState("");
   const [successEmail, setSuccessEmail] = useState("");
+  // Dialog „contact fără email + nume schimbat": userul alege dacă rescrie
+  // contactul existent sau creează unul nou. oldName = numele din fișă.
+  const [nameDecision, setNameDecision] = useState<{ oldName: string } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showOfferText, setShowOfferText] = useState(false);
   const [offerTextCopied, setOfferTextCopied] = useState(false);
@@ -586,6 +591,43 @@ function CartSection() {
       ? `https://wa.me/${digits}?text=${text}`
       : `https://wa.me/?text=${text}`;
     window.open(url, "_blank", "noopener");
+  }
+
+  // Trimite oferta prin email. forceNewContact = ignorăm contactul legat și
+  // lăsăm edge function-ul să creeze/lege un contact nou după emailul tastat
+  // (folosit când userul, în dialogul „nume schimbat", alege „contact nou").
+  async function performSend(forceNewContact: boolean) {
+    const emailSentTo = clientEmail;
+    const ok = await sendOffer({
+      clientName,
+      clientEmail,
+      clientPhone,
+      notes,
+      items: resolvedItems,
+      transport,
+      totalDisplay: total,
+      totalEur,
+      exchangeRate: displayRate,
+      currency: activeCurrency,
+      baseCurrency,
+      lang: offerLang,
+      contactId: forceNewContact ? undefined : (prefillContactId || undefined),
+      forceNewContact,
+      enrollLink: enrollLink || undefined,
+      resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
+    });
+    if (ok) {
+      // Golire automată după trimitere reușită
+      setSuccessEmail(emailSentTo);
+      clearCart();
+      setClientName("");
+      setClientEmail("");
+      setClientPhone("");
+      setNotes("");
+      setPrefillContactId(null);
+      setSelectedResourceIds([]);
+      setShowResourcePicker(false);
+    }
   }
 
   // Loghează oferta ca trimisă pe alt canal decât emailul (WhatsApp/telefon/alt).
@@ -1723,36 +1765,22 @@ function CartSection() {
             disabled={sending || !canSendOffer}
             title={!canSendOffer ? tr("calculator.sendDisabledHint") : undefined}
             onClick={async () => {
-              const emailSentTo = clientEmail;
-              const ok = await sendOffer({
-                clientName,
-                clientEmail,
-                clientPhone,
-                notes,
-                items: resolvedItems,
-                transport,
-                totalDisplay: total,
-                totalEur,
-                exchangeRate: displayRate,
-                currency: activeCurrency,
-                baseCurrency,
-                lang: offerLang,
-                contactId: prefillContactId || undefined,
-                enrollLink: enrollLink || undefined,
-                resourceIds: selectedResourceIds.length > 0 ? selectedResourceIds : undefined,
-              });
-              if (ok) {
-                // Golire automată după trimitere reușită
-                setSuccessEmail(emailSentTo);
-                clearCart();
-                setClientName("");
-                setClientEmail("");
-                setClientPhone("");
-                setNotes("");
-                setPrefillContactId(null);
-                setSelectedResourceIds([]);
-                setShowResourcePicker(false);
+              // Contact legat FĂRĂ email real + numele a fost schimbat în ofertă
+              // → poate fi altă persoană. Întrebăm userul înainte de trimitere.
+              const nameChanged =
+                !!prefillContactId &&
+                prefillContactNoEmail &&
+                (prefillContactName ?? "").trim().toLowerCase() !==
+                  clientName.trim().toLowerCase();
+              if (nameChanged) {
+                setNameDecision({
+                  oldName:
+                    (prefillContactName ?? "").trim() ||
+                    tr("calculator.nameDecision.noName"),
+                });
+                return;
               }
+              await performSend(false);
             }}
             style={{
               background: sending || !canSendOffer ? C.muted : C.primary,
@@ -2264,6 +2292,98 @@ function CartSection() {
           </ModalPortal>
         );
       })()}
+
+      {/* Dialog „contact fără email + nume schimbat în ofertă" ───────────
+          Contactul legat n-avea email real, iar userul a schimbat numele în
+          ofertă → poate fi altă persoană. Îl lăsăm să decidă: rescrie
+          contactul existent (păstrează legătura) sau creează unul nou. */}
+      {nameDecision && (
+        <ModalPortal>
+          <div
+            className="am-modal-overlay"
+            onClick={() => setNameDecision(null)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 99999,
+              background: "rgba(61,53,48,0.55)",
+              backdropFilter: "blur(6px)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: "20px",
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%", maxWidth: "440px",
+                background: C.card,
+                border: `1px solid ${C.border2}`,
+                borderRadius: "16px",
+                padding: "22px",
+                boxShadow: "0 20px 50px rgba(61,53,48,0.25)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "9px", marginBottom: "10px" }}>
+                <i className="ti ti-user-question" style={{ fontSize: "20px", color: C.primary }} />
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "16px", fontWeight: 700, color: C.dark }}>
+                  {tr("calculator.nameDecision.title")}
+                </span>
+              </div>
+              <p style={{
+                fontSize: "13px", color: C.text2, lineHeight: 1.55,
+                margin: "0 0 18px 0", fontFamily: "'DM Sans', sans-serif",
+              }}>
+                {tr("calculator.nameDecision.body", {
+                  oldName: nameDecision.oldName,
+                  newName: clientName.trim(),
+                })}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+                <button
+                  onClick={async () => {
+                    setNameDecision(null);
+                    await performSend(true);
+                  }}
+                  style={{
+                    background: C.primary, border: "none", borderRadius: "9px",
+                    padding: "11px 16px", color: "white",
+                    fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center",
+                    justifyContent: "center", gap: "7px",
+                  }}
+                >
+                  <i className="ti ti-user-plus" style={{ fontSize: "15px" }} />
+                  {tr("calculator.nameDecision.newContactButton")}
+                </button>
+                <button
+                  onClick={async () => {
+                    setNameDecision(null);
+                    await performSend(false);
+                  }}
+                  style={{
+                    background: C.bg2, border: `1.5px solid ${C.border2}`, borderRadius: "9px",
+                    padding: "11px 16px", color: C.dark,
+                    fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center",
+                    justifyContent: "center", gap: "7px",
+                  }}
+                >
+                  <i className="ti ti-pencil" style={{ fontSize: "15px" }} />
+                  {tr("calculator.nameDecision.updateButton", { oldName: nameDecision.oldName })}
+                </button>
+                <button
+                  onClick={() => setNameDecision(null)}
+                  style={{
+                    background: "none", border: "none", padding: "6px",
+                    color: C.muted, fontFamily: "'DM Sans', sans-serif",
+                    fontSize: "12px", cursor: "pointer",
+                  }}
+                >
+                  {tr("calculator.nameDecision.cancel")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 }
@@ -2365,7 +2485,7 @@ export default function CalculatorPage() {
   const { t: tr } = useTranslation();
   const {
     getCount, items, clientName, clearCart,
-    setClientName, setClientEmail, setClientPhone, setPrefillContactId, setOfferLang,
+    setClientName, setClientEmail, setClientPhone, setPrefillContactId, setPrefillContactMeta, setOfferLang,
   } = useCartStore();
   const count = getCount();
   const { hasAccess, loading: subLoading, openPaywall } = useSubscription();
@@ -2389,6 +2509,12 @@ export default function CalculatorPage() {
       if (email && !email.includes("@noemail.local")) setClientEmail(email);
       if (phone) setClientPhone(phone);
       if (id) setPrefillContactId(id);
+      // Reținem numele original + dacă era fără email real, ca la trimitere să
+      // putem întreba userul când schimbă numele unui contact fără email.
+      setPrefillContactMeta(
+        name ?? null,
+        !email || email.includes("@noemail.local"),
+      );
       if (language) setOfferLang(language);
       sessionStorage.removeItem("prefill_contact");
       // Pe mobil deschidem pe „Produse" (search), nu pe coș: prima dată

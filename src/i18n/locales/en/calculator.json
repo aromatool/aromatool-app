@@ -64,6 +64,14 @@
   "sendDisabledHint": "Add a name and a valid email so you can send the offer.",
   "previewBeforeSend": "Preview the email before sending",
   "noEmailWarning": "This contact has no email. Add a valid email so you can send the offer.",
+  "nameDecision": {
+    "noName": "(no name)",
+    "title": "New contact or update the existing one?",
+    "body": "The contact \"{{oldName}}\" had no saved email, and you've now changed the name to \"{{newName}}\". Do you want to create a new contact with this name and email, or update the existing contact?",
+    "newContactButton": "Create a new contact",
+    "updateButton": "Update \"{{oldName}}\"",
+    "cancel": "Cancel"
+  },
   "createNewOffer": "Create new offer",
   "offerAsText": "Offer as a text message",
   "editThenCopy": "Edit, then copy to any channel",

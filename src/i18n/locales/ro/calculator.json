@@ -64,6 +64,14 @@
   "sendDisabledHint": "Completează numele și un email valid ca să poți trimite oferta.",
   "previewBeforeSend": "Previzualizează emailul înainte de trimitere",
   "noEmailWarning": "Acest contact nu are email. Adaugă un email valid ca să poți trimite oferta.",
+  "nameDecision": {
+    "noName": "(fără nume)",
+    "title": "Contact nou sau actualizezi existentul?",
+    "body": "Contactul „{{oldName}}\" nu avea email salvat, iar acum ai schimbat numele în „{{newName}}\". Vrei să creezi un contact nou cu acest nume și email, sau să actualizezi contactul existent?",
+    "newContactButton": "Creează un contact nou",
+    "updateButton": "Actualizează „{{oldName}}\"",
+    "cancel": "Renunță"
+  },
   "createNewOffer": "Creează ofertă nouă",
   "offerAsText": "Oferta ca mesaj text",
   "editThenCopy": "Editează, apoi copiază pe orice canal",
