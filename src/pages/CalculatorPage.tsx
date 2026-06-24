@@ -1365,7 +1365,13 @@ function CartSection() {
             <input
               type="email"
               value={clientEmail}
-              onChange={(e) => setClientEmail(e.target.value)}
+              onChange={(e) => {
+                setClientEmail(e.target.value);
+                // Dacă userul schimbă manual destinatarul, rupem legătura cu
+                // contactul prefill (al ofertei vechi). Altfel emailul ar pleca
+                // la acel contact, nu la adresa tastată acum.
+                if (prefillContactId) setPrefillContactId(null);
+              }}
               placeholder={tr("calculator.emailPlaceholder")}
               style={{
                 width: "100%",
@@ -2380,7 +2386,9 @@ export default function CalculatorPage() {
       if (id) setPrefillContactId(id);
       if (language) setOfferLang(language);
       sessionStorage.removeItem("prefill_contact");
-      setActiveTab("cart"); // pe mobil, deschide direct coșul
+      // Pe mobil deschidem pe „Produse" (search), nu pe coș: prima dată
+      // selectezi produse — coșul abia fusese golit pentru noua ofertă.
+      setActiveTab("search");
       setShowDraftBanner(false);
     } catch {
       sessionStorage.removeItem("prefill_contact");

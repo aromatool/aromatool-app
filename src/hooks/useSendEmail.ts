@@ -357,6 +357,28 @@ export function useSendEmail() {
       // contact deja dezabonat/blocat, verificarea de mai jos îl prinde.
       let contactId: string | null = params.contactId || null
       let createdNewContactId: string | null = null
+
+      // ── PLASĂ DE SIGURANȚĂ (destinatar greșit) ───────────────────────────
+      // Edge function-ul `send-email` trimite la EMAILUL CONTACTULUI rezolvat
+      // din contact_id (anti-abuz), NU la `to`/clientEmail. Dacă primim un
+      // contactId „lipit" de la o ofertă anterioară (draft nereparat), emailul
+      // ar pleca la clientul vechi chiar dacă userul a tastat altă adresă.
+      // Verificăm: contactul legat TREBUIE să aibă exact emailul tastat acum;
+      // dacă nu (sau nu există), renunțăm la legătură și rezolvăm după email.
+      if (contactId) {
+        const { data: bound } = await supabase
+          .from('contacts')
+          .select('email')
+          .eq('id', contactId)
+          .eq('user_id', user!.id)
+          .maybeSingle()
+        const boundEmail = (bound?.email || '').trim().toLowerCase()
+        const typedEmail = (params.clientEmail || '').trim().toLowerCase()
+        if (!bound || boundEmail !== typedEmail) {
+          contactId = null
+        }
+      }
+
       if (!contactId) {
         const { data: existingContact } = await supabase
           .from('contacts')

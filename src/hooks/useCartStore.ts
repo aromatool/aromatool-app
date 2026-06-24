@@ -220,7 +220,11 @@ export const useCartStore = create<CartStore>()(
       setCustomRate: (currency, rate) => set(state => ({
         customRates: { ...state.customRates, [currency]: rate }
       })),
-      clearCart: () => set({ items: [], transport: 0, clientName: '', clientEmail: '', clientPhone: '', notes: '', offerLang: '' }),
+      // Golirea coșului resetează ȘI legătura cu contactul (prefillContactId).
+      // Altfel, după „Ofertă nouă" sau o trimitere, rămânea un contact_id
+      // „lipit" de la oferta anterioară → emailul următor pleca la clientul
+      // vechi (edge function-ul trimite la emailul contactului, nu la cel tastat).
+      clearCart: () => set({ items: [], transport: 0, clientName: '', clientEmail: '', clientPhone: '', notes: '', offerLang: '', prefillContactId: null }),
 
       // All in EUR
       getSubtotalEur: () => {
