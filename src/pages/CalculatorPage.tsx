@@ -1367,10 +1367,11 @@ function CartSection() {
               value={clientEmail}
               onChange={(e) => {
                 setClientEmail(e.target.value);
-                // Dacă userul schimbă manual destinatarul, rupem legătura cu
-                // contactul prefill (al ofertei vechi). Altfel emailul ar pleca
-                // la acel contact, nu la adresa tastată acum.
-                if (prefillContactId) setPrefillContactId(null);
+                // NU rupem legătura cu contactul prefill aici. sendOffer are o
+                // plasă de siguranță care decide corect: dacă contactul legat
+                // n-are încă email (placeholder), îi setăm adresa tastată (cu
+                // verificare de duplicat); dacă are deja un email REAL diferit
+                // (ofertă veche lipită), abia atunci rupe legătura singur.
               }}
               placeholder={tr("calculator.emailPlaceholder")}
               style={{

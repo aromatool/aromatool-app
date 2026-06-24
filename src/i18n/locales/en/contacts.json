@@ -22,7 +22,9 @@
     "blocked": "Communication blocked.",
     "blockedSub": "No message can be sent.",
     "emailOff": "Email disabled.",
-    "emailOffSub": "Use WhatsApp to reach out."
+    "emailOffSub": "Use WhatsApp to reach out.",
+    "noContactInfo": "No contact details.",
+    "noContactInfoSub": "Add an email or a phone number to reach this contact directly."
   },
   "cta": {
     "sendOffer": "Send offer",

@@ -38,5 +38,6 @@
   "sendErrBlocked": "Comunicarea este blocată pentru acest contact. Nu se poate trimite email.",
   "sendErrOptOut": "Emailul este dezactivat pentru acest contact. Activează-l din fișa de contact înainte de trimitere.",
   "sendErrRate": "Cursul valutar nu este disponibil acum. Reîncarcă pagina și încearcă din nou.",
+  "sendErrDuplicateEmail": "Acest email aparține deja altui contact. Folosește o altă adresă sau trimite oferta din fișa contactului existent.",
   "sendErrGeneric": "Eroare la trimitere. Încearcă din nou."
 }

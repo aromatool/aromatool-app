@@ -97,8 +97,15 @@ function lastActivityLabel(c: Contact, t: TFunction): string {
   return t("contacts.list.lastContactAdded");
 }
 
+// Email pentru AFIȘARE: contactele fără email au un placeholder
+// „…@noemail.local" (vezi addData de mai jos). Nu-l arătăm niciodată în UI.
+function showEmail(email?: string | null): string {
+  const e = (email ?? "").trim();
+  return e && !e.includes("@noemail.local") ? e : "";
+}
+
 function initials(name?: string | null, email?: string): string {
-  return (name || email || "?")
+  return (name || showEmail(email) || "?")
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -1055,7 +1062,7 @@ export default function ContactsPage() {
                             textOverflow: "ellipsis",
                           }}
                         >
-                          {c.name || c.email}
+                          {c.name || showEmail(c.email)}
                         </div>
                         <div
                           style={{
@@ -1066,7 +1073,7 @@ export default function ContactsPage() {
                             textOverflow: "ellipsis",
                           }}
                         >
-                          {c.phone || c.email}
+                          {c.phone || showEmail(c.email)}
                         </div>
                       </div>
                       <span
@@ -1553,10 +1560,10 @@ export default function ContactsPage() {
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {c.name || c.email}
+                      {c.name || showEmail(c.email)}
                     </div>
                     <div style={{ fontSize: 12, color: T.muted }}>
-                      {c.phone || c.email}
+                      {c.phone || showEmail(c.email)}
                     </div>
                   </div>
                 </div>

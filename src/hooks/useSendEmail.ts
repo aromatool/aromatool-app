@@ -368,14 +368,49 @@ export function useSendEmail() {
       if (contactId) {
         const { data: bound } = await supabase
           .from('contacts')
-          .select('email')
+          .select('email, first_offer_at')
           .eq('id', contactId)
           .eq('user_id', user!.id)
           .maybeSingle()
-        const boundEmail = (bound?.email || '').trim().toLowerCase()
-        const typedEmail = (params.clientEmail || '').trim().toLowerCase()
-        if (!bound || boundEmail !== typedEmail) {
+        if (!bound) {
           contactId = null
+        } else {
+          const boundRaw = (bound.email || '').trim()
+          const boundEmail = boundRaw.toLowerCase()
+          const typedEmail = (params.clientEmail || '').trim().toLowerCase()
+          // Contactul țintă n-are încă email real (placeholder „…@noemail.local"
+          // sau gol). Atunci emailul tastat acum E al acestui contact: îl salvăm
+          // pe el (păstrăm legătura), ca edge function-ul să trimită la adresa
+          // corectă și ca data viitoare să-l avem. NU redirecționăm oferta către
+          // alt contact care s-ar întâmpla să aibă deja acel email.
+          const boundIsPlaceholder = !boundRaw || boundEmail.includes('@noemail.local')
+          if (boundIsPlaceholder) {
+            // Nu permitem două contacte cu același email: dacă adresa aparține
+            // deja altui contact, oprim cu mesaj clar (nu putem seta duplicat).
+            const { data: emailOwner } = await supabase
+              .from('contacts')
+              .select('id')
+              .eq('user_id', user!.id)
+              .eq('email', params.clientEmail)
+              .neq('id', contactId)
+              .maybeSingle()
+            if (emailOwner) {
+              setError(i18n.t('offers.sendErrDuplicateEmail'))
+              setLoading(false)
+              return false
+            }
+            const patch: { email: string; first_offer_at?: string } = { email: params.clientEmail }
+            if (!bound.first_offer_at) patch.first_offer_at = new Date().toISOString()
+            await supabase
+              .from('contacts')
+              .update(patch)
+              .eq('id', contactId)
+              .eq('user_id', user!.id)
+          } else if (boundEmail !== typedEmail) {
+            // Contactul legat are un email REAL diferit → legătură veche (draft
+            // nereparat). Renunțăm și rezolvăm după emailul tastat mai jos.
+            contactId = null
+          }
         }
       }
 
@@ -387,7 +422,12 @@ export function useSendEmail() {
           .eq('email', params.clientEmail)
           .maybeSingle()
         if (existingContact) {
-          contactId = existingContact.id
+          // Compui o ofertă fără contact selectat, dar adresa aparține deja unui
+          // contact. Nu trimitem „pe orb": cerem userului să trimită din fișa
+          // contactului existent (un email = un singur contact).
+          setError(i18n.t('offers.sendErrDuplicateEmail'))
+          setLoading(false)
+          return false
         } else {
           const { data: newContact } = await supabase
             .from('contacts')

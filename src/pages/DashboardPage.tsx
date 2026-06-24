@@ -1069,13 +1069,16 @@ export default function DashboardPage() {
   // Agenda săptămânii — acțiuni viitoare (de mâine încolo), grupate temporal
   // Excludem contactele deja afișate în Focus Today (separare curată, fără dublură)
   const focusIds = new Set(focusToday.map((c) => c.id));
+  // Toate acțiunile viitoare (de mâine încolo), sortate cronologic. NU plafonăm
+  // pe zi/total — altfel o zi aglomerată ar ascunde acțiuni ori zilele
+  // următoare. Lista e grupată pe zile și afișată într-un card derulabil, deci
+  // nu se pierde nimic și se văd toate zilele.
   const agendaActions = contacts
     .filter((c) => !focusIds.has(c.id))
     .filter((c) => !c.communication_blocked)
     .map((c) => getNextAction(c, t, followUpDays))
     .filter((a): a is NonNullable<typeof a> => a !== null)
-    .sort((a, b) => a.daysUntil - b.daysUntil)
-    .slice(0, 5);
+    .sort((a, b) => a.daysUntil - b.daysUntil);
 
   // Grupare pe etichete temporale, păstrând ordinea
   const agendaGroups: { label: string; actions: typeof agendaActions }[] = [];
@@ -1593,7 +1596,7 @@ export default function DashboardPage() {
             >
               {t("dashboard.weeklyAgenda")}
             </SectionTitle>
-            <Card style={{ padding: 0 }}>
+            <Card style={{ padding: 0, maxHeight: 360, overflowY: "auto" }}>
               {agendaGroups.length === 0 ? (
                 <div
                   style={{
@@ -1680,6 +1683,7 @@ export default function DashboardPage() {
                           // blocată sunt deja excluse din agendă.
                           const canEmail =
                             !!action.contact.email &&
+                            !action.contact.email.includes("@noemail.local") &&
                             !action.contact.email_opt_out;
                           const canWhatsApp = !!action.contact.phone;
                           if (!canEmail && !canWhatsApp) return null;
@@ -2130,6 +2134,7 @@ export default function DashboardPage() {
                   }
                 />
               </div>
+              <div style={{ maxHeight: 340, overflowY: "auto" }}>
               {agendaGroups.length === 0 ? (
                 <div
                   style={{
@@ -2159,6 +2164,7 @@ export default function DashboardPage() {
                     {group.actions.map((action) => {
                       const canEmail =
                         !!action.contact.email &&
+                        !action.contact.email.includes("@noemail.local") &&
                         !action.contact.email_opt_out;
                       const canWhatsApp = !!action.contact.phone;
                       const useWa = !canEmail && canWhatsApp;
@@ -2250,6 +2256,7 @@ export default function DashboardPage() {
                   </div>
                 ))
               )}
+              </div>
             </MCard>
             </LockedOverlay>
 

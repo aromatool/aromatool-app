@@ -176,6 +176,7 @@ export default function ContactModal({
   const [editMode, setEditMode] = useState(false);
   const [editDraft, setEditDraft] = useState({ name: "", phone: "", email: "", source: "", language: "ro" });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -388,6 +389,7 @@ export default function ContactModal({
 
   const handleStartEdit = () => {
     const isPlaceholder = (contact.email ?? "").includes("@noemail.local");
+    setEditError(null);
     setEditDraft({
       name: contact.name ?? "",
       phone: contact.phone ?? "",
@@ -400,17 +402,47 @@ export default function ContactModal({
 
   const handleSaveEdit = async () => {
     setSavingEdit(true);
+    setEditError(null);
     const updates: Record<string, string | null> = {
       name: editDraft.name.trim() || null,
       phone: editDraft.phone.trim() || null,
       source: editDraft.source.trim() || null,
       language_code: editDraft.language || "ro",
     };
-    if (editDraft.email.trim()) updates.email = editDraft.email.trim();
+    // Emailul gol → revenim la un placeholder unic (nu lăsăm NULL; coloana e
+    // NOT NULL + unique pe (user_id, email)).
+    const typedEmail = editDraft.email.trim();
+    if (typedEmail) updates.email = typedEmail;
+
+    // Înainte de update, verificăm că emailul nu aparține deja ALTUI contact —
+    // două contacte cu același email e greșit funcțional. (Avem și unique la
+    // nivel de DB, dar prindem aici ca să dăm un mesaj clar.)
+    if (typedEmail) {
+      const { data: owner } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("user_id", user!.id)
+        .eq("email", typedEmail)
+        .neq("id", contact.id)
+        .maybeSingle();
+      if (owner) {
+        setEditError(t("contacts.list.addForm.duplicateEmail"));
+        setSavingEdit(false);
+        return;
+      }
+    }
+
     const { error } = await supabase.from("contacts").update(updates).eq("id", contact.id);
     if (!error) {
       onContactUpdate?.({ ...contact, ...updates });
       setEditMode(false);
+    } else {
+      // 23505 = unique_violation (alt contact a luat emailul între timp).
+      setEditError(
+        error.code === "23505"
+          ? t("contacts.list.addForm.duplicateEmail")
+          : t("contacts.list.addForm.saveError"),
+      );
     }
     setSavingEdit(false);
   };
@@ -421,29 +453,42 @@ export default function ContactModal({
   const isEmailOptOut = !!contact.email_opt_out;
   // Email real (nu placeholder) → poate primi emailul cu poză individual.
   const hasRealEmail = !!(contact.email ?? "").trim() && !(contact.email ?? "").includes("@noemail.local");
+  // Email pentru AFIȘARE: placeholder-ul „…@noemail.local" nu se arată niciodată.
+  const displayEmail = hasRealEmail ? (contact.email ?? "") : "";
+  // Fără telefon → nu arătăm butoane de WhatsApp (n-ai unde trimite).
+  const hasPhone = !!(contact.phone ?? "").trim();
 
-  // CTA principal după tipul acțiunii
+  // CTA principal după tipul acțiunii. Dacă lipsește canalul (email/telefon),
+  // cădem pe o acțiune posibilă: WhatsApp dacă are telefon, altfel Ofertă.
+  const offerCTA = {
+    label: t("contacts.cta.createOffer"),
+    icon: "ti-file-text",
+    onClick: () => onOffer?.(contact),
+    color: action.accentColor,
+  };
+  const whatsappCTA = {
+    label: t("contacts.cta.sendMessage"),
+    icon: "ti-brand-whatsapp",
+    onClick: () => onWhatsApp?.(contact),
+    color: T.green,
+  };
   const primaryCTA =
     action.type === "needs_offer"
-      ? {
-          label: t("contacts.cta.createOffer"),
-          icon: "ti-file-text",
-          onClick: () => onOffer?.(contact),
-          color: action.accentColor,
-        }
+      ? offerCTA
       : action.type === "none" || action.type === "reactivate"
-        ? {
-            label: t("contacts.cta.sendMessage"),
-            icon: "ti-brand-whatsapp",
-            onClick: () => onWhatsApp?.(contact),
-            color: T.green,
-          }
-        : {
-            label: t("contacts.cta.sendEmail"),
-            icon: "ti-mail",
-            onClick: () => onEmail?.(contact),
-            color: T.sage,
-          };
+        ? hasPhone
+          ? whatsappCTA
+          : offerCTA
+        : hasRealEmail
+          ? {
+              label: t("contacts.cta.sendEmail"),
+              icon: "ti-mail",
+              onClick: () => onEmail?.(contact),
+              color: T.sage,
+            }
+          : hasPhone
+            ? whatsappCTA
+            : offerCTA;
 
   return (
     <ModalPortal>
@@ -527,7 +572,7 @@ export default function ContactModal({
               <span
                 style={{ fontSize: 22, fontWeight: 600, color: T.espresso }}
               >
-                {contact.name || contact.email}
+                {contact.name || displayEmail}
               </span>
               <span
                 style={{
@@ -583,14 +628,14 @@ export default function ContactModal({
                   {contact.phone}
                 </span>
               )}
-              {contact.phone && contact.email && <span>·</span>}
-              {contact.email && (
+              {contact.phone && displayEmail && <span>·</span>}
+              {displayEmail && (
                 <span>
                   <i
                     className="ti ti-mail"
                     style={{ fontSize: 13, marginRight: 4 }}
                   />
-                  {contact.email}
+                  {displayEmail}
                 </span>
               )}
             </div>
@@ -1019,6 +1064,23 @@ export default function ContactModal({
                   </div>
                 </div>
               </div>
+              {editError && (
+                <div style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  background: T.redLight,
+                  border: `0.5px solid rgba(201,79,106,0.25)`,
+                  borderRadius: 9,
+                  fontSize: 12.5,
+                  color: T.red,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}>
+                  <i className="ti ti-alert-circle" style={{ fontSize: 14, flexShrink: 0 }} />
+                  {editError}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
                 <button
                   onClick={handleSaveEdit}
@@ -1109,6 +1171,28 @@ export default function ContactModal({
                 </div>
               ) : (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {!hasRealEmail && !hasPhone && (
+                    <div
+                      style={{
+                        flexBasis: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "8px 10px",
+                        background: T.amberLight,
+                        border: `0.5px solid ${T.amberBorder}`,
+                        borderRadius: 10,
+                        fontSize: 12,
+                        color: T.amber,
+                      }}
+                    >
+                      <i className="ti ti-address-book-off" style={{ fontSize: 14 }} />
+                      <span>
+                        <strong>{t("contacts.comm.noContactInfo")}</strong>{" "}
+                        {t("contacts.comm.noContactInfoSub")}
+                      </span>
+                    </div>
+                  )}
                   <button
                     onClick={primaryCTA.onClick}
                     disabled={isEmailOptOut && primaryCTA.icon === "ti-mail"}
@@ -1133,16 +1217,18 @@ export default function ContactModal({
                     <i className={`ti ${primaryCTA.icon}`} style={{ fontSize: 16 }} />{" "}
                     {primaryCTA.label}
                   </button>
-                  {primaryCTA.icon !== "ti-brand-whatsapp" && (
+                  {primaryCTA.icon !== "ti-brand-whatsapp" && hasPhone && (
                     <button onClick={() => onWhatsApp?.(contact)} style={ghostBtn()}>
                       <i className="ti ti-brand-whatsapp" style={{ fontSize: 15 }} />{" "}
                       {t("contacts.cta.whatsapp")}
                     </button>
                   )}
-                  <button onClick={() => onOffer?.(contact)} style={ghostBtn()}>
-                    <i className="ti ti-file-text" style={{ fontSize: 15 }} />{" "}
-                    {t("contacts.cta.newOffer")}
-                  </button>
+                  {primaryCTA.icon !== "ti-file-text" && (
+                    <button onClick={() => onOffer?.(contact)} style={ghostBtn()}>
+                      <i className="ti ti-file-text" style={{ fontSize: 15 }} />{" "}
+                      {t("contacts.cta.newOffer")}
+                    </button>
+                  )}
                   {onCampaign && hasRealEmail && !isEmailOptOut && (
                     <button
                       onClick={() => onCampaign(contact)}
@@ -1229,7 +1315,7 @@ export default function ContactModal({
                 <InfoRow
                   icon="ti-mail"
                   label={t("contacts.modal.fieldEmail")}
-                  value={contact.email || "—"}
+                  value={displayEmail || "—"}
                 />
                 {contact.source && (
                   <InfoRow

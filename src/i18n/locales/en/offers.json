@@ -36,5 +36,6 @@
   "sendErrBlocked": "Communication is blocked for this contact. Email cannot be sent.",
   "sendErrOptOut": "Email is disabled for this contact. Re-enable it on the contact card before sending.",
   "sendErrRate": "The exchange rate isn't available right now. Reload the page and try again.",
+  "sendErrDuplicateEmail": "This email already belongs to another contact. Use a different address or send the offer from that contact's card.",
   "sendErrGeneric": "Sending failed. Please try again."
 }

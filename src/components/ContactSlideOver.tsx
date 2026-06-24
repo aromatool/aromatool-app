@@ -300,6 +300,18 @@ export default function ContactSlideOver({
   const emailClicks = contact.email_clicks ?? 0;
   const hasEmailTracking = emailClicks > 0;
 
+  // Contactele fără email primesc un placeholder „…@noemail.local" (vezi
+  // ContactsPage). Nu-l arătăm niciodată în UI — pentru afișare e ca și cum
+  // n-ar avea email.
+  const realEmail =
+    contact.email && !contact.email.includes("@noemail.local")
+      ? contact.email
+      : "";
+  // Fără email real → nu arătăm butoane de Email. Fără telefon → nu arătăm
+  // butoane de WhatsApp (n-ai unde trimite).
+  const hasRealEmail = !!realEmail;
+  const hasPhone = !!(contact.phone || "").trim();
+
   const handleStatusSelect = async (newStatus: ContactStatus) => {
     // Dacă alegerea corespunde aceluiași status canonic, nu schimbăm nimic
     // (ex: contact e client_fidel, userul apasă "Client" → rămâne client_fidel)
@@ -438,7 +450,7 @@ export default function ContactSlideOver({
         </div>
 
         <div style={{ padding: "16px 20px", flex: 1 }}>
-          {(contact.email || contact.phone || contact.source) && (
+          {(realEmail || contact.phone || contact.source) && (
             <div
               style={{
                 marginBottom: 14,
@@ -447,7 +459,7 @@ export default function ContactSlideOver({
                 gap: 5,
               }}
             >
-              {contact.email && (
+              {realEmail && (
                 <div
                   style={{
                     display: "flex",
@@ -462,7 +474,7 @@ export default function ContactSlideOver({
                     style={{ fontSize: 14, color: T.muted }}
                     aria-hidden="true"
                   />
-                  {contact.email}
+                  {realEmail}
                 </div>
               )}
               {contact.phone && (
@@ -603,6 +615,17 @@ export default function ContactSlideOver({
                 <span><strong>{t("contacts.comm.emailOff")}</strong> {t("contacts.comm.emailOffSub")}</span>
               </div>
             )}
+            {!contact.communication_blocked && !hasRealEmail && !hasPhone && (
+              <div style={{
+                background: T.ambLt, border: `1px solid ${T.ambBd}`, borderRadius: 8,
+                padding: "8px 10px", marginTop: 10,
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 12, color: T.amb,
+              }}>
+                <i className="ti ti-address-book-off" style={{ fontSize: 14 }} />
+                <span><strong>{t("contacts.comm.noContactInfo")}</strong> {t("contacts.comm.noContactInfoSub")}</span>
+              </div>
+            )}
 
             <div style={{ marginTop: 10 }}>
               {action.type === "needs_offer" ? (
@@ -614,6 +637,35 @@ export default function ContactSlideOver({
                   disabled={!!contact.communication_blocked}
                 />
               ) : action.type === "none" ? (
+                // Acțiune „none" = sugerăm un mesaj pe WhatsApp; dacă n-are
+                // telefon, oferim în schimb butonul de Ofertă.
+                hasPhone ? (
+                  <PrimaryButton
+                    color={T.grn}
+                    icon="ti-brand-whatsapp"
+                    label={t("contacts.cta.writeMessage")}
+                    onClick={() => onWhatsApp?.(contact)}
+                    disabled={!!contact.communication_blocked}
+                  />
+                ) : (
+                  <PrimaryButton
+                    color={action.accentColor}
+                    icon="ti-file-text"
+                    label={t("contacts.cta.sendOffer")}
+                    onClick={() => onOffer?.(contact)}
+                    disabled={!!contact.communication_blocked}
+                  />
+                )
+              ) : hasRealEmail ? (
+                <PrimaryButton
+                  color={action.accentColor}
+                  icon="ti-mail"
+                  label={contact.email_opt_out ? t("contacts.cta.emailDisabled") : t("contacts.cta.sendEmail")}
+                  onClick={() => onEmail?.(contact)}
+                  disabled={!!contact.communication_blocked || !!contact.email_opt_out}
+                />
+              ) : hasPhone ? (
+                // Acțiune de tip email, dar contactul n-are email → WhatsApp.
                 <PrimaryButton
                   color={T.grn}
                   icon="ti-brand-whatsapp"
@@ -622,17 +674,18 @@ export default function ContactSlideOver({
                   disabled={!!contact.communication_blocked}
                 />
               ) : (
+                // Nici email, nici telefon → singura acțiune posibilă e oferta.
                 <PrimaryButton
                   color={action.accentColor}
-                  icon="ti-mail"
-                  label={contact.email_opt_out ? t("contacts.cta.emailDisabled") : t("contacts.cta.sendEmail")}
-                  onClick={() => onEmail?.(contact)}
-                  disabled={!!contact.communication_blocked || !!contact.email_opt_out}
+                  icon="ti-file-text"
+                  label={t("contacts.cta.sendOffer")}
+                  onClick={() => onOffer?.(contact)}
+                  disabled={!!contact.communication_blocked}
                 />
               )}
             </div>
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-              {action.type !== "needs_offer" && (
+              {action.type !== "needs_offer" && (hasRealEmail || hasPhone) && (
                 <SecondaryButton
                   icon="ti-file-text"
                   label={t("contacts.cta.offer")}
@@ -640,7 +693,7 @@ export default function ContactSlideOver({
                   disabled={!!contact.communication_blocked}
                 />
               )}
-              {action.type === "needs_offer" && (
+              {action.type === "needs_offer" && hasRealEmail && (
                 <SecondaryButton
                   icon="ti-mail"
                   label={t("contacts.cta.email")}
@@ -648,12 +701,14 @@ export default function ContactSlideOver({
                   disabled={!!contact.communication_blocked || !!contact.email_opt_out}
                 />
               )}
-              <SecondaryButton
-                icon="ti-brand-whatsapp"
-                label={t("contacts.cta.whatsapp")}
-                onClick={() => onWhatsApp?.(contact)}
-                disabled={!!contact.communication_blocked}
-              />
+              {hasPhone && (
+                <SecondaryButton
+                  icon="ti-brand-whatsapp"
+                  label={t("contacts.cta.whatsapp")}
+                  onClick={() => onWhatsApp?.(contact)}
+                  disabled={!!contact.communication_blocked}
+                />
+              )}
             </div>
             {action.type === "needs_offer" && onMarkSent && !contact.communication_blocked && (
               <div style={{ marginTop: 6, display: "flex" }}>

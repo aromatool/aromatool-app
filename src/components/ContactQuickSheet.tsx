@@ -91,6 +91,8 @@ const PATHS: Record<string, string> = {
   tag: "M20 12l-8 8-9-9V4h7z M7.5 7.5h.01",
   ban: "M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M5 5l14 14",
   "mail-off": "M4 6h16v12H4z M4 7l8 6 8-6 M3 3l18 18",
+  "contact-off":
+    "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M3 3l18 18",
 };
 
 function Icon({
@@ -286,6 +288,10 @@ export default function ContactQuickSheet({
     : null;
   const blocked = !!contact.communication_blocked;
   const emailOff = !!contact.email_opt_out;
+  // Fără email real → fără butoane de Email. Fără telefon → fără WhatsApp.
+  const hasRealEmail =
+    !!(contact.email || "").trim() && !(contact.email || "").includes("@noemail.local");
+  const hasPhone = !!(contact.phone || "").trim();
   const currentCanonical = canonicalStatus(contact.status);
 
   const sourceIcon = (() => {
@@ -317,32 +323,43 @@ export default function ContactQuickSheet({
   };
 
   // ── Primary + secondary action mapping (actions-first) ──
+  const offerPrimary = {
+    label: t("contacts.cta.sendOffer"),
+    icon: "file",
+    onClick: () => onOffer?.(contact),
+    disabled: blocked,
+    color: action.accentColor,
+  };
+  const whatsappPrimary = {
+    label: t("contacts.cta.writeMessage"),
+    icon: "whatsapp",
+    onClick: () => onWhatsApp?.(contact),
+    disabled: blocked,
+    color: T.grn,
+  };
   const primary =
     action.type === "needs_offer"
-      ? {
-          label: t("contacts.cta.sendOffer"),
-          icon: "file",
-          onClick: () => onOffer?.(contact),
-          disabled: blocked,
-          color: action.accentColor,
-        }
+      ? offerPrimary
       : action.type === "none"
-        ? {
-            label: t("contacts.cta.writeMessage"),
-            icon: "whatsapp",
-            onClick: () => onWhatsApp?.(contact),
-            disabled: blocked,
-            color: T.grn,
-          }
-        : {
-            label: emailOff
-              ? t("contacts.cta.emailDisabled")
-              : t("contacts.cta.sendEmail"),
-            icon: "mail",
-            onClick: () => onEmail?.(contact),
-            disabled: blocked || emailOff,
-            color: action.accentColor,
-          };
+        ? // Mesaj WhatsApp; dacă n-are telefon → cădem pe Ofertă.
+          hasPhone
+          ? whatsappPrimary
+          : offerPrimary
+        : // Acțiune de email: dacă are email → Email; altfel WhatsApp dacă are
+          // telefon; altfel singura opțiune e Oferta.
+          hasRealEmail
+          ? {
+              label: emailOff
+                ? t("contacts.cta.emailDisabled")
+                : t("contacts.cta.sendEmail"),
+              icon: "mail",
+              onClick: () => onEmail?.(contact),
+              disabled: blocked || emailOff,
+              color: action.accentColor,
+            }
+          : hasPhone
+            ? whatsappPrimary
+            : offerPrimary;
 
   return (
     <ModalPortal>
@@ -605,6 +622,28 @@ export default function ContactQuickSheet({
                 </span>
               </div>
             )}
+            {!blocked && !hasRealEmail && !hasPhone && (
+              <div
+                style={{
+                  background: T.ambLt,
+                  border: `1px solid ${T.ambBd}`,
+                  borderRadius: 10,
+                  padding: "9px 11px",
+                  marginTop: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontSize: 12,
+                  color: T.amb,
+                }}
+              >
+                <Icon name="contact-off" size={15} color={T.amb} />
+                <span>
+                  <strong>{t("contacts.comm.noContactInfo")}</strong>{" "}
+                  {t("contacts.comm.noContactInfoSub")}
+                </span>
+              </div>
+            )}
 
             {/* Primary CTA */}
             <button
@@ -633,29 +672,34 @@ export default function ContactQuickSheet({
               {primary.label}
             </button>
 
-            {/* Two secondary actions */}
+            {/* Secondary actions — WhatsApp doar dacă are telefon, Email doar
+                dacă are email real. */}
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <SecondaryAction
-                icon="whatsapp"
-                label={t("contacts.cta.whatsapp")}
-                onClick={() => onWhatsApp?.(contact)}
-                disabled={blocked}
-              />
-              {action.type === "needs_offer" ? (
+              {hasPhone && (
                 <SecondaryAction
-                  icon="mail"
-                  label={t("contacts.cta.email")}
-                  onClick={() => onEmail?.(contact)}
-                  disabled={blocked || emailOff}
-                />
-              ) : (
-                <SecondaryAction
-                  icon="file"
-                  label={t("contacts.cta.newOffer")}
-                  onClick={() => onOffer?.(contact)}
+                  icon="whatsapp"
+                  label={t("contacts.cta.whatsapp")}
+                  onClick={() => onWhatsApp?.(contact)}
                   disabled={blocked}
                 />
               )}
+              {action.type === "needs_offer"
+                ? hasRealEmail && (
+                    <SecondaryAction
+                      icon="mail"
+                      label={t("contacts.cta.email")}
+                      onClick={() => onEmail?.(contact)}
+                      disabled={blocked || emailOff}
+                    />
+                  )
+                : (hasRealEmail || hasPhone) && (
+                  <SecondaryAction
+                    icon="file"
+                    label={t("contacts.cta.newOffer")}
+                    onClick={() => onOffer?.(contact)}
+                    disabled={blocked}
+                  />
+                )}
             </div>
 
             {action.type === "needs_offer" && onMarkSent && !blocked && (

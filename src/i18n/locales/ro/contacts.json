@@ -23,7 +23,9 @@
     "blocked": "Comunicare blocată.",
     "blockedSub": "Niciun mesaj nu poate fi trimis.",
     "emailOff": "Email dezactivat.",
-    "emailOffSub": "Folosește WhatsApp pentru contact."
+    "emailOffSub": "Folosește WhatsApp pentru contact.",
+    "noContactInfo": "Fără date de contact.",
+    "noContactInfoSub": "Adaugă un email sau un telefon ca să-l poți contacta direct."
   },
   "cta": {
     "sendOffer": "Trimite ofertă",
