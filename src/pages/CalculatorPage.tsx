@@ -82,7 +82,11 @@ function SearchSection() {
 
   const inCart = (id: string) => items.some((i) => i.id === id);
 
-  if (isLoading)
+  // Spinner cât timp produsele lipsesc fără eroare reală. Include și
+  // fereastra în care query-ul produselor e încă dezactivat (compania nu
+  // s-a încărcat → enabled:false → isLoading false, dar products undefined),
+  // ca să nu pâlpâie banerul roșu de eroare la intrarea pe pagină.
+  if (isLoading || (!products && !error))
     return (
       <div
         style={{
@@ -110,7 +114,7 @@ function SearchSection() {
       </div>
     );
 
-  if (error || !products)
+  if (error)
     return (
       <div
         style={{

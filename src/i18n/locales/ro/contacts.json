@@ -120,6 +120,8 @@
     "deleteBodyPost": " împreună cu toate ofertele și istoricul asociat.",
     "deleteIrreversible": "Această acțiune nu poate fi anulată.",
     "deleting": "Se șterge...",
+    "deleteError": "Contactul nu a putut fi șters. Reîncarcă pagina și încearcă din nou.",
+    "deleteErrorLinked": "Contactul are date legate care nu pot fi șterse automat. Reîncarcă pagina și încearcă din nou.",
     "editContactInfo": "Editează informații contact",
     "fieldName": "Nume",
     "fieldPhone": "Telefon",

@@ -114,6 +114,8 @@
     "deleteBodyPost": " along with all associated offers and history.",
     "deleteIrreversible": "This action cannot be undone.",
     "deleting": "Deleting...",
+    "deleteError": "The contact could not be deleted. Reload the page and try again.",
+    "deleteErrorLinked": "This contact has linked data that can't be removed automatically. Reload the page and try again.",
     "editContactInfo": "Edit contact information",
     "fieldName": "Name",
     "fieldPhone": "Phone",

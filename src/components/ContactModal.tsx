@@ -180,6 +180,7 @@ export default function ContactModal({
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [savingComm, setSavingComm] = useState<"email_opt_out" | "communication_blocked" | null>(null);
   const [isMobile, setIsMobile] = useState(
     () =>
@@ -382,7 +383,34 @@ export default function ContactModal({
 
   const handleDeleteContact = async () => {
     setDeleting(true);
-    await supabase.from("contacts").delete().eq("id", contact!.id);
+    setDeleteError(null);
+    // Cerem rândurile șterse înapoi (.select): dacă RLS blochează ștergerea,
+    // Supabase NU dă eroare — returnează 0 rânduri. Înainte ștergeam optimist
+    // din UI și închideam, așa că la refresh contactul reapărea ("nu merge").
+    const { data, error } = await supabase
+      .from("contacts")
+      .delete()
+      .eq("id", contact!.id)
+      .select("id");
+    setDeleting(false);
+    if (error || !data || data.length === 0) {
+      // Log brut pentru diagnostic (cod Postgres + mesaj) — vizibil în consolă.
+      console.error("[contact delete] failed", { error, rows: data?.length ?? 0 });
+    }
+    if (error) {
+      // 23503 = foreign_key_violation (date legate fără cascade).
+      setDeleteError(
+        error.code === "23503"
+          ? t("contacts.modal.deleteErrorLinked")
+          : t("contacts.modal.deleteError"),
+      );
+      return;
+    }
+    if (!data || data.length === 0) {
+      // 0 rânduri șterse fără eroare = ștergerea n-a ajuns la rând (RLS/owner).
+      setDeleteError(t("contacts.modal.deleteError"));
+      return;
+    }
     onContactDelete?.(contact!.id);
     onClose();
   };
@@ -770,6 +798,7 @@ export default function ContactModal({
                 <button
                   onClick={() => {
                     setMoreMenuOpen(false);
+                    setDeleteError(null);
                     setDeleteConfirm(true);
                   }}
                   style={{
@@ -921,6 +950,26 @@ export default function ContactModal({
                 <i className="ti ti-alert-triangle" style={{ fontSize: 13, marginRight: 5 }} />
                 {t("contacts.modal.deleteIrreversible")}
               </div>
+              {deleteError && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: T.red,
+                    fontWeight: 500,
+                    background: T.redLight,
+                    border: `0.5px solid rgba(201,79,106,0.4)`,
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    marginBottom: 16,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <i className="ti ti-alert-circle" style={{ fontSize: 14 }} />
+                  {deleteError}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10 }}>
                 <button
                   onClick={handleDeleteContact}
