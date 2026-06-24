@@ -123,7 +123,7 @@
       "items": [
         {
           "q": "What do the contact statuses mean?",
-          "a": "Prospect = an interested person, no offer yet. New client / Loyal client = has bought. Follow-up = you sent an offer and are awaiting a reply. Inactive = no activity for a long time. The status helps the app suggest the next appropriate action."
+          "a": "There are four: Prospect = an interested person, no offer yet. Client = has bought at least once. Team member = joined your team as a distributor (gets support, not offers). Inactive = no activity for a long time. You choose the status from the contact's card, and it helps the app suggest the next appropriate action (first offer, follow-up, reactivation, etc.)."
         },
         {
           "q": "What are recommended actions?",

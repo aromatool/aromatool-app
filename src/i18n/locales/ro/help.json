@@ -123,7 +123,7 @@
       "items": [
         {
           "q": "Ce înseamnă statusurile contactelor?",
-          "a": "Prospect = persoană interesată, fără ofertă încă. Client nou / Client fidel = a cumpărat. Follow-up = i-ai trimis ofertă și aștepți răspuns. Inactiv = nu a mai fost activitate de mult. Statusul ajută aplicația să-ți sugereze următoarea acțiune potrivită."
+          "a": "Sunt patru: Prospect = persoană interesată, fără ofertă încă. Client = a cumpărat cel puțin o dată. Membru echipă = s-a alăturat echipei tale ca distribuitor (primește sprijin, nu oferte). Inactiv = nu a mai fost activitate de mult. Statusul îl alegi tu din fișa contactului și ajută aplicația să-ți sugereze următoarea acțiune potrivită (prima ofertă, follow-up, reactivare etc.)."
         },
         {
           "q": "Ce sunt acțiunile recomandate?",
