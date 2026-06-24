@@ -49,7 +49,7 @@
   "emailLabel": "Client email",
   "hasDescription": "Description",
   "includeDescription": "Include the product description in the email",
-  "customMessageLabel": "Personal message (optional)",
+  "customMessageLabel": "Information (optional)",
   "customMessagePlaceholder": "Write a personal message for the client — make it as long as you like and add links if you want. It appears at the top, before the offer. Leave empty for a standard email.",
   "sendOfferButton": "Send the offer",
   "clientNamePlaceholder": "Client name",
