@@ -2468,7 +2468,9 @@ export default function CalculatorPage() {
           }}
         >
           <i className="ti ti-shopping-cart" style={{ fontSize: 18, color: C.amber, flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* minWidth ~180 → pe ecran îngust grupul de butoane coboară pe rândul
+              de jos (în loc să strivească textul într-o coloană de un cuvânt). */}
+          <div style={{ flex: 1, minWidth: 180 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
               {tr("calculator.draftBanner.title", {
                 count,
@@ -2479,7 +2481,7 @@ export default function CalculatorPage() {
               {tr("calculator.draftBanner.subtitle")}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
             <button
               onClick={handleContinueDraft}
               style={{
