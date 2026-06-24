@@ -397,12 +397,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </main>
 
       {/* ── MOBILE BOTTOM NAV ────────────────────────────── */}
+      {/* În flux normal (ultimul copil al shell-ului flex), NU `position:fixed`.
+          Pe iOS Safari, un element `fixed; bottom:0` se ancorează de viewport-ul
+          de layout (nu de cel vizual) și „sare" / rămâne suspendat în mijlocul
+          ecranului când bara de adrese se ascunde/apare. Ca al doilea copil al
+          unui shell `height:100dvh`, bara stă mereu lipită corect de jos. */}
       <nav
         style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
+          flexShrink: 0,
           background: T.white,
           borderTop: `1px solid ${T.border}`,
           display: "flex",
@@ -830,8 +832,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
             min-height: 0;
             overflow: hidden;
           }
+          /* Bara de jos e acum în flux (își ia singură înălțimea), deci nu mai
+             e nevoie de padding mare ca să „eliberăm" spațiu sub conținut.
+             Păstrăm ~28px ca butonul FAB (care iese ușor peste bară) să nu
+             acopere ultima linie de conținut. */
           .main-content {
-            padding: 16px 16px 90px !important;
+            padding: 16px 16px 28px !important;
             min-height: 0;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
