@@ -145,6 +145,19 @@ function LegalLayout({
             {t("legal.navCookies")}
           </Link>
         </div>
+
+        {/* Disclaimer „Independent Brand Partner" — cerut de Young Living
+            pentru o aplicație dezvoltată independent de un Brand Partner. */}
+        <div
+          style={{
+            marginTop: "20px",
+            fontSize: "11px",
+            lineHeight: 1.6,
+            color: T.muted,
+          }}
+        >
+          {t("legal.bpDisclaimer", { appName: COMPANY.appName })}
+        </div>
       </div>
     </div>
   );

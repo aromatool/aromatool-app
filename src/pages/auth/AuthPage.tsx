@@ -407,46 +407,60 @@ export default function AuthPage() {
 
   // ── Linkuri legale (Termeni · Confidențialitate · Cookie-uri) ──
   const legalFooter = (
-    <div
-      style={{
-        textAlign: "center",
-        marginTop: "16px",
-        fontSize: "12px",
-        color: T.sage,
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        justifyContent: "center",
-      }}
-    >
-      {[
-        { to: "/legal/terms", label: t("auth.legalTerms") },
-        { to: "/legal/privacy", label: t("auth.legalPrivacy") },
-        { to: "/legal/cookies", label: t("auth.legalCookies") },
-      ].map((lnk, i) => (
-        <span
-          key={lnk.to}
-          style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}
-        >
-          {i > 0 && (
-            <span style={{ color: T.sageMid, fontSize: "10px" }}>·</span>
-          )}
-          <Link
-            to={lnk.to}
-            onMouseEnter={() => setHoveredLink(lnk.to)}
-            onMouseLeave={() => setHoveredLink(null)}
-            style={{
-              color: hoveredLink === lnk.to ? T.sageDark : T.sage,
-              fontWeight: 500,
-              textDecoration: "none",
-              letterSpacing: "0.01em",
-              transition: "color 0.18s",
-            }}
+    <div style={{ marginTop: "16px" }}>
+      <div
+        style={{
+          textAlign: "center",
+          fontSize: "12px",
+          color: T.sage,
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          justifyContent: "center",
+        }}
+      >
+        {[
+          { to: "/legal/terms", label: t("auth.legalTerms") },
+          { to: "/legal/privacy", label: t("auth.legalPrivacy") },
+          { to: "/legal/cookies", label: t("auth.legalCookies") },
+        ].map((lnk, i) => (
+          <span
+            key={lnk.to}
+            style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}
           >
-            {lnk.label}
-          </Link>
-        </span>
-      ))}
+            {i > 0 && (
+              <span style={{ color: T.sageMid, fontSize: "10px" }}>·</span>
+            )}
+            <Link
+              to={lnk.to}
+              onMouseEnter={() => setHoveredLink(lnk.to)}
+              onMouseLeave={() => setHoveredLink(null)}
+              style={{
+                color: hoveredLink === lnk.to ? T.sageDark : T.sage,
+                fontWeight: 500,
+                textDecoration: "none",
+                letterSpacing: "0.01em",
+                transition: "color 0.18s",
+              }}
+            >
+              {lnk.label}
+            </Link>
+          </span>
+        ))}
+      </div>
+      {/* Disclaimer „Independent Brand Partner" — cerut de Young Living. */}
+      <div
+        style={{
+          textAlign: "center",
+          margin: "12px auto 0",
+          maxWidth: "440px",
+          fontSize: "10px",
+          lineHeight: 1.5,
+          color: T.muted,
+        }}
+      >
+        {t("legal.bpDisclaimer", { appName: "AromaTool" })}
+      </div>
     </div>
   );
 

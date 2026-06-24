@@ -5,6 +5,7 @@
   "navPrivacy": "Privacy",
   "navTerms": "Terms",
   "navCookies": "Cookies",
+  "bpDisclaimer": "{{appName}} is an independently developed application by a Young Living Independent Brand Partner. It is not created, endorsed by, or affiliated with Young Living Essential Oils. Young Living® is a registered trademark of Young Living Essential Oils, LC.",
 
   "privacyTitle": "Privacy Policy",
   "privacyIntro": "This policy explains what personal data {{appName}} processes, why, and your rights. Please read it carefully.",
