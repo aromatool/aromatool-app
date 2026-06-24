@@ -1515,6 +1515,56 @@ export default function FollowupModal({
                 >
                   {tr("contacts.followup.customFooterNote")}
                 </div>
+
+                {customMessage.trim() && (
+                  <button
+                    onClick={() => setShowPreview(!showPreview)}
+                    style={{
+                      width: "100%",
+                      padding: "9px",
+                      background: C.bg2,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: "9px",
+                      color: C.dark,
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      marginTop: "12px",
+                    }}
+                  >
+                    {showPreview
+                      ? tr("contacts.followup.hidePreview")
+                      : tr("contacts.followup.showPreview")}
+                  </button>
+                )}
+
+                {showPreview && customMessage.trim() && (
+                  <div
+                    style={{
+                      border: `1px solid ${C.border}`,
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      marginTop: "12px",
+                    }}
+                  >
+                    <iframe
+                      srcDoc={buildCustomHtml(
+                        customMessage,
+                        userName,
+                        userSignature,
+                        userPhone,
+                        userEmail,
+                        emailLang,
+                      )}
+                      style={{
+                        width: "100%",
+                        height: "480px",
+                        border: "none",
+                      }}
+                      title="preview"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
