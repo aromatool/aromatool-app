@@ -52,6 +52,16 @@ function SearchSection() {
   const { descriptions } = useProductDescriptions();
   const activeCurrency = currency || "RON";
 
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
   // Sync EUR/RON rate from Supabase to store
   useEffect(() => {
     if (rateData?.rate) setExchangeRate(rateData.rate);
@@ -311,9 +321,21 @@ function SearchSection() {
                       fontSize: "13px",
                       fontWeight: 500,
                       color: C.dark,
-                      whiteSpace: "nowrap",
                       overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      // Pe mobil lăsăm numele pe max 2 rânduri ca să se vadă
+                      // sufixul de variantă (ex. „… CZ/DE/RO”), care altfel
+                      // s-ar tăia cu „…”. Pe desktop păstrăm o singură linie.
+                      ...(isMobile
+                        ? {
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical" as const,
+                            lineHeight: 1.3,
+                          }
+                        : {
+                            whiteSpace: "nowrap",
+                            textOverflow: "ellipsis",
+                          }),
                     }}
                   >
                     {p.name}
