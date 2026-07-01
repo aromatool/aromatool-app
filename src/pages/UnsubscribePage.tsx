@@ -29,7 +29,7 @@ const T = {
 };
 
 type Lang = "ro" | "en";
-type Branch = "contact" | "user";
+type Branch = "contact" | "user" | "news";
 
 const TEXT: Record<Branch, Record<Lang, {
   confirmTitle: string;
@@ -78,6 +78,27 @@ const TEXT: Record<Branch, Record<Lang, {
         "You'll no longer receive account and subscription emails. You can re-enable them anytime in Settings → Account.",
     },
   },
+  // Newsletter / anunțuri (separat de emailurile de cont — vezi ?s=news).
+  news: {
+    ro: {
+      confirmTitle: "Vrei să te dezabonezi de la newsletter?",
+      confirmBody:
+        "Nu vei mai primi noutăți și anunțuri despre AromaTool. Vei primi în continuare emailurile esențiale despre contul tău (ex. confirmări de plată).",
+      confirmBtn: "Dezabonează-mă",
+      doneTitle: "Te-ai dezabonat",
+      doneBody:
+        "Nu vei mai primi newsletterul AromaTool. Poți reactiva oricând din Setări → Cont.",
+    },
+    en: {
+      confirmTitle: "Unsubscribe from the newsletter?",
+      confirmBody:
+        "You'll no longer receive AromaTool news and announcements. Essential account emails (e.g. payment receipts) will still be sent.",
+      confirmBtn: "Unsubscribe me",
+      doneTitle: "You're unsubscribed",
+      doneBody:
+        "You'll no longer receive the AromaTool newsletter. You can re-enable it anytime in Settings → Account.",
+    },
+  },
 };
 
 const INVALID: Record<Lang, { title: string; body: string }> = {
@@ -103,8 +124,13 @@ export default function UnsubscribePage() {
   const contactId = params.get("c") || "";
   const userId = params.get("u") || "";
   const token = params.get("t") || "";
+  const stream = params.get("s") || "";
   const lang: Lang = params.get("l") === "en" ? "en" : "ro";
-  const branch: Branch = userId ? "user" : "contact";
+  const branch: Branch = userId
+    ? stream === "news"
+      ? "news"
+      : "user"
+    : "contact";
   const id = userId || contactId;
 
   const [status, setStatus] = useState<Status>(
@@ -117,11 +143,14 @@ export default function UnsubscribePage() {
     setStatus("sending");
     try {
       const base = import.meta.env.VITE_SUPABASE_URL;
-      const q = branch === "user" ? `u=${id}` : `c=${id}`;
+      // „user" și „news" folosesc amândouă u=<userId>; „news" adaugă &s=news
+      // ca funcția să seteze product_emails_opt_out (nu account_emails_opt_out).
+      const q = branch === "contact" ? `c=${id}` : `u=${id}`;
+      const streamParam = branch === "news" ? "&s=news" : "";
       const res = await fetch(
         `${base}/functions/v1/unsubscribe?${q}&t=${encodeURIComponent(
           token
-        )}&l=${lang}&format=json`,
+        )}${streamParam}&l=${lang}&format=json`,
         { method: "POST" }
       );
       const data = await res.json().catch(() => null);

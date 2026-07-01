@@ -438,6 +438,13 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/send-group-email/index.ts"
 
+# Newsletter/anunțuri către proprii useri AromaTool — declanșat din Admin.
+# verify_jwt = false: citim tokenul manual și verificăm is_admin în funcție.
+[functions.send-broadcast]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-broadcast/index.ts"
+
 # Redirect public pentru resurse — accesat din linkuri de email,
 # deci NU verificăm JWT. Securitatea vine din tokenul ne-ghicibil.
 [functions.resource-redirect]

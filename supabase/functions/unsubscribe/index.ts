@@ -102,15 +102,26 @@ async function doUnsubscribe(contactId: string, token: string): Promise<boolean>
   return !error
 }
 
-// ── USER AromaTool (emailuri despre cont/abonament) ──────────
+// ── USER AromaTool (emailuri despre cont/abonament SAU newsletter) ──
 // Scrie dezabonarea userului (folosit DOAR pe POST). Ramură separată
 // de contacts — nu confundăm userii cu clienții lor.
-async function doUnsubscribeUser(userId: string, token: string): Promise<boolean> {
+//   stream = 'news' → product_emails_opt_out (newsletter/anunțuri)
+//   altfel          → account_emails_opt_out (cont/abonament)
+// Cele două sunt independente: opriri de newsletter NU opresc emailurile
+// esențiale de cont și invers.
+async function doUnsubscribeUser(
+  userId: string,
+  token: string,
+  stream: string,
+): Promise<boolean> {
   if (!(await isValidToken(userId, token))) return false
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  const patch = stream === 'news'
+    ? { product_emails_opt_out: true, product_emails_opt_out_at: new Date().toISOString() }
+    : { account_emails_opt_out: true }
   const { error } = await supabase
     .from('profiles')
-    .update({ account_emails_opt_out: true })
+    .update(patch)
     .eq('id', userId)
   return !error
 }
@@ -200,6 +211,8 @@ serve(async (req) => {
   const contactId = url.searchParams.get('c') || ''
   const userId = url.searchParams.get('u') || ''
   const token = url.searchParams.get('t') || ''
+  // Streamul pentru ramura USER: 'news' = newsletter/anunțuri, altfel cont.
+  const stream = url.searchParams.get('s') || ''
   const lang: 'ro' | 'en' = url.searchParams.get('l') === 'en' ? 'en' : 'ro'
   // Mod JSON: apelat de pagina /unsubscribe din app (randează ea UI-ul).
   // Pe domeniul *.supabase.co gateway-ul rescrie text/html→text/plain, deci
@@ -211,7 +224,7 @@ serve(async (req) => {
   if (userId) {
     const tx = USER_TXT[lang]
     if (req.method === 'POST') {
-      const ok = await doUnsubscribeUser(userId, token)
+      const ok = await doUnsubscribeUser(userId, token, stream)
       if (asJson) return jsonResp({ ok })
       return ok
         ? page(tx.doneTitle, tx.doneBody, lang)

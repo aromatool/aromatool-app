@@ -6,6 +6,7 @@ import i18n from "../i18n";
 import { uiLocale } from "../lib/locale";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { buildBroadcastHtml } from "../lib/broadcastEmail";
 
 // ── BLOSSOM SAGE ───────────────────────────────────────────
 const T = {
@@ -155,7 +156,17 @@ interface EmailUsage {
 const RESEND_MONTH_LIMIT = 3000;
 const RESEND_DAY_LIMIT = 100;
 
-type Tab = "users" | "feedback" | "focus" | "catalog" | "codes" | "errors";
+type Tab = "users" | "feedback" | "focus" | "catalog" | "codes" | "broadcast" | "errors";
+
+// Istoric trimiteri newsletter (oglindește tabelul broadcast_log).
+interface BroadcastLog {
+  id: string;
+  subject: string;
+  recipients: number;
+  sent: number;
+  failed: number;
+  created_at: string;
+}
 
 // Statusuri feedback (operare: triaj simplu). Eticheta vine din i18n
 // (admin.feedbackStatus.<key>); aici păstrăm doar culorile.
@@ -306,6 +317,34 @@ export default function AdminPage() {
   const [reminderMsg, setReminderMsg] = useState("");
   const [reminderErr, setReminderErr] = useState("");
 
+  // ── Newsletter (broadcast către proprii useri) ────────────
+  const [bcSubject, setBcSubject] = useState("");
+  const [bcTitle, setBcTitle] = useState("");
+  const [bcBody, setBcBody] = useState("");
+  const [bcImageUrl, setBcImageUrl] = useState("");
+  const [bcCtaLabel, setBcCtaLabel] = useState("");
+  const [bcCtaUrl, setBcCtaUrl] = useState("");
+  const [bcLang, setBcLang] = useState<"ro" | "en">("ro");
+  const [bcTestEmail, setBcTestEmail] = useState(user?.email ?? "");
+  const [bcBusy, setBcBusy] = useState<"" | "test" | "dry" | "send">("");
+  const [bcMsg, setBcMsg] = useState("");
+  const [bcErr, setBcErr] = useState("");
+  const [broadcastLog, setBroadcastLog] = useState<BroadcastLog[]>([]);
+
+  // Preview live: construim HTML-ul real și înlocuim tokenii de
+  // personalizare cu un exemplu, ca să arate ca un email trimis.
+  const bcPreviewHtml = useMemo(() => {
+    const html = buildBroadcastHtml({
+      title: bcTitle.trim() || undefined,
+      body: bcBody.trim() || (bcLang === "en" ? "Your message…" : "Mesajul tău…"),
+      imageUrl: bcImageUrl.trim() || undefined,
+      ctaLabel: bcCtaLabel.trim() || undefined,
+      ctaUrl: bcCtaUrl.trim() || undefined,
+      lang: bcLang,
+    });
+    return html.replaceAll("__PRENUME__", " Maria").replaceAll("__FN__", "Maria");
+  }, [bcTitle, bcBody, bcImageUrl, bcCtaLabel, bcCtaUrl, bcLang]);
+
   // ── Guard: doar adminii ──────────────────────────────────
   useEffect(() => {
     let active = true;
@@ -401,6 +440,23 @@ export default function AdminPage() {
     loadEmailUsage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authorized, tab]);
+
+  // Încarcă istoricul newsletter prima dată când se deschide tabul.
+  useEffect(() => {
+    if (authorized !== true || tab !== "broadcast") return;
+    if (broadcastLog.length > 0) return;
+    loadBroadcastLog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorized, tab]);
+
+  async function loadBroadcastLog() {
+    const { data } = await supabase
+      .from("broadcast_log")
+      .select("id, subject, recipients, sent, failed, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setBroadcastLog((data as BroadcastLog[]) ?? []);
+  }
 
   async function loadEmailUsage() {
     const { data, error } = await supabase.rpc("admin_email_usage");
@@ -718,6 +774,103 @@ export default function AdminPage() {
       setReminderErr(e instanceof Error ? e.message : "Rularea a eșuat.");
     } finally {
       setReminderBusy("");
+    }
+  }
+
+  // Trimite newsletterul către proprii useri (probă / dry-run / real).
+  async function runBroadcast(mode: "test" | "dry" | "send") {
+    setBcBusy(mode);
+    setBcErr("");
+    setBcMsg("");
+    try {
+      // dryRun doar numără — nu are nevoie de conținut.
+      if (mode === "dry") {
+        const { data, error: fnErr } = await supabase.functions.invoke(
+          "send-broadcast",
+          { body: { dryRun: true } }
+        );
+        if (fnErr) throw fnErr;
+        if (data?.error) throw new Error(data.error);
+        setBcMsg(
+          `${data.recipients} useri vor primi newsletterul (${data.optedOut} dezabonați din ${data.total}).`
+        );
+        return;
+      }
+
+      // Validare conținut pentru probă / trimitere reală.
+      if (!bcSubject.trim()) {
+        setBcErr("Adaugă subiectul emailului.");
+        return;
+      }
+      if (!bcBody.trim()) {
+        setBcErr("Scrie mesajul.");
+        return;
+      }
+
+      const html = buildBroadcastHtml({
+        title: bcTitle.trim() || undefined,
+        body: bcBody,
+        imageUrl: bcImageUrl.trim() || undefined,
+        ctaLabel: bcCtaLabel.trim() || undefined,
+        ctaUrl: bcCtaUrl.trim() || undefined,
+        lang: bcLang,
+      });
+
+      const body: Record<string, unknown> = {
+        subject: bcSubject.trim(),
+        html,
+        lang: bcLang,
+      };
+
+      if (mode === "test") {
+        if (!bcTestEmail.trim()) {
+          setBcErr("Introdu un email pentru probă.");
+          return;
+        }
+        body.testEmail = bcTestEmail.trim();
+      }
+      if (mode === "send") {
+        if (
+          !confirm(
+            "Trimiți newsletterul REAL către toți userii AromaTool (fără cei dezabonați)? Acțiunea nu poate fi anulată."
+          )
+        ) {
+          return;
+        }
+      }
+
+      const { data, error: fnErr } = await supabase.functions.invoke(
+        "send-broadcast",
+        { body }
+      );
+      if (fnErr) throw fnErr;
+      if (data?.error) throw new Error(data.error);
+      if (data?.ok === false) throw new Error(data.error || "Trimiterea a eșuat.");
+
+      if (mode === "test") {
+        setBcMsg(`Probă trimisă la ${data.to}. Verifică-ți inbox-ul.`);
+      } else {
+        setBcMsg(
+          `Gata! Trimise: ${data.sent}, eșuate: ${data.failed} (din ${data.recipients}).`
+        );
+        await loadBroadcastLog();
+      }
+    } catch (e) {
+      // supabase-js aruncă „non-2xx status code" generic; mesajul real de la
+      // funcție (ex. eroarea Resend) e în corpul răspunsului (fnErr.context).
+      let msg = e instanceof Error ? e.message : "Rularea a eșuat.";
+      const ctx = (e as { context?: Response })?.context;
+      if (ctx && typeof ctx.json === "function") {
+        try {
+          const bodyJson = await ctx.json();
+          if (bodyJson?.error) msg = String(bodyJson.error);
+        } catch {
+          /* corpul nu e JSON — păstrăm mesajul generic */
+        }
+      }
+      setBcErr(msg);
+    } finally {
+      setBcBusy("");
     }
   }
 
@@ -1084,6 +1237,11 @@ export default function AdminPage() {
               key: "codes",
               label: t("promo.admin.tab"),
               icon: "ti-ticket",
+            },
+            {
+              key: "broadcast",
+              label: t("admin.tabs.broadcast"),
+              icon: "ti-mail-heart",
             },
             {
               key: "errors",
@@ -3047,6 +3205,365 @@ export default function AdminPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── TAB: NEWSLETTER ─────────────────────────────────── */}
+      {tab === "broadcast" && (
+        <div
+          style={{
+            display: "flex",
+            gap: "18px",
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+          }}
+        >
+          {/* Coloana stângă — compunere */}
+          <div style={{ flex: "1 1 420px", minWidth: "300px" }}>
+            <div
+              style={{
+                background: T.white,
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+                padding: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: T.espresso,
+                  marginBottom: "6px",
+                }}
+              >
+                <i className="ti ti-mail-heart" style={{ color: T.sage }} />
+                Newsletter către userii AromaTool
+              </div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: T.warm,
+                  lineHeight: 1.6,
+                  marginBottom: "16px",
+                }}
+              >
+                Email brandat AromaTool către toți userii cu cont (mai puțin cei
+                dezabonați). Folosește <code>__PRENUME__</code> oriunde vrei
+                prenumele destinatarului. Ordine recomandată: 1) probă la tine,
+                2) vezi câți primesc, 3) trimite real.
+              </div>
+
+              {/* Selector limbă (structura salut/footer) */}
+              <div style={{ marginBottom: "12px" }}>
+                <FieldLabel>Limba structurii (salut + footer)</FieldLabel>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {(["ro", "en"] as const).map((lng) => (
+                    <button
+                      key={lng}
+                      onClick={() => setBcLang(lng)}
+                      style={{
+                        flex: 1,
+                        padding: "9px 12px",
+                        background: bcLang === lng ? T.sageLight : T.cream,
+                        color: bcLang === lng ? T.sageDark : T.warm,
+                        border: `1px solid ${bcLang === lng ? T.sage : T.border}`,
+                        borderRadius: "10px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        fontFamily: "inherit",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {lng === "ro" ? "Română" : "English"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <FieldLabel>Subiect *</FieldLabel>
+              <input
+                value={bcSubject}
+                onChange={(e) => setBcSubject(e.target.value)}
+                placeholder="ex: Ce mai faci? Noutăți AromaTool 🌿"
+                style={inputStyle}
+              />
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>Titlu (opțional, deasupra mesajului)</FieldLabel>
+                <input
+                  value={bcTitle}
+                  onChange={(e) => setBcTitle(e.target.value)}
+                  placeholder="ex: Ți-am pregătit ceva nou"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>Mesaj *</FieldLabel>
+                <textarea
+                  value={bcBody}
+                  onChange={(e) => setBcBody(e.target.value)}
+                  placeholder={
+                    "Bună__PRENUME__! (scrie liber, cu rânduri noi)\n\nLinkurile https://... devin clicabile automat."
+                  }
+                  rows={7}
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+                />
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>URL imagine (opțional)</FieldLabel>
+                <input
+                  value={bcImageUrl}
+                  onChange={(e) => setBcImageUrl(e.target.value)}
+                  placeholder="https://.../poza.jpg"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <div style={{ flex: 1 }}>
+                  <FieldLabel>Text buton (opțional)</FieldLabel>
+                  <input
+                    value={bcCtaLabel}
+                    onChange={(e) => setBcCtaLabel(e.target.value)}
+                    placeholder="ex: Deschide AromaTool"
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <FieldLabel>Link buton (opțional)</FieldLabel>
+                  <input
+                    value={bcCtaUrl}
+                    onChange={(e) => setBcCtaUrl(e.target.value)}
+                    placeholder="https://getaromatool.com"
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: "12px" }}>
+                <FieldLabel>Email pentru probă</FieldLabel>
+                <input
+                  value={bcTestEmail}
+                  onChange={(e) => setBcTestEmail(e.target.value)}
+                  placeholder="adresa@ta.ro"
+                  style={inputStyle}
+                />
+              </div>
+
+              {bcErr && (
+                <div
+                  style={{
+                    background: T.redLight,
+                    color: T.red,
+                    border: `1px solid ${T.red}`,
+                    borderRadius: "10px",
+                    padding: "9px 12px",
+                    fontSize: "13px",
+                    marginTop: "12px",
+                  }}
+                >
+                  {bcErr}
+                </div>
+              )}
+              {bcMsg && (
+                <div
+                  style={{
+                    background: T.greenLight,
+                    color: T.green,
+                    border: `1px solid ${T.green}`,
+                    borderRadius: "10px",
+                    padding: "9px 12px",
+                    fontSize: "13px",
+                    marginTop: "12px",
+                  }}
+                >
+                  {bcMsg}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "16px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  onClick={() => runBroadcast("test")}
+                  disabled={!!bcBusy}
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    padding: "11px 14px",
+                    background: T.white,
+                    color: T.sage,
+                    border: `1px solid ${T.sage}`,
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: bcBusy ? "default" : "pointer",
+                    opacity: bcBusy ? 0.6 : 1,
+                  }}
+                >
+                  <i className="ti ti-send" style={{ marginRight: 6 }} />
+                  {bcBusy === "test" ? "Se trimite..." : "Trimite probă"}
+                </button>
+                <button
+                  onClick={() => runBroadcast("dry")}
+                  disabled={!!bcBusy}
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    padding: "11px 14px",
+                    background: T.white,
+                    color: T.warm,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: bcBusy ? "default" : "pointer",
+                    opacity: bcBusy ? 0.6 : 1,
+                  }}
+                >
+                  <i className="ti ti-users" style={{ marginRight: 6 }} />
+                  {bcBusy === "dry" ? "Verific..." : "Câți primesc?"}
+                </button>
+              </div>
+
+              <button
+                onClick={() => runBroadcast("send")}
+                disabled={!!bcBusy}
+                style={{
+                  ...primaryBtn,
+                  marginTop: "10px",
+                  cursor: bcBusy ? "default" : "pointer",
+                  opacity: bcBusy ? 0.6 : 1,
+                }}
+              >
+                <i className="ti ti-mail-forward" style={{ marginRight: 6 }} />
+                {bcBusy === "send"
+                  ? "Se trimite..."
+                  : "Trimite tuturor (real)"}
+              </button>
+            </div>
+
+            {/* Istoric trimiteri */}
+            <div
+              style={{
+                fontSize: "15px",
+                fontWeight: 600,
+                color: T.espresso,
+                margin: "22px 4px 10px",
+              }}
+            >
+              Trimiteri anterioare
+            </div>
+            {broadcastLog.length === 0 ? (
+              <div
+                style={{
+                  padding: "24px",
+                  textAlign: "center",
+                  color: T.muted,
+                  background: T.white,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: "14px",
+                  fontSize: "13px",
+                }}
+              >
+                Încă nu ai trimis niciun newsletter.
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: T.white,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: "14px",
+                  overflowX: "auto",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    minWidth: "440px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <th style={thStyle}>Subiect</th>
+                      <th style={thStyle}>Trimise</th>
+                      <th style={thStyle}>Eșuate</th>
+                      <th style={thStyle}>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {broadcastLog.map((b) => (
+                      <tr
+                        key={b.id}
+                        style={{ borderBottom: `1px solid ${T.border}` }}
+                      >
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>
+                          {b.subject}
+                        </td>
+                        <td style={{ ...tdStyle, color: T.green }}>{b.sent}</td>
+                        <td
+                          style={{
+                            ...tdStyle,
+                            color: b.failed > 0 ? T.red : T.muted,
+                          }}
+                        >
+                          {b.failed}
+                        </td>
+                        <td style={{ ...tdStyle, color: T.muted, fontSize: "12px" }}>
+                          {new Date(b.created_at).toLocaleDateString(uiLocale(), {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Coloana dreaptă — preview live */}
+          <div style={{ flex: "1 1 380px", minWidth: "300px" }}>
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: T.muted,
+                margin: "0 4px 8px",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Previzualizare (exemplu: „Maria")
+            </div>
+            <iframe
+              title="preview-newsletter"
+              srcDoc={bcPreviewHtml}
+              style={{
+                width: "100%",
+                height: "640px",
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+                background: "#F2F5F0",
+              }}
+            />
+          </div>
         </div>
       )}
 
